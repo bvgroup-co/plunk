@@ -84,6 +84,9 @@ export const ContactSchemas = {
   bulkAction: z.object({
     contactIds: z.array(uuid).min(1).max(1000),
   }),
+  lookup: z.object({
+    emails: z.array(z.string().email()).min(1).max(500),
+  }),
 } as const;
 
 const segmentFilterSchema = z.object({
@@ -144,6 +147,8 @@ export const SegmentSchemas = {
   }),
   members: z.object({
     emails: z.array(z.string().email()).min(1).max(500),
+    createMissing: z.boolean().optional(),
+    subscribed: z.boolean().optional(),
   }),
 };
 

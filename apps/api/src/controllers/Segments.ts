@@ -155,7 +155,7 @@ export class Segments {
   public async addMembers(req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
     const segmentId = req.params.id;
-    const {emails} = req.body;
+    const {emails, createMissing, subscribed} = req.body as {emails: string[]; createMissing?: boolean; subscribed?: boolean};
 
     if (!segmentId) {
       return res.status(400).json({error: 'Segment ID is required'});
@@ -165,7 +165,7 @@ export class Segments {
       return res.status(400).json({error: 'emails must be a non-empty array'});
     }
 
-    const result = await SegmentService.addContacts(auth.projectId!, segmentId, emails);
+    const result = await SegmentService.addContacts(auth.projectId!, segmentId, emails, createMissing ?? false, subscribed ?? true);
 
     return res.status(200).json(result);
   }

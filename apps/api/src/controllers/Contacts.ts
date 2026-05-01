@@ -274,6 +274,30 @@ export class Contacts {
   }
 
   /**
+   * POST /contacts/lookup
+   * Bulk-check which emails already exist in the project (max 500)
+   */
+  @Post('lookup')
+  @Middleware([requireAuth, requireEmailVerified])
+  @CatchAsync
+  public async lookup(req: Request, res: Response, _next: NextFunction) {
+    const auth = res.locals.auth;
+    const {emails} = req.body as {emails: string[]};
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({error: 'emails must be a non-empty array'});
+    }
+
+    if (emails.length > 500) {
+      return res.status(400).json({error: 'Maximum 500 emails per lookup'});
+    }
+
+    const result = await ContactService.lookup(auth.projectId!, emails);
+
+    return res.status(200).json(result);
+  }
+
+  /**
    * POST /contacts/import
    * Import contacts from CSV file
    */

@@ -328,7 +328,9 @@ export class SegmentService {
     projectId: string,
     segmentId: string,
     emails: string[],
-  ): Promise<{added: number; notFound: string[]}> {
+    createMissing = false,
+    subscribed = true,
+  ): Promise<{added: number; created: number; notFound: string[]}> {
     const segment = await this.get(projectId, segmentId);
 
     if (segment.type !== 'STATIC') {
@@ -336,7 +338,7 @@ export class SegmentService {
     }
 
     // Look up contacts by email (case-insensitive)
-    const contacts = await prisma.contact.findMany({
+    let contacts = await prisma.contact.findMany({
       where: {
         projectId,
         email: {in: emails, mode: 'insensitive'},
@@ -344,7 +346,24 @@ export class SegmentService {
       select: {id: true, email: true},
     });
 
-    const foundEmails = new Set(contacts.map(c => c.email.toLowerCase()));
+    let foundEmails = new Set(contacts.map(c => c.email.toLowerCase()));
+    const missing = emails.filter(e => !foundEmails.has(e.toLowerCase()));
+
+    let created = 0;
+    if (createMissing && missing.length > 0) {
+      await prisma.contact.createMany({
+        data: missing.map(email => ({projectId, email, subscribed})),
+        skipDuplicates: true,
+      });
+      created = missing.length;
+      // Re-fetch to include newly created contacts
+      contacts = await prisma.contact.findMany({
+        where: {projectId, email: {in: emails, mode: 'insensitive'}},
+        select: {id: true, email: true},
+      });
+      foundEmails = new Set(contacts.map(c => c.email.toLowerCase()));
+    }
+
     const notFound = emails.filter(e => !foundEmails.has(e.toLowerCase()));
 
     if (contacts.length > 0) {
@@ -377,7 +396,7 @@ export class SegmentService {
       await prisma.segment.update({where: {id: segmentId}, data: {memberCount}});
     }
 
-    return {added: contacts.length, notFound};
+    return {added: contacts.length, created, notFound};
   }
 
   /**

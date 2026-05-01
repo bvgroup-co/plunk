@@ -77,6 +77,23 @@ export class ContactService {
   }
 
   /**
+   * Bulk-check which emails exist in the project — single query, safe for up to 500 addresses.
+   */
+  public static async lookup(
+    projectId: string,
+    emails: string[],
+  ): Promise<{found: string[]; notFound: string[]}> {
+    const rows = await prisma.contact.findMany({
+      where: {projectId, email: {in: emails, mode: 'insensitive'}},
+      select: {email: true},
+    });
+    const foundSet = new Set(rows.map(r => r.email.toLowerCase()));
+    const found = emails.filter(e => foundSet.has(e.toLowerCase()));
+    const notFound = emails.filter(e => !foundSet.has(e.toLowerCase()));
+    return {found, notFound};
+  }
+
+  /**
    * Find a contact by email (returns null if not found)
    */
   public static async findByEmail(projectId: string, email: string): Promise<Contact | null> {

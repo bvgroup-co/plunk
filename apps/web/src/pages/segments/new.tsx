@@ -48,14 +48,15 @@ export default function NewSegmentPage() {
       // For static segments with pre-selected contacts, add them now
       if (segmentType === 'STATIC' && selectedContacts.length > 0) {
         try {
-          const result = await network.fetch<{added: number; notFound: string[]}, typeof SegmentSchemas.members>(
+          const result = await network.fetch<{added: number; created: number; notFound: string[]}, typeof SegmentSchemas.members>(
             'POST',
             `/segments/${segment.id}/members`,
-            {emails: selectedContacts},
+            {emails: selectedContacts, createMissing: true},
           );
-          toast.success(
-            `Segment created with ${result.added} contact${result.added !== 1 ? 's' : ''}`,
-          );
+          const msg = result.created > 0
+            ? `Segment created with ${result.added} contact${result.added !== 1 ? 's' : ''} (${result.created} new)`
+            : `Segment created with ${result.added} contact${result.added !== 1 ? 's' : ''}`;
+          toast.success(msg);
         } catch {
           // Segment was created; just warn about members
           toast.warning('Segment created, but some contacts could not be added');
@@ -194,6 +195,7 @@ export default function NewSegmentPage() {
                   <ContactPicker
                     selected={selectedContacts}
                     onChange={setSelectedContacts}
+                    onAdd={async (emails, _subscribed) => setSelectedContacts(prev => [...new Set([...prev, ...emails])])}
                     placeholder="Search and select contacts..."
                   />
                 </CardContent>

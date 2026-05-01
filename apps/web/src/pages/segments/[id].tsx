@@ -127,21 +127,19 @@ export default function SegmentDetailPage() {
     }
   };
 
-  const handleAddMembers = async () => {
-    if (pickedEmails.length === 0) {
-      toast.error('Select at least one contact');
-      return;
-    }
-
+  const handleAddMembers = async (emails: string[], subscribed = true) => {
     setIsAddingMembers(true);
     try {
-      const result = await network.fetch<{added: number; notFound: string[]}, typeof SegmentSchemas.members>(
+      const result = await network.fetch<{added: number; created: number; notFound: string[]}, typeof SegmentSchemas.members>(
         'POST',
         `/segments/${id}/members`,
-        {emails: pickedEmails},
+        {emails, createMissing: true, subscribed},
       );
 
-      toast.success(`Added ${result.added} contact${result.added !== 1 ? 's' : ''} to segment`);
+      const msg = result.created > 0
+        ? `Added ${result.added} contact${result.added !== 1 ? 's' : ''} (${result.created} new)`
+        : `Added ${result.added} contact${result.added !== 1 ? 's' : ''} to segment`;
+      toast.success(msg);
       setPickedEmails([]);
       void mutate();
       void mutateContacts();
@@ -318,26 +316,26 @@ export default function SegmentDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Add Members</CardTitle>
-                  <CardDescription>Search and select contacts to add to this segment</CardDescription>
+                  <CardDescription>Search and select contacts, or paste a list of emails</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <ContactPicker
                     selected={pickedEmails}
                     onChange={setPickedEmails}
+                    onAdd={handleAddMembers}
                     existing={contactsData?.data.map(c => c.email) ?? []}
                     placeholder="Search contacts to add..."
                   />
-                  <Button
-                    type="button"
-                    onClick={handleAddMembers}
-                    disabled={isAddingMembers || pickedEmails.length === 0}
-                  >
-                    {isAddingMembers
-                      ? 'Adding...'
-                      : pickedEmails.length > 0
-                        ? `Add ${pickedEmails.length} Contact${pickedEmails.length !== 1 ? 's' : ''}`
-                        : 'Add Contacts'}
-                  </Button>
+                  {pickedEmails.length > 0 && (
+                    <Button
+                      type="button"
+                      onClick={() => void handleAddMembers(pickedEmails)}
+                      disabled={isAddingMembers}
+                      className="w-full"
+                    >
+                      {isAddingMembers ? 'Adding...' : `Add ${pickedEmails.length} Contact${pickedEmails.length !== 1 ? 's' : ''}`}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
