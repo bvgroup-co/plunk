@@ -133,9 +133,11 @@ const competitors = [
 ];
 
 const customers = [
-  {name: 'Dodo Payments', url: 'https://dodopayments.com', logo: '/assets/dodo.svg'},
   {name: 'Krumzi', url: 'https://krumzi.com', logo: '/assets/krumzi.svg'},
   {name: 'Waidwissen', url: 'https://waidwissen.com', logo: '/assets/waidwissen.svg'},
+  {name: 'Dodo Payments', url: 'https://dodopayments.com', logo: '/assets/dodo.svg'},
+  {name: 'SnowSEO', url: 'https://snowseo.com', logo: '/assets/snowseo.svg', imgClassName: 'h-9'},
+  {name: 'Viral', url: 'https://viral.app', logo: '/assets/viral.svg', imgClassName: 'h-9'},
 ];
 
 const tickerItems = [
@@ -363,23 +365,29 @@ export default function Index() {
                 >
                   Built into products at
                 </span>
-                <div className={'flex flex-wrap items-center justify-center gap-10 sm:gap-16'}>
+                <div className={'flex flex-wrap items-center justify-center gap-10 xl:grid xl:grid-cols-5 xl:justify-items-center xl:gap-10'}>
                   {customers.map(c => (
                     <a
                       key={c.name}
                       href={c.url}
                       target={'_blank'}
                       rel={'noopener noreferrer'}
-                      className={'group'}
+                      className={'group flex flex-col items-center gap-1.5'}
                       aria-label={c.name}
                     >
                       <img
                         src={c.logo}
                         alt={c.name}
-                        className={
-                          'h-7 w-auto grayscale opacity-40 transition-all duration-300 group-hover:grayscale-0 group-hover:opacity-100'
-                        }
+                        className={`${c.imgClassName ?? 'h-7'} w-auto max-w-none grayscale opacity-40 transition-all duration-300 group-hover:grayscale-0 group-hover:opacity-100`}
                       />
+                      {c.label && (
+                        <span
+                          style={{fontFamily: 'var(--font-mono)'}}
+                          className={'text-[10px] uppercase tracking-[0.18em] text-neutral-400 transition-colors duration-300 group-hover:text-neutral-600'}
+                        >
+                          {c.label}
+                        </span>
+                      )}
                     </a>
                   ))}
                 </div>
