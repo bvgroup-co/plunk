@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.10.0](https://github.com/useplunk/plunk/compare/v0.9.0...v0.10.0) (2026-05-01)
+
+
+### Features
+
+* add className prop to EmptyState component for custom styling ([c278a0f](https://github.com/useplunk/plunk/commit/c278a0fd944977d4ea3a0c5a4a43ff4cc0a13aa3))
+* add configurable attachment limits for email service ([2eb4079](https://github.com/useplunk/plunk/commit/2eb407993bd5fed3e74be73445185e517c18b994)), closes [#358](https://github.com/useplunk/plunk/issues/358)
+* add middleware support for .md file rewrites ([0b3aa28](https://github.com/useplunk/plunk/commit/0b3aa28101d50a734945ce19b924f9aa30631c64))
+* add updateActiveProject function for in-place project updates ([6f31fa2](https://github.com/useplunk/plunk/commit/6f31fa2503b11e3a9a37d753086bbb74b42f7bc4))
+* enhance contact addition with bulk email lookup and subscription options ([bb72911](https://github.com/useplunk/plunk/commit/bb72911fa25e3a204095e74c07efbc261154ac30))
+* enhance contact data handling by filtering empty strings and allowing null to delete fields ([1094651](https://github.com/useplunk/plunk/commit/10946511b019ff76ce5f785a39cc0db4ea9ce820))
+* Enhance ease of use of workflow editor ([c910d20](https://github.com/useplunk/plunk/commit/c910d20bb71ff5de4abf95f3f96be9c435342cb4))
+* implement CommandPalette for enhanced navigation and recent pages tracking ([1c89ed0](https://github.com/useplunk/plunk/commit/1c89ed083e49148967713e9a9c2f7f8833db07c4))
+* implement meter event processing with queue for Stripe billing ([e048fc1](https://github.com/useplunk/plunk/commit/e048fc157080b36f40fbfc4440db51367a2d374b))
+* implement phishing detection using OpenRouter API with configurable sampling rate ([2da8b06](https://github.com/useplunk/plunk/commit/2da8b065d08438aa2adea397d8ab2a560e996af6))
+
+
+### Bug Fixes
+
+* Add in-memory cache for lower-confidence phishing checks ([208c809](https://github.com/useplunk/plunk/commit/208c809a90d0721261e643523b338d05e23e2bf9))
+* add new configuration options for phishing detection thresholds ([c0e0ad8](https://github.com/useplunk/plunk/commit/c0e0ad8bc6bfdddea5193191156d18aad440c2b0))
+* add project name and sender email parameters to phishing content check ([1637d54](https://github.com/useplunk/plunk/commit/1637d54e1b132dd6864fb1c50d23a388c1c47bf5))
+* add project name and sender email parameters to phishing content check ([15294a4](https://github.com/useplunk/plunk/commit/15294a40d88289fa8fd876c9e7c201eb1e2ca956))
+* Consistency across buttons and labels ([c1bcd35](https://github.com/useplunk/plunk/commit/c1bcd358cc611594d851414687c04bf7a03759a1))
+* Consistency across cards ([517753c](https://github.com/useplunk/plunk/commit/517753c420204510e06decec01db7749894a9265))
+* Content negotiation for xml and txt ([c8190b9](https://github.com/useplunk/plunk/commit/c8190b953f9f2e28e6cfa98e72d8dcfbba7e251b))
+* Harmonize rings and hover states ([f40cc86](https://github.com/useplunk/plunk/commit/f40cc86cec661899fb862b56ce3e35bf70b33e54))
+* improve layout and accessibility of workflow header and buttons ([ab3edd7](https://github.com/useplunk/plunk/commit/ab3edd7dc9030eeb770ffd64087476adf10d2d06))
+* log message for projects passing phishing checks ([8628754](https://github.com/useplunk/plunk/commit/862875428d21de03643e8e51126cc59abef95ccb))
+* prevent unnecessary state updates in search input effect ([98f1e80](https://github.com/useplunk/plunk/commit/98f1e80fca8253c125ba24c4d84c5be86841e1fa))
+* reconcile totalRecipients in CampaignService to prevent stuck campaigns ([4322de9](https://github.com/useplunk/plunk/commit/4322de929a84279370bedcbb4f6b7dcd81145aea)), closes [#348](https://github.com/useplunk/plunk/issues/348)
+* **ses:** emit List-Unsubscribe inside the header section, not the body ([11c428d](https://github.com/useplunk/plunk/commit/11c428d4ffe7c8aa87aac4d24148aaa95e01507a))
+* standardize step type labels and update visual styles in workflow components ([bdc9b30](https://github.com/useplunk/plunk/commit/bdc9b30ef29396870aa42515b8e688485a4673e8))
+* Sync display name in TemplateSearchPicker when initialName changes ([3649392](https://github.com/useplunk/plunk/commit/3649392b475271198cd61295091e8acf708efa25))
+* Sync display name in TemplateSearchPicker when initialName changes ([cbde3cc](https://github.com/useplunk/plunk/commit/cbde3cce3fcee382dae04e79a9480e67ad896725))
+* turn warning into success log ([b7eb254](https://github.com/useplunk/plunk/commit/b7eb2549d433552f32783b6fb8c192f5afb48ecd))
+* update phishing confidence threshold to 95% ([bb78c86](https://github.com/useplunk/plunk/commit/bb78c86c400b60fb0e84c7872e20ad6f7c43c199))
+* update project disabled messages for clarity and consistency ([d7eb85f](https://github.com/useplunk/plunk/commit/d7eb85ffdd99177c5e27104779281f5a08fe36a7))
+* update project icon colors for improved visibility and consistency ([5f741c6](https://github.com/useplunk/plunk/commit/5f741c66c7f0c9c25c45b26917ff68529d15f958))
+* update response format for phishing analysis and improve JSON parsing comment ([91d0d2d](https://github.com/useplunk/plunk/commit/91d0d2d297cb38fe0dfdfd7f73df355e2f51096a))
+
 ## [0.9.0](https://github.com/useplunk/plunk/compare/v0.8.0...v0.9.0) (2026-04-20)
 
 
