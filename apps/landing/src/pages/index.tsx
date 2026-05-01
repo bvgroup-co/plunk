@@ -365,7 +365,7 @@ export default function Index() {
                 >
                   Built into products at
                 </span>
-                <div className={'flex flex-wrap items-center justify-center gap-10 xl:grid xl:grid-cols-5 xl:justify-items-center xl:gap-10'}>
+                <div className={'flex flex-wrap items-center justify-center gap-10 sm:gap-14'}>
                   {customers.map(c => (
                     <a
                       key={c.name}
