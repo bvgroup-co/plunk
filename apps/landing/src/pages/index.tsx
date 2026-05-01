@@ -132,7 +132,7 @@ const competitors = [
   {name: 'Mailgun', slug: 'mailgun'},
 ];
 
-const customers = [
+const customers: {name: string; url: string; logo: string; imgClassName?: string; label?: string}[] = [
   {name: 'Krumzi', url: 'https://krumzi.com', logo: '/assets/krumzi.svg'},
   {name: 'Waidwissen', url: 'https://waidwissen.com', logo: '/assets/waidwissen.svg'},
   {name: 'Dodo Payments', url: 'https://dodopayments.com', logo: '/assets/dodo.svg'},
