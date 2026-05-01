@@ -799,6 +799,28 @@ export class NtfyService {
     });
   }
 
+  public static async notifyEarlyFraudWarning(
+    chargeId: string,
+    fraudType: string,
+    cardFingerprint: string | null,
+    customerEmail: string | null,
+  ): Promise<void> {
+    const details = [
+      `Charge: ${chargeId}`,
+      `Fraud type: ${fraudType}`,
+      cardFingerprint ? `Card fingerprint: ${cardFingerprint}` : null,
+      customerEmail ? `Customer: ${customerEmail}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    await this.sendUrgent('Stripe Early Fraud Warning', `Refunded and blocklisted. ${details}`, [
+      NtfyTag.SHIELD,
+      NtfyTag.MONEY,
+      NtfyTag.SKULL,
+    ]);
+  }
+
   /**
    * Initialize the ntfy service with the configured URL
    */

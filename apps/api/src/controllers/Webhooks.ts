@@ -652,6 +652,86 @@ export class Webhooks {
           break;
         }
 
+        case 'radar.early_fraud_warning.created': {
+          const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+          const chargeId = typeof warning.charge === 'string' ? warning.charge : warning.charge?.id;
+
+          if (!chargeId) {
+            signale.warn('[WEBHOOK] radar.early_fraud_warning.created missing charge ID');
+            break;
+          }
+
+          signale.warn(`[WEBHOOK] Early fraud warning received for charge ${chargeId} (${warning.fraud_type})`);
+
+          // Retrieve the charge to get card fingerprint and customer email
+          const charge = await stripe.charges.retrieve(chargeId, {
+            expand: ['payment_method_details', 'billing_details'],
+          });
+
+          const cardFingerprint = charge.payment_method_details?.card?.fingerprint ?? null;
+          const customerEmail = charge.billing_details?.email ?? null;
+
+          // Refund the charge
+          try {
+            await stripe.refunds.create({charge: chargeId});
+            signale.success(`[WEBHOOK] Refunded charge ${chargeId} due to early fraud warning`);
+          } catch (refundError) {
+            signale.error(`[WEBHOOK] Failed to refund charge ${chargeId}:`, refundError);
+          }
+
+          // Add card fingerprint and email to Stripe Radar blocklist value lists
+          if (cardFingerprint) {
+            try {
+              const lists = await stripe.radar.valueLists.list({alias: 'blocked_card_fingerprints'});
+              let listId: string;
+
+              const existingList = lists.data[0];
+              if (existingList) {
+                listId = existingList.id;
+              } else {
+                const newList = await stripe.radar.valueLists.create({
+                  alias: 'blocked_card_fingerprints',
+                  name: 'Blocked Card Fingerprints',
+                  item_type: 'card_fingerprint',
+                });
+                listId = newList.id;
+              }
+
+              await stripe.radar.valueListItems.create({value_list: listId, value: cardFingerprint});
+              signale.success(`[WEBHOOK] Added card fingerprint ${cardFingerprint} to Radar blocklist`);
+            } catch (blocklistError) {
+              signale.error(`[WEBHOOK] Failed to add card fingerprint to Radar blocklist:`, blocklistError);
+            }
+          }
+
+          if (customerEmail) {
+            try {
+              const emailLists = await stripe.radar.valueLists.list({alias: 'blocked_emails'});
+              let emailListId: string;
+
+              const existingEmailList = emailLists.data[0];
+              if (existingEmailList) {
+                emailListId = existingEmailList.id;
+              } else {
+                const newList = await stripe.radar.valueLists.create({
+                  alias: 'blocked_emails',
+                  name: 'Blocked Emails',
+                  item_type: 'email',
+                });
+                emailListId = newList.id;
+              }
+
+              await stripe.radar.valueListItems.create({value_list: emailListId, value: customerEmail});
+              signale.success(`[WEBHOOK] Added email ${customerEmail} to Radar blocklist`);
+            } catch (blocklistError) {
+              signale.error(`[WEBHOOK] Failed to add email to Radar blocklist:`, blocklistError);
+            }
+          }
+
+          await NtfyService.notifyEarlyFraudWarning(chargeId, warning.fraud_type, cardFingerprint, customerEmail);
+          break;
+        }
+
         // Unhandled events
         default:
           signale.info(`[WEBHOOK] Unhandled Stripe event type: ${event.type}`);
