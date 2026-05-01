@@ -50,8 +50,6 @@ export function ContactPicker({
 
   // Paste mode
   const [pasteText, setPasteText] = useState('');
-  const [isLooking, setIsLooking] = useState(false);
-  const [preview, setPreview] = useState<{found: string[]; notFound: string[]} | null>(null);
   const [subscribeNew, setSubscribeNew] = useState(true);
   const [debouncedPaste, setDebouncedPaste] = useState('');
   const pasteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -72,17 +70,14 @@ export function ContactPicker({
     };
   }, [pasteText]);
 
-  useEffect(() => {
-    const emails = parseEmails(debouncedPaste).filter(e => !existing.includes(e));
-    if (emails.length === 0) {
-      setPreview(null);
-      return;
-    }
-    setIsLooking(true);
-    network.fetch<{found: string[]; notFound: string[]}, typeof ContactSchemas.lookup>(
-      'POST', '/contacts/lookup', {emails},
-    ).then(setPreview).finally(() => setIsLooking(false));
-  }, [debouncedPaste]);
+  const debouncedEmails = parseEmails(debouncedPaste).filter(e => !existing.includes(e));
+  const {data: preview, isLoading: isLooking} = useSWR(
+    debouncedEmails.length > 0 ? ['/contacts/lookup', ...debouncedEmails] : null,
+    () => network.fetch<{found: string[]; notFound: string[]}, typeof ContactSchemas.lookup>(
+      'POST', '/contacts/lookup', {emails: debouncedEmails},
+    ),
+    {revalidateOnFocus: false},
+  );
 
   const {data, isLoading} = useSWR<CursorPaginatedResponse<Contact>>(
     open && debouncedSearch.length > 0 ? `/contacts?limit=20&search=${encodeURIComponent(debouncedSearch)}` : null,
@@ -106,7 +101,6 @@ export function ContactPicker({
     if (newPastedEmails.length === 0) return;
     await onAdd(newPastedEmails, subscribeNew);
     setPasteText('');
-    setPreview(null);
   };
 
   const visibleChips = selected.slice(0, CHIP_LIMIT);
@@ -254,7 +248,7 @@ export function ContactPicker({
             <p className="text-xs text-neutral-400">Accepts newline, comma, or semicolon-separated addresses</p>
           ) : isLooking ? (
             <p className="flex items-center gap-1.5 text-xs text-neutral-400"><Loader2 className="h-3 w-3 animate-spin" /> Checking...</p>
-          ) : preview ? (
+          ) : newPastedEmails.length > 0 && preview ? (
             <div className="rounded-md border border-neutral-200 divide-y divide-neutral-100 text-sm overflow-hidden">
               {preview.found.length > 0 && (
                 <div className="flex items-center gap-2 px-3 py-2.5 text-neutral-700">
