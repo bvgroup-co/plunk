@@ -2,15 +2,45 @@ import React from 'react';
 import {GuideLayout, InfoBox} from '../../components/guides';
 import {CodeBlock} from '../../components/CodeBlock';
 import Link from 'next/link';
+import type {FAQ} from '../../components/FAQSection';
+
+const faqs: FAQ[] = [
+  {
+    question: 'What is a good email open rate?',
+    answer:
+      'A good email open rate depends on your industry and email type. For B2B emails, 25-35% is considered excellent. For B2C marketing emails, 20-30% is strong. Overall industry averages range from 20-30%, though Apple Mail Privacy Protection has inflated reported rates by 5-15 percentage points since 2021. Compare against your own historical data rather than industry averages alone.',
+  },
+  {
+    question: 'What are average B2B email open rates?',
+    answer:
+      'Average B2B email open rates typically range from 20-30%, with top-performing campaigns achieving 35-45%. B2B emails tend to outperform B2C because recipients opted in for professional reasons and have higher intent. Industry-specific rates vary: SaaS averages 22-28%, financial services 20-25%, and professional services 25-30%. Transactional B2B emails like invoices and notifications often exceed 50%.',
+  },
+  {
+    question: 'How do I improve my email open rate?',
+    answer:
+      'The most impactful ways to improve email open rates are: (1) Write compelling, specific subject lines under 50 characters, (2) Personalize beyond first names—use behavioral data and purchase history, (3) Send at optimal times (Tuesday–Thursday, 10am–2pm for B2B), (4) Segment your list to send relevant content to specific groups, (5) Keep your list clean by removing inactive subscribers, (6) Use a recognizable sender name, and (7) Optimize preview text to complement the subject line.',
+  },
+  {
+    question: 'Why are my email open rates low?',
+    answer:
+      'Low email open rates typically result from: weak subject lines that fail to create curiosity or urgency, poor list hygiene with too many inactive subscribers dragging down averages, emails landing in spam due to deliverability or authentication issues, bad send timing, email fatigue from sending too frequently, or poor segmentation sending irrelevant content. Review each factor systematically and A/B test changes one at a time.',
+  },
+  {
+    question: 'Does Apple Mail Privacy Protection affect open rates?',
+    answer:
+      'Yes. Apple Mail Privacy Protection (MPP), launched in iOS 15 in 2021, pre-loads email images and tracking pixels, registering "opens" even if the user never actually read the email. This inflates open rates by 5-15 percentage points across the industry. To adapt, focus on click-through rates and conversions as more reliable engagement metrics, and segment by email client to understand true engagement patterns.',
+  },
+];
 
 export default function EmailOpenRate() {
   return (
     <GuideLayout
-      title="Email Open Rate: Benchmarks, Strategies & Best Practices"
-      description="Learn what affects email open rates, industry benchmarks, and proven tactics to improve opens. Complete guide with actionable tips."
+      title="Email Open Rates: Industry Benchmarks & How to Improve Yours"
+      description="Learn what affects email open rates, industry benchmarks by sector, B2B vs B2C averages, and proven tactics to improve your open rates. Complete guide with actionable tips."
       lastUpdated="2025-12-20"
-      readTime="10 min"
+      readTime="12 min"
       canonical="https://www.useplunk.com/guides/email-open-rate"
+      faqs={faqs}
     >
       {/* Introduction */}
       <section id="introduction" className="mb-12">
@@ -122,6 +152,86 @@ Open Rate = (285 ÷ 950) × 100 = 30%`}
             Since Apple Mail Privacy Protection launched in 2021, industry-wide open rates have increased by 5-15
             percentage points. Compare against your own historical data rather than relying solely on industry
             benchmarks.
+          </p>
+        </InfoBox>
+      </section>
+
+      {/* B2B Email Open Rates */}
+      <section id="b2b-email-open-rates" className="mb-12">
+        <h2 className="text-3xl font-bold text-neutral-900 mb-6">B2B Email Open Rates</h2>
+        <p className="text-neutral-700 leading-relaxed mb-6">
+          B2B (business-to-business) emails consistently outperform B2C benchmarks. Recipients opted in because of
+          genuine professional need, making them more engaged audiences.
+        </p>
+
+        <div className="rounded-xl border border-neutral-200 overflow-hidden mb-8">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold">B2B Industry</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Average Open Rate</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Top Performers</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200 bg-white">
+              <tr>
+                <td className="px-6 py-4 text-sm text-neutral-900">SaaS / Technology</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">22–28%</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">35%+</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm text-neutral-900">Professional Services</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">25–32%</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">40%+</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm text-neutral-900">Financial Services</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">20–26%</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">33%+</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm text-neutral-900">Agency / Marketing</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">18–24%</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">30%+</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm text-neutral-900">Transactional / Receipts</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">45–65%</td>
+                <td className="px-6 py-4 text-sm text-neutral-700">70%+</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 mb-6">
+          <div className="rounded-xl border border-neutral-200 bg-white p-6">
+            <h3 className="text-lg font-semibold text-neutral-900 mb-3">B2B-Specific Tactics</h3>
+            <ul className="space-y-2 text-sm text-neutral-700">
+              <li>• Send Tuesday–Thursday, 10am–2pm in recipient's timezone</li>
+              <li>• Use company/product name in subject line for recognition</li>
+              <li>• Personalize with job title, industry, or company size</li>
+              <li>• Reference specific pain points relevant to their role</li>
+              <li>• Keep frequency lower—1–2 times per month for cold lists</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 bg-white p-6">
+            <h3 className="text-lg font-semibold text-neutral-900 mb-3">B2B vs B2C Differences</h3>
+            <ul className="space-y-2 text-sm text-neutral-700">
+              <li>• B2B decisions are more considered—longer subject lines acceptable</li>
+              <li>• B2B audiences check email less frequently on weekends</li>
+              <li>• B2B recipients share inboxes with colleagues, affecting metrics</li>
+              <li>• B2B unsubscribe rates are typically lower (0.1–0.3% vs 0.3–0.5%)</li>
+              <li>• B2B transactional emails (invoices, updates) have much higher opens</li>
+            </ul>
+          </div>
+        </div>
+
+        <InfoBox type="tip" title="Segment Transactional vs Marketing">
+          <p>
+            Keep transactional emails (invoices, notifications, password resets) in separate campaigns from marketing
+            emails. Transactional emails typically achieve 40–60% open rates, which will skew your marketing
+            benchmarks if mixed together.
           </p>
         </InfoBox>
       </section>

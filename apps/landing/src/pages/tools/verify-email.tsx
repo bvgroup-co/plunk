@@ -58,14 +58,14 @@ export default function VerifyEmailPage() {
   return (
     <>
       <NextSeo
-        title="Free Email Verification Tool | Check Email Validity | Plunk"
-        description="Verify email addresses instantly. Check for typos, disposable domains, MX records, and more. Free email validation tool with detailed results."
+        title="Email Validator | Free Email Address Verification Tool | Plunk"
+        description="Free email validator tool. Check email addresses for validity, typos, disposable domains, and MX record configuration. Verify any email instantly."
         canonical="https://www.useplunk.com/tools/verify-email"
         openGraph={{
-          title: 'Free Email Verification Tool | Check Email Validity | Plunk',
-          description: 'Verify email addresses instantly. Check for typos, disposable domains, MX records, and more.',
+          title: 'Email Validator | Free Email Address Verification Tool | Plunk',
+          description: 'Free email validator. Check email addresses for validity, typos, disposable domains, and MX records. Verify any email instantly.',
           url: 'https://www.useplunk.com/tools/verify-email',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Verification Tool'}],
+          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Validator Tool'}],
         }}
       />
 

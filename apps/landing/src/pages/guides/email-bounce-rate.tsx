@@ -2,6 +2,35 @@ import React from 'react';
 import {GuideLayout, InfoBox} from '../../components/guides';
 import {CodeBlock} from '../../components/CodeBlock';
 import Link from 'next/link';
+import type {FAQ} from '../../components/FAQSection';
+
+const faqs: FAQ[] = [
+  {
+    question: 'What is a good email bounce rate?',
+    answer:
+      'A bounce rate below 2% is considered excellent. Between 2–5% is concerning and needs attention. Above 5% is critical and will seriously damage your sender reputation and deliverability. For hard bounces specifically, keep this below 0.5% per campaign. Most reputable email platforms will suspend accounts or pause sending if hard bounce rates exceed 5–10%.',
+  },
+  {
+    question: 'What is the difference between a hard bounce and a soft bounce?',
+    answer:
+      'A hard bounce is a permanent delivery failure—the email address does not exist, the domain is invalid, or the receiving server has permanently blocked delivery. Remove hard bounce addresses immediately and never send to them again. A soft bounce is a temporary failure—the mailbox is full, the server is temporarily down, or the email is too large. Email platforms typically retry soft bounces automatically for 24–72 hours.',
+  },
+  {
+    question: 'How do I reduce email bounce rates?',
+    answer:
+      'Key strategies to reduce bounces: (1) Use double opt-in to confirm email addresses at signup, (2) Validate email addresses in real-time on forms to catch typos and invalid formats, (3) Remove hard bounces immediately and automatically, (4) Clean your list every 6–12 months to remove stale addresses (15–20% of email addresses go invalid per year), (5) Never purchase email lists—they have 20–40% invalid addresses, and (6) Maintain consistent sending to prevent addresses going stale.',
+  },
+  {
+    question: 'Do bounces affect my email deliverability?',
+    answer:
+      'Yes, high bounce rates directly damage your sender reputation. Email providers like Gmail and Outlook track bounce rates as a signal of list quality and sending practices. High bounce rates cause more of your emails—even to valid addresses—to land in spam. Persistent high bounce rates can lead to your sending IP being blacklisted, making it extremely difficult to deliver any emails.',
+  },
+  {
+    question: 'Why are my emails bouncing suddenly?',
+    answer:
+      'Sudden increases in bounce rates can be caused by: sending to an old list that has gone stale (addresses expire over time), sending to a purchased list, a domain or server configuration change, your sending IP or domain being blacklisted, or reaching inbox provider sending limits. Identify the pattern—are bounces happening on specific domains or across all recipients?—then investigate the root cause.',
+  },
+];
 
 export default function EmailBounceRate() {
   return (
@@ -11,6 +40,7 @@ export default function EmailBounceRate() {
       lastUpdated="2025-12-20"
       readTime="9 min"
       canonical="https://www.useplunk.com/guides/email-bounce-rate"
+      faqs={faqs}
     >
       {/* Introduction */}
       <section id="introduction" className="mb-12">

@@ -1,4 +1,5 @@
-import {Footer, Navbar} from '../';
+import {FAQSection, Footer, Navbar} from '../';
+import type {FAQ} from '../FAQSection';
 import {motion} from 'framer-motion';
 import React, {ReactNode, useLayoutEffect, useState} from 'react';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ interface GuideLayoutProps {
   children: ReactNode;
   canonical?: string;
   ogImage?: string;
+  faqs?: FAQ[];
 }
 
 /**
@@ -26,6 +28,7 @@ export function GuideLayout({
   children,
   canonical,
   ogImage = 'https://www.useplunk.com/assets/card.png',
+  faqs,
 }: GuideLayoutProps) {
   const [headings, setHeadings] = useState<{id: string; text: string; level: number}[]>([]);
   const [activeId, setActiveId] = useState<string>('');
@@ -240,6 +243,13 @@ export function GuideLayout({
           )}
         </div>
       </main>
+
+      {faqs && faqs.length > 0 && (
+        <FAQSection
+          faqs={faqs}
+          schemaId={`faq-${canonical ? canonical.split('/').pop() : 'guide'}`}
+        />
+      )}
 
       <Footer />
     </>

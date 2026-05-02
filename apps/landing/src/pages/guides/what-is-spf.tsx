@@ -2,6 +2,35 @@ import React from 'react';
 import {GuideLayout, InfoBox} from '../../components/guides';
 import {CodeBlock} from '../../components/CodeBlock';
 import Link from 'next/link';
+import type {FAQ} from '../../components/FAQSection';
+
+const faqs: FAQ[] = [
+  {
+    question: 'What is SPF in email?',
+    answer:
+      'SPF (Sender Policy Framework) is an email authentication protocol that lets domain owners specify which mail servers are authorized to send email on behalf of their domain. It works by publishing a list of authorized IP addresses in your DNS as a TXT record. When an email arrives, the receiving server checks if the sending server\'s IP address is on your approved list.',
+  },
+  {
+    question: 'What is the difference between SPF and DKIM?',
+    answer:
+      'SPF verifies that the sending mail server is authorized to send from your domain by checking the server\'s IP address against your DNS record. DKIM adds a cryptographic signature to the email body and headers, verifying the content was not modified in transit. SPF validates who is sending; DKIM validates what was sent. Both work best together, and DMARC requires at least one of them to be properly configured.',
+  },
+  {
+    question: 'How do I create an SPF record?',
+    answer:
+      'Add a TXT record to your domain\'s DNS at the root domain (@ or yourdomain.com) with the format: v=spf1 include:[your-email-service] ~all. Replace the include: with the SPF value from your email provider. If you use multiple email services, combine them in one record: v=spf1 include:_spf.google.com include:spf.useplunk.com ~all. You can only have one SPF record per domain.',
+  },
+  {
+    question: 'What does ~all mean in an SPF record?',
+    answer:
+      '~all (tilde-all) at the end of an SPF record is a "soft fail" qualifier, meaning emails from unlisted servers should be accepted but flagged as potentially suspicious. The alternative -all (hard fail) completely rejects emails from unlisted servers. Most experts recommend ~all for initial setup to avoid blocking legitimate emails. Never use +all—it passes all emails and completely defeats SPF\'s purpose.',
+  },
+  {
+    question: 'Why is SPF failing even though I set it up correctly?',
+    answer:
+      'Common SPF failure causes: (1) You have multiple SPF records—you can only have one, combine all senders into a single record, (2) You exceeded the 10 DNS lookup limit—each include: counts as one lookup, (3) You added a new email service but forgot to add its SPF include, (4) DNS propagation is still in progress—can take up to 48 hours, (5) Your email is being forwarded, which changes the sending IP and breaks SPF (use DKIM too to handle forwarding).',
+  },
+];
 
 export default function WhatIsSPF() {
   return (
@@ -11,6 +40,7 @@ export default function WhatIsSPF() {
       lastUpdated="2025-12-20"
       readTime="7 min"
       canonical="https://www.useplunk.com/guides/what-is-spf"
+      faqs={faqs}
     >
       {/* Introduction */}
       <section id="introduction" className="mb-12">

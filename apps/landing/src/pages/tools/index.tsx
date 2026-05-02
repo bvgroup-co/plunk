@@ -4,7 +4,7 @@ import {DASHBOARD_URI} from '../../lib/constants';
 import React from 'react';
 import Link from 'next/link';
 import {NextSeo} from 'next-seo';
-import {ArrowRight, ArrowUpRight, Code2, Search} from 'lucide-react';
+import {ArrowRight, ArrowUpRight, Code2, Search, ShieldAlert} from 'lucide-react';
 import {Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono} from 'next/font/google';
 
 const display = Bricolage_Grotesque({
@@ -43,19 +43,26 @@ const tools = [
     icon: Search,
     number: '02',
   },
+  {
+    name: 'Spam Checker',
+    slug: 'spam-checker',
+    description: 'Test your email subject line and content for spam trigger words and deliverability issues.',
+    icon: ShieldAlert,
+    number: '03',
+  },
 ];
 
 export default function ToolsIndex() {
   return (
     <>
       <NextSeo
-        title="Free Email Tools | Markdown to Email & Email Verification | Plunk"
-        description="Free tools for email developers: Convert markdown to email-safe HTML and verify email addresses instantly. No sign-up required."
+        title="Free Email Tools | Spam Checker, Email Validator & More | Plunk"
+        description="Free email developer tools: spam checker, email address validator, and markdown-to-email converter. No sign-up required."
         canonical="https://www.useplunk.com/tools"
         openGraph={{
-          title: 'Free Email Tools | Markdown to Email & Email Verification | Plunk',
+          title: 'Free Email Tools | Spam Checker, Email Validator & More | Plunk',
           description:
-            'Free tools for email developers: Convert markdown to email-safe HTML and verify email addresses instantly.',
+            'Free email developer tools: spam checker, email address validator, and markdown-to-email converter. No sign-up required.',
           url: 'https://www.useplunk.com/tools',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Tools'}],
         }}

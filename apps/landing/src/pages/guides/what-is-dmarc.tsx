@@ -2,15 +2,45 @@ import React from 'react';
 import {GuideLayout, InfoBox} from '../../components/guides';
 import {CodeBlock} from '../../components/CodeBlock';
 import Link from 'next/link';
+import type {FAQ} from '../../components/FAQSection';
+
+const faqs: FAQ[] = [
+  {
+    question: 'What is DMARC?',
+    answer:
+      'DMARC (Domain-based Message Authentication, Reporting, and Conformance) is an email authentication protocol that builds on SPF and DKIM to protect your domain from spoofing and phishing. It tells receiving mail servers what to do when an email fails authentication checks—none (monitor), quarantine (spam), or reject (block)—and provides detailed reports about who is sending email using your domain.',
+  },
+  {
+    question: 'What is a DMARC policy?',
+    answer:
+      'A DMARC policy (the "p=" tag) determines how receiving mail servers handle emails that fail authentication. p=none means monitor only and take no action; p=quarantine sends failed emails to spam; p=reject completely blocks failed emails. Start with p=none to gather data, then progressively tighten to quarantine and reject as you confirm all your legitimate senders are properly authenticated.',
+  },
+  {
+    question: 'What does p=reject mean in DMARC?',
+    answer:
+      'p=reject is the strictest DMARC policy. Emails that fail DMARC authentication are completely rejected and not delivered to the recipient. This provides maximum protection against phishing and spoofing, but requires that all your legitimate email sources (newsletters, CRMs, transactional tools) are properly configured with SPF and DKIM before enabling it.',
+  },
+  {
+    question: 'How do I add a DMARC record?',
+    answer:
+      'Add a TXT record in your DNS with the name _dmarc.yourdomain.com. Start with a monitoring-only value: v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com. This records email activity without affecting delivery. After reviewing reports for 2-4 weeks and confirming your SPF and DKIM setup, gradually strengthen to p=quarantine then p=reject.',
+  },
+  {
+    question: 'Is DMARC required for email deliverability?',
+    answer:
+      'Since February 2024, Google and Yahoo require DMARC authentication (with at least p=none) for bulk senders sending more than 5,000 emails per day to Gmail or Yahoo addresses. While not strictly required for smaller senders, implementing DMARC is strongly recommended for all domains to improve deliverability, prevent phishing, and meet industry best practices.',
+  },
+];
 
 export default function WhatIsDMARC() {
   return (
     <GuideLayout
-      title="What is DMARC? Email Policy & Reporting Explained"
-      description="Learn how DMARC works with SPF and DKIM to protect your domain from email spoofing. Complete setup guide with policy examples."
+      title="What is DMARC? Policy, Setup & Reporting Explained"
+      description="Learn how DMARC works with SPF and DKIM to protect your domain. Understand DMARC policies (none, quarantine, reject), how to set up a DMARC record, and read reports."
       lastUpdated="2025-12-20"
       readTime="9 min"
       canonical="https://www.useplunk.com/guides/what-is-dmarc"
+      faqs={faqs}
     >
       {/* Introduction */}
       <section id="introduction" className="mb-12">
