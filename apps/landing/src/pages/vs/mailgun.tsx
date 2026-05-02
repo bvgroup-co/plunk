@@ -52,12 +52,12 @@ export default function MailgunComparison() {
     <>
       <NextSeo
         title="Mailgun Alternative: Open-Source with Marketing & Automation | Plunk"
-        description="Compare Plunk and Mailgun. Mailgun focuses on transactional emails, while Plunk adds marketing campaigns, workflows, and is open-source."
+        description="Switching from Mailgun? Plunk is an open-source alternative with pay-as-you-go pricing, marketing campaigns, and workflow automation — no subscription tiers, no lock-in."
         canonical="https://www.useplunk.com/vs/mailgun"
         openGraph={{
           title: 'Mailgun Alternative: Open-Source with Marketing & Automation | Plunk',
           description:
-            'Compare Plunk and Mailgun. Mailgun is excellent for transactional emails. Plunk adds marketing, workflows, and is open-source.',
+            'Switching from Mailgun? Plunk is open-source with pay-as-you-go pricing, marketing campaigns, and workflow automation — no subscription tiers.',
           url: 'https://www.useplunk.com/vs/mailgun',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Mailgun'}],
         }}

@@ -52,12 +52,12 @@ export default function CustomerioComparison() {
     <>
       <NextSeo
         title="Customer.io Alternative: Open-Source & Developer-Focused | Plunk"
-        description="Compare Plunk and Customer.io. Customer.io is powerful but complex. Plunk is open-source, developer-friendly, with simple workflows and transparent pricing."
+        description="Frustrated with Customer.io's complexity and cost? Plunk is an open-source alternative with simple workflow automation, transparent pay-as-you-go pricing, and no CRM overhead."
         canonical="https://www.useplunk.com/vs/customerio"
         openGraph={{
           title: 'Customer.io Alternative: Open-Source & Developer-Focused | Plunk',
           description:
-            'Compare Plunk and Customer.io. Plunk is open-source, developer-friendly, with simple workflows and transparent pricing.',
+            "Frustrated with Customer.io's complexity and cost? Plunk is open-source with simple workflow automation and transparent pay-as-you-go pricing.",
           url: 'https://www.useplunk.com/vs/customerio',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Customer.io'}],
         }}

@@ -56,12 +56,12 @@ export default function BrevoComparison() {
     <>
       <NextSeo
         title="Brevo (Sendinblue) Alternative: Developer-First & Open Source | Plunk"
-        description="Plunk offers a simpler, developer-focused alternative to Brevo with pay-as-you-go pricing, open-source code, and self-hosting. No contact limits."
+        description="Done with Brevo's contact-based pricing? Plunk is a developer-first, open-source alternative — pay per email not per contact, self-hostable, no contact limits."
         canonical="https://www.useplunk.com/vs/brevo"
         openGraph={{
           title: 'Brevo (Sendinblue) Alternative: Developer-First & Open Source | Plunk',
           description:
-            'Plunk offers a simpler, developer-focused alternative to Brevo with pay-as-you-go pricing, open-source code, and self-hosting.',
+            "Done with Brevo's contact-based pricing? Plunk is open-source, self-hostable, and charges per email not per contact.",
           url: 'https://www.useplunk.com/vs/brevo',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Brevo'}],
         }}

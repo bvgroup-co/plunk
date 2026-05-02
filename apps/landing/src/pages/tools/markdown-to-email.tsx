@@ -46,13 +46,13 @@ export default function MarkdownToEmail() {
   return (
     <>
       <NextSeo
-        title="Free Markdown to Email HTML Converter | Plunk"
-        description="Convert markdown and rich text to email-safe HTML instantly. Free online tool with live preview. Perfect for email developers and marketers."
+        title="Markdown to Email-Safe HTML Converter | Free Online Tool | Plunk"
+        description="Convert Markdown to email-safe HTML instantly — handles inline styles, table layouts, and compatibility across email clients. Free, no sign-up required."
         canonical="https://www.useplunk.com/tools/markdown-to-email"
         openGraph={{
-          title: 'Free Markdown to Email HTML Converter | Plunk',
+          title: 'Markdown to Email-Safe HTML Converter | Free Online Tool | Plunk',
           description:
-            'Convert markdown and rich text to email-safe HTML instantly. Free online tool with live preview.',
+            'Convert Markdown to email-safe HTML instantly — handles inline styles, table layouts, and compatibility across email clients. Free, no sign-up.',
           url: 'https://www.useplunk.com/tools/markdown-to-email',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email HTML Converter'}],
         }}

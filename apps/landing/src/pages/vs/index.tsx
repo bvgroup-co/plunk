@@ -91,13 +91,13 @@ export default function CompetitorsIndex() {
   return (
     <>
       <NextSeo
-        title="Plunk vs Email Competitors | Compare Email Platforms"
-        description="Compare Plunk with Postmark, SendGrid, Mailgun, Mailchimp, ConvertKit, ActiveCampaign, Klaviyo, MailerLite, and more. See why Plunk offers transactional emails plus marketing features in one open-source platform."
+        title="Best Resend, Mailgun & SendGrid Alternatives | Open-Source Email | Plunk"
+        description="Looking for a Resend, Mailgun, or SendGrid alternative? Plunk is open-source, self-hostable, and includes transactional emails, marketing campaigns, and workflow automation — at $0.001/email."
         canonical="https://www.useplunk.com/vs"
         openGraph={{
-          title: 'Plunk vs Email Competitors | Compare Email Platforms',
+          title: 'Best Resend, Mailgun & SendGrid Alternatives | Open-Source Email | Plunk',
           description:
-            'Compare Plunk with 13 leading email platforms. Transactional + marketing emails in one open-source solution.',
+            'Open-source alternative to Resend, Mailgun, and SendGrid. Transactional + marketing emails in one self-hostable platform at $0.001/email.',
           url: 'https://www.useplunk.com/vs',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Competitors'}],
         }}

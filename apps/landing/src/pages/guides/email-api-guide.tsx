@@ -6,8 +6,8 @@ import Link from 'next/link';
 export default function EmailAPIGuide() {
   return (
     <GuideLayout
-      title="Email API Guide: Everything You Need to Know with Code Examples"
-      description="Complete guide to email APIs: how they work, implementation examples, best practices, and choosing the right solution for your application."
+      title="What is an Email API? Complete Guide with Code Examples | Plunk"
+      description="An email API lets you send, receive, and manage emails programmatically. Learn how they work, see code examples in Node.js, Python, PHP, Ruby, and Go, and choose the right provider."
       lastUpdated="2025-12-20"
       readTime="12 min"
       canonical="https://www.useplunk.com/guides/email-api-guide"

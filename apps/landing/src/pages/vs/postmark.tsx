@@ -52,13 +52,13 @@ export default function PostmarkComparison() {
   return (
     <>
       <NextSeo
-        title="Postmark Alternative: Transactional + Marketing Emails | Plunk"
-        description="Plunk offers everything Postmark has for transactional emails, plus marketing campaigns, workflows, and segmentation. Open-source and self-hostable."
+        title="Postmark Alternative: Pay-As-You-Go vs Fixed Pricing | Plunk"
+        description="Postmark starts at $15/month for 10k emails. Plunk charges $0.001/email — no subscription, no minimums. Plus marketing campaigns, workflows, and open-source code."
         canonical="https://www.useplunk.com/vs/postmark"
         openGraph={{
-          title: 'Postmark Alternative: Transactional + Marketing Emails | Plunk',
+          title: 'Postmark Alternative: Pay-As-You-Go vs Fixed Pricing | Plunk',
           description:
-            'Plunk offers everything Postmark has for transactional emails, plus marketing campaigns, workflows, and segmentation.',
+            'Postmark starts at $15/month for 10k emails. Plunk charges $0.001/email — no subscription, no minimums. Plus marketing campaigns and open-source code.',
           url: 'https://www.useplunk.com/vs/postmark',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Postmark'}],
         }}

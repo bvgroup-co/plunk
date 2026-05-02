@@ -51,13 +51,13 @@ export default function ResendComparison() {
   return (
     <>
       <NextSeo
-        title="Plunk vs Resend: Open-Source Alternative with Marketing | Plunk"
-        description="Compare Plunk and Resend. Resend focuses on transactional emails, while Plunk adds marketing campaigns, workflows, and is open-source. Choose based on your needs."
+        title="Open-Source Resend Alternative: Pay-As-You-Go at $0.001/Email | Plunk"
+        description="Resend uses fixed subscription pricing. Plunk is pay-as-you-go at $0.001/email — open-source, self-hostable, with marketing campaigns and workflow automation included."
         canonical="https://www.useplunk.com/vs/resend"
         openGraph={{
-          title: 'Plunk vs Resend: Open-Source Alternative with Marketing',
+          title: 'Open-Source Resend Alternative: Pay-As-You-Go at $0.001/Email | Plunk',
           description:
-            'Compare Plunk and Resend. Resend focuses on transactional emails, while Plunk adds marketing, workflows, and is open-source.',
+            'Resend uses fixed subscription pricing. Plunk is pay-as-you-go at $0.001/email — open-source, self-hostable, with marketing and automation included.',
           url: 'https://www.useplunk.com/vs/resend',
           images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Resend'}],
         }}

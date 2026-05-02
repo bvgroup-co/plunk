@@ -3,6 +3,7 @@ import {motion} from 'framer-motion';
 import {Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono} from 'next/font/google';
 import {DASHBOARD_URI, LANDING_URI, WIKI_URI} from '../lib/constants';
 import React from 'react';
+import {NextSeo} from 'next-seo';
 import Artur from '../../public/assets/artur.png';
 import Joe from '../../public/assets/joe.png';
 import Noah from '../../public/assets/noah.png';
@@ -154,6 +155,15 @@ const tickerItems = [
 export default function Index() {
   return (
     <>
+      <NextSeo
+        title="Plunk — Open-Source Transactional Email Platform"
+        description="Send transactional emails, run marketing campaigns, and automate workflows — all open-source and self-hostable. $0.001/email, no contact limits."
+        openGraph={{
+          title: 'Plunk — Open-Source Transactional Email Platform',
+          description:
+            'Send transactional emails, run marketing campaigns, and automate workflows — all open-source and self-hostable. $0.001/email, no contact limits.',
+        }}
+      />
       <Script
         id={`faq-schema-index`}
         type="application/ld+json"
