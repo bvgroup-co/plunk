@@ -14,9 +14,11 @@ import {
   Activity,
   BarChart3,
   BookOpen,
+  Check,
   Clock,
   Copy,
   FileText,
+  FolderOpen,
   Layers,
   LayoutDashboard,
   Megaphone,
@@ -85,7 +87,7 @@ function ShortcutHint({shortcut}: {shortcut: [string, string]}) {
 
 export function CommandPalette() {
   const router = useRouter();
-  const {activeProject} = useActiveProject();
+  const {activeProject, availableProjects, setActiveProject} = useActiveProject();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -188,6 +190,13 @@ export function CommandPalette() {
     ? CREATE_ACTIONS.filter(a => matches(a.label, query) || matches(a.keywords, query))
     : CREATE_ACTIONS;
 
+  const filteredProjects = availableProjects.filter(p => matches(p.name, debouncedQuery || query));
+
+  const switchProject = (project: (typeof availableProjects)[number]) => {
+    setActiveProject(project);
+    setOpen(false);
+  };
+
   const navigate = (href: string, label: string) => {
     void router.push(href);
     addRecentPage({label, href});
@@ -215,7 +224,8 @@ export function CommandPalette() {
       workflows.length > 0 ||
       segments.length > 0 ||
       filteredNavActions.length > 0 ||
-      filteredCreateActions.length > 0
+      filteredCreateActions.length > 0 ||
+      filteredProjects.length > 0
     : true;
 
   return (
@@ -322,6 +332,27 @@ export function CommandPalette() {
                 >
                   <Layers className="mr-3 h-4 w-4 text-neutral-400 shrink-0" />
                   <span>{segment.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+
+        {availableProjects.length > 1 && filteredProjects.length > 0 && (
+          <>
+            <CommandGroup heading="Switch project">
+              {filteredProjects.map(project => (
+                <CommandItem
+                  key={project.id}
+                  value={`project-${project.id}-${project.name}`}
+                  onSelect={() => switchProject(project)}
+                >
+                  <FolderOpen className="mr-3 h-4 w-4 text-neutral-400 shrink-0" />
+                  <span>{project.name}</span>
+                  {project.id === activeProject?.id && (
+                    <Check className="ml-auto h-4 w-4 text-neutral-400 shrink-0" />
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
