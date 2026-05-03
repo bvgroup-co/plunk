@@ -61,12 +61,27 @@ export const AuthenticationSchemas = {
   }),
 } as const;
 
+// Zero-width / bidi / formatting characters that render invisibly and aren't normalized away by NFKC.
+const invisibleCharRegex =
+  /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\u3164\uFEFF\uFFA0]/u;
+
+const projectName = z
+  .string()
+  .min(1)
+  .max(100)
+  .refine(val => !invisibleCharRegex.test(val), {
+    message: 'Name contains invisible or formatting characters',
+  })
+  .refine(val => val.normalize('NFC') === val.normalize('NFKC'), {
+    message: 'Name contains decorative or look-alike characters. Use plain letters and numbers.',
+  });
+
 export const ProjectSchemas = {
   create: z.object({
-    name: z.string().min(1).max(100),
+    name: projectName,
   }),
   update: z.object({
-    name: z.string().min(1).max(100).optional(),
+    name: projectName.optional(),
     tracking: z.nativeEnum(TrackingMode).optional(),
     language: z
       .string()
