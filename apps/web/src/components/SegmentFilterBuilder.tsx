@@ -40,6 +40,11 @@ const EVENT_OPERATORS: {value: SegmentFilterOperator; label: string; description
   {value: 'notTriggeredWithin', label: 'Not occurred within', description: 'Has not happened in the last X days/hours — includes contacts who never triggered this'},
 ];
 
+const SEGMENT_OPERATORS: {value: SegmentFilterOperator; label: string; description: string}[] = [
+  {value: 'memberOfSegment', label: 'Is member of', description: 'Contact is currently in this segment'},
+  {value: 'notMemberOfSegment', label: 'Is not member of', description: 'Contact is not in this segment'},
+];
+
 const TIME_UNITS = [
   {value: 'minutes', label: 'Minutes'},
   {value: 'hours', label: 'Hours'},
@@ -57,25 +62,27 @@ const STANDARD_FIELDS = [
 interface FieldOption {
   value: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'date' | 'event' | 'email';
-  category: 'Contact Fields' | 'Custom Data' | 'Events' | 'Email Activity';
+  description?: string;
+  type: 'string' | 'number' | 'boolean' | 'date' | 'event' | 'email' | 'segment';
+  category: 'Contact Fields' | 'Custom Data' | 'Events' | 'Email Activity' | 'Segments';
 }
 
-// Hook to fetch available fields and events
-function useAvailableOptions() {
+// Hook to fetch available fields, events, and segments
+function useAvailableOptions(currentSegmentId?: string) {
   const [fields, setFields] = useState<FieldOption[]>([...STANDARD_FIELDS]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // Fetch contact fields with types
-        const fieldsData = await network.fetch<{
-          fields: Array<{field: string; type: 'string' | 'number' | 'boolean' | 'date'}>;
-        }>('GET', '/contacts/fields');
-
-        // Fetch event names
-        const eventsData = await network.fetch<{eventNames: string[]}>('GET', '/events/names');
+        // Fetch contact fields with types, event names, and segments in parallel
+        const [fieldsData, eventsData, segmentsData] = await Promise.all([
+          network.fetch<{
+            fields: Array<{field: string; type: 'string' | 'number' | 'boolean' | 'date'}>;
+          }>('GET', '/contacts/fields'),
+          network.fetch<{eventNames: string[]}>('GET', '/events/names'),
+          network.fetch<Array<{id: string; name: string; memberCount: number}>>('GET', '/segments'),
+        ]);
 
         // Build field options from typed fields
         const typedFields: FieldOption[] = (fieldsData.fields || []).map(f => {
@@ -115,7 +122,18 @@ function useAvailableOptions() {
           }
         });
 
-        setFields([...typedFields, ...eventOptions, ...emailOptions]);
+        // Build segment options, excluding the current segment to prevent self-reference
+        const segmentOptions: FieldOption[] = (segmentsData || [])
+          .filter((s: {id: string; name: string; memberCount: number}) => s.id !== currentSegmentId)
+          .map((s: {id: string; name: string; memberCount: number}) => ({
+            value: `segment.${s.id}`,
+            label: s.name,
+            description: `${s.memberCount.toLocaleString()} ${s.memberCount === 1 ? 'person' : 'people'}`,
+            type: 'segment' as const,
+            category: 'Segments' as const,
+          }));
+
+        setFields([...typedFields, ...eventOptions, ...emailOptions, ...segmentOptions]);
       } catch (error) {
         console.error('Failed to fetch available fields and events:', error);
       } finally {
@@ -124,7 +142,7 @@ function useAvailableOptions() {
     };
 
     fetchOptions();
-  }, []);
+  }, [currentSegmentId]);
 
   return {fields, loading};
 }
@@ -156,6 +174,10 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
 
   // Helper to get valid operators for a field type
   const getOperatorsForType = useCallback((type: string, isEvent: boolean) => {
+    if (type === 'segment') {
+      return SEGMENT_OPERATORS;
+    }
+
     if (isEvent) {
       return EVENT_OPERATORS;
     }
@@ -187,7 +209,7 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
     );
   }, []);
 
-  const needsValue = !['exists', 'notExists', 'triggered', 'notTriggered'].includes(filter.operator);
+  const needsValue = !['exists', 'notExists', 'triggered', 'notTriggered', 'memberOfSegment', 'notMemberOfSegment'].includes(filter.operator);
   const needsUnit = ['within', 'triggeredWithin', 'olderThan', 'triggeredOlderThan', 'notTriggeredWithin'].includes(filter.operator);
 
   // Get field type from available fields
@@ -198,9 +220,14 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
   const fieldType = fieldOption?.type || 'string';
 
   const isEventOrEmailActivity = fieldType === 'event' || fieldType === 'email';
+  const isSegment = fieldType === 'segment';
 
   // Get operators based on field type (memoized)
   const operators = useMemo(() => {
+    if (isSegment) {
+      return SEGMENT_OPERATORS;
+    }
+
     if (isEventOrEmailActivity) {
       return EVENT_OPERATORS;
     }
@@ -231,23 +258,35 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
     return STANDARD_OPERATORS.filter(op =>
       ['equals', 'notEquals', 'contains', 'notContains', 'exists', 'notExists'].includes(op.value),
     );
-  }, [fieldType, isEventOrEmailActivity]);
+  }, [fieldType, isEventOrEmailActivity, isSegment]);
 
   const handleFieldChange = useCallback(
     (value: string) => {
       const selectedField = availableFields.find(f => f.value === value);
       const newFieldType = selectedField?.type || 'string';
       const isEvent = newFieldType === 'event' || newFieldType === 'email';
+      const isNewSegment = newFieldType === 'segment';
       const currentOperatorIsEvent = ['triggered', 'triggeredWithin', 'triggeredOlderThan', 'notTriggered', 'notTriggeredWithin'].includes(
         filter.operator,
       );
+      const currentOperatorIsSegment = ['memberOfSegment', 'notMemberOfSegment'].includes(filter.operator);
 
       // Determine default operator and value based on new field type
       let newOperator = filter.operator;
       let newValue: string | number | boolean | undefined = undefined;
       let newUnit: 'days' | 'hours' | 'minutes' | undefined = undefined;
 
-      if (isEvent && !currentOperatorIsEvent) {
+      if (isNewSegment && !currentOperatorIsSegment) {
+        // Switching to segment field
+        newOperator = 'memberOfSegment';
+        newValue = undefined;
+        newUnit = undefined;
+      } else if (!isNewSegment && currentOperatorIsSegment) {
+        // Switching from segment to non-segment field
+        newOperator = isEvent ? 'triggered' : 'equals';
+        newValue = isEvent ? undefined : getDefaultValueForType(newFieldType);
+        newUnit = undefined;
+      } else if (isEvent && !currentOperatorIsEvent) {
         // Switching to event field
         newOperator = 'triggered';
         newValue = undefined;
@@ -383,9 +422,11 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
                                 {field.type}
                               </span>
                             </div>
-                            {field.value !== field.label && (
+                            {field.description ? (
+                              <span className="text-xs text-neutral-500">{field.description}</span>
+                            ) : field.value !== field.label ? (
                               <span className="text-xs text-neutral-500">{field.value}</span>
-                            )}
+                            ) : null}
                           </div>
                         </button>
                       ))}
@@ -407,8 +448,9 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
               const oldOperator = filter.operator;
 
               // Check if we're switching between operators that need different value types
-              const oldNeedsValue = !['exists', 'notExists', 'triggered', 'notTriggered'].includes(oldOperator);
-              const newNeedsValue = !['exists', 'notExists', 'triggered', 'notTriggered'].includes(newOperator);
+              const noValueOperators = ['exists', 'notExists', 'triggered', 'notTriggered', 'memberOfSegment', 'notMemberOfSegment'];
+              const oldNeedsValue = !noValueOperators.includes(oldOperator);
+              const newNeedsValue = !noValueOperators.includes(newOperator);
               const oldNeedsUnit = ['within', 'triggeredWithin', 'olderThan', 'triggeredOlderThan', 'notTriggeredWithin'].includes(
                 oldOperator,
               );
@@ -761,10 +803,11 @@ function FilterConditionComponent({condition, onChange, depth = 0, availableFiel
 interface SegmentFilterBuilderProps {
   condition: FilterCondition;
   onChange: (condition: FilterCondition) => void;
+  currentSegmentId?: string;
 }
 
-export function SegmentFilterBuilder({condition, onChange}: SegmentFilterBuilderProps) {
-  const {fields, loading} = useAvailableOptions();
+export function SegmentFilterBuilder({condition, onChange, currentSegmentId}: SegmentFilterBuilderProps) {
+  const {fields, loading} = useAvailableOptions(currentSegmentId);
 
   if (loading) {
     return <div className="text-sm text-neutral-500 py-4">Loading available fields and events...</div>;

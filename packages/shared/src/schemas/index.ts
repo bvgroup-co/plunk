@@ -124,6 +124,8 @@ const segmentFilterSchema = z.object({
     'triggeredOlderThan',
     'notTriggered',
     'notTriggeredWithin',
+    'memberOfSegment',
+    'notMemberOfSegment',
   ]),
   value: z.any().optional(),
   unit: z.enum(['days', 'hours', 'minutes']).optional(),

@@ -24,7 +24,10 @@ export type SegmentFilterOperator =
   | 'triggeredWithin' // Event/email activity occurred within timeframe
   | 'triggeredOlderThan' // Event/email activity occurred more than X time ago
   | 'notTriggered' // Event/email activity never occurred
-  | 'notTriggeredWithin'; // Event/email activity has not occurred within timeframe (includes never-triggered)
+  | 'notTriggeredWithin' // Event/email activity has not occurred within timeframe (includes never-triggered)
+  // Segment membership operators
+  | 'memberOfSegment' // Contact is a member of another segment
+  | 'notMemberOfSegment'; // Contact is not a member of another segment
 
 export type SegmentFilterLogic = 'AND' | 'OR';
 

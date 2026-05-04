@@ -91,7 +91,7 @@ export class SegmentService {
     }
 
     const condition = fromPrismaJson<FilterCondition>(segment.condition);
-    const where = this.buildWhereClause(projectId, condition);
+    const where = await this.buildWhereClause(projectId, condition);
 
     const [contacts, total] = await Promise.all([
       prisma.contact.findMany({
@@ -137,7 +137,7 @@ export class SegmentService {
       this.validateCondition(data.condition);
 
       // Compute initial member count
-      const where = this.buildWhereClause(projectId, data.condition);
+      const where = await this.buildWhereClause(projectId, data.condition);
       memberCount = await prisma.contact.count({where});
       conditionJson = toPrismaJson(data.condition);
     }
@@ -192,10 +192,14 @@ export class SegmentService {
     if (data.condition !== undefined && existing.type !== 'STATIC') {
       // Validate condition if provided (only for DYNAMIC segments)
       this.validateCondition(data.condition);
+
+      if (this.getReferencedSegmentIds(data.condition).has(segmentId)) {
+        throw new HttpException(400, 'A segment cannot reference itself');
+      }
       updateData.condition = toPrismaJson(data.condition);
 
       // Recompute member count when condition changes
-      const where = this.buildWhereClause(projectId, data.condition);
+      const where = await this.buildWhereClause(projectId, data.condition);
       updateData.memberCount = await prisma.contact.count({where});
     }
     if (data.trackMembership !== undefined) {
@@ -267,7 +271,7 @@ export class SegmentService {
       memberCount = await prisma.segmentMembership.count({where: {segmentId, exitedAt: null}});
     } else {
       const condition = fromPrismaJson<FilterCondition>(segment.condition);
-      const where = this.buildWhereClause(projectId, condition);
+      const where = await this.buildWhereClause(projectId, condition);
       memberCount = await prisma.contact.count({where});
     }
 
@@ -305,7 +309,7 @@ export class SegmentService {
               });
             } else {
               const condition = fromPrismaJson<FilterCondition>(segment.condition);
-              const where = this.buildWhereClause(projectId, condition);
+              const where = await this.buildWhereClause(projectId, condition);
               memberCount = await prisma.contact.count({where});
             }
 
@@ -460,7 +464,7 @@ export class SegmentService {
     }
 
     const condition = fromPrismaJson<FilterCondition>(segment.condition);
-    const where = this.buildWhereClause(projectId, condition);
+    const where = await this.buildWhereClause(projectId, condition);
 
     // Get all matching contacts using cursor-based pagination to avoid memory issues
     const BATCH_SIZE = 1000;
@@ -629,8 +633,56 @@ export class SegmentService {
   /**
    * Build a single filter condition
    */
-  public static buildFilterCondition(filter: SegmentFilter): Prisma.ContactWhereInput {
+  public static async buildFilterCondition(
+    filter: SegmentFilter,
+    visitedSegments = new Set<string>(),
+  ): Promise<Prisma.ContactWhereInput> {
     const {field, operator, value, unit} = filter;
+
+    // Handle segment membership filters (e.g., "segment.<segmentId>")
+    if (field.startsWith('segment.')) {
+      const segmentId = field.substring(8);
+
+      if (visitedSegments.has(segmentId)) {
+        throw new HttpException(400, 'Circular segment reference detected');
+      }
+
+      const referencedSegment = await prisma.segment.findUnique({
+        where: {id: segmentId},
+      });
+
+      if (!referencedSegment) {
+        throw new HttpException(400, `Referenced segment not found: ${segmentId}`);
+      }
+
+      let memberIds: string[];
+
+      if (referencedSegment.type === 'STATIC' || referencedSegment.trackMembership) {
+        // Use the membership table for static or tracked segments
+        const memberships = await prisma.segmentMembership.findMany({
+          where: {segmentId, exitedAt: null},
+          select: {contactId: true},
+        });
+        memberIds = memberships.map(m => m.contactId);
+      } else {
+        // For untracked dynamic segments, evaluate the condition recursively
+        const nestedCondition = fromPrismaJson<FilterCondition>(referencedSegment.condition);
+        const nextVisited = new Set(visitedSegments).add(segmentId);
+        const nestedWhere = await this.buildConditionClause(nestedCondition, nextVisited);
+
+        if (operator === 'memberOfSegment') {
+          return nestedWhere;
+        }
+
+        return {NOT: nestedWhere};
+      }
+
+      if (operator === 'memberOfSegment') {
+        return {id: {in: memberIds}};
+      }
+
+      return {id: {notIn: memberIds}};
+    }
 
     // Handle event-based filters (e.g., "event.upgrade", "event.purchase")
     if (field.startsWith('event.')) {
@@ -665,6 +717,26 @@ export class SegmentService {
   }
 
   /**
+   * Collect all segment IDs directly referenced in a condition (non-recursive DB lookup)
+   */
+  private static getReferencedSegmentIds(condition: FilterCondition): Set<string> {
+    const ids = new Set<string>();
+    for (const group of condition.groups) {
+      for (const filter of group.filters) {
+        if (filter.field.startsWith('segment.')) {
+          ids.add(filter.field.substring(8));
+        }
+      }
+      if (group.conditions) {
+        for (const id of this.getReferencedSegmentIds(group.conditions)) {
+          ids.add(id);
+        }
+      }
+    }
+    return ids;
+  }
+
+  /**
    * Validate segment condition (recursive)
    */
   public static validateCondition(condition: FilterCondition): void {
@@ -688,8 +760,13 @@ export class SegmentService {
   /**
    * Build Prisma clause from filter condition (recursive)
    */
-  public static buildConditionClause(condition: FilterCondition): Prisma.ContactWhereInput {
-    const groupClauses = condition.groups.map(group => this.buildGroupClause(group));
+  public static async buildConditionClause(
+    condition: FilterCondition,
+    visitedSegments = new Set<string>(),
+  ): Promise<Prisma.ContactWhereInput> {
+    const groupClauses = await Promise.all(
+      condition.groups.map(group => this.buildGroupClause(group, visitedSegments)),
+    );
 
     if (condition.logic === 'AND') {
       return {AND: groupClauses};
@@ -759,10 +836,20 @@ export class SegmentService {
       'triggeredOlderThan',
       'notTriggered',
       'notTriggeredWithin',
+      'memberOfSegment',
+      'notMemberOfSegment',
     ];
 
     if (!validOperators.includes(filter.operator)) {
       throw new HttpException(400, `Invalid operator: ${filter.operator}`);
+    }
+
+    // Segment membership operators use the segmentId encoded in the field name, no separate value needed
+    if (filter.operator === 'memberOfSegment' || filter.operator === 'notMemberOfSegment') {
+      if (!filter.field.startsWith('segment.')) {
+        throw new HttpException(400, 'memberOfSegment/notMemberOfSegment operators require a segment field (segment.<id>)');
+      }
+      return;
     }
 
     // Validate that operators that need a value have one
@@ -795,27 +882,36 @@ export class SegmentService {
   /**
    * Build Prisma where clause from filter condition (entry point)
    */
-  private static buildWhereClause(projectId: string, condition: FilterCondition): Prisma.ContactWhereInput {
+  private static async buildWhereClause(
+    projectId: string,
+    condition: FilterCondition,
+  ): Promise<Prisma.ContactWhereInput> {
     return {
       projectId,
-      ...this.buildConditionClause(condition),
+      ...(await this.buildConditionClause(condition)),
     };
   }
 
   /**
    * Build Prisma clause from filter group (recursive)
    */
-  private static buildGroupClause(group: FilterGroup): Prisma.ContactWhereInput {
+  private static async buildGroupClause(
+    group: FilterGroup,
+    visitedSegments = new Set<string>(),
+  ): Promise<Prisma.ContactWhereInput> {
     const clauses: Prisma.ContactWhereInput[] = [];
 
     // Add filter conditions from this group
     if (group.filters.length > 0) {
-      clauses.push(...group.filters.map(filter => this.buildFilterCondition(filter)));
+      const filterClauses = await Promise.all(
+        group.filters.map(filter => this.buildFilterCondition(filter, visitedSegments)),
+      );
+      clauses.push(...filterClauses);
     }
 
     // Add nested condition if present
     if (group.conditions) {
-      clauses.push(this.buildConditionClause(group.conditions));
+      clauses.push(await this.buildConditionClause(group.conditions, visitedSegments));
     }
 
     // All conditions within a group are combined with AND

@@ -297,7 +297,7 @@ export default function SegmentDetailPage() {
                     <CardDescription>Build complex audience filters with AND/OR logic</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <SegmentFilterBuilder condition={condition} onChange={setCondition} />
+                    <SegmentFilterBuilder condition={condition} onChange={setCondition} currentSegmentId={id as string} />
                   </CardContent>
                 </Card>
               )}

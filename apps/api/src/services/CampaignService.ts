@@ -780,7 +780,7 @@ export class CampaignService {
         }
 
         // Use the SegmentService to build the where clause from the condition
-        const segmentWhere = SegmentService.buildConditionClause(condition);
+        const segmentWhere = await SegmentService.buildConditionClause(condition);
 
         return {
           ...baseWhere,
@@ -823,7 +823,7 @@ export class CampaignService {
     }
 
     const condition = fromPrismaJson<FilterCondition>(segment.condition);
-    const segmentWhere = SegmentService.buildConditionClause(condition);
+    const segmentWhere = await SegmentService.buildConditionClause(condition);
 
     return {
       ...baseWhere,
