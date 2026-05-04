@@ -1301,13 +1301,18 @@ export class SegmentService {
     value: unknown,
     unit?: 'days' | 'hours' | 'minutes',
   ): Prisma.ContactWhereInput {
-    // Map activity names to Email model fields
+    // Map activity names to Email model fields (accept both verb and past-tense forms)
     const fieldMap: Record<string, string> = {
+      open: 'openedAt',
       opened: 'openedAt',
+      click: 'clickedAt',
       clicked: 'clickedAt',
+      bounce: 'bouncedAt',
       bounced: 'bouncedAt',
+      complaint: 'complainedAt',
       complained: 'complainedAt',
       sent: 'sentAt',
+      delivery: 'deliveredAt',
       delivered: 'deliveredAt',
     };
 

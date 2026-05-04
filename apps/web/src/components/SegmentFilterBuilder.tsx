@@ -273,8 +273,8 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
 
       // Determine default operator and value based on new field type
       let newOperator = filter.operator;
-      let newValue: string | number | boolean | undefined = undefined;
-      let newUnit: 'days' | 'hours' | 'minutes' | undefined = undefined;
+      let newValue: string | number | boolean | undefined = filter.value;
+      let newUnit: 'days' | 'hours' | 'minutes' | undefined = filter.unit;
 
       if (isNewSegment && !currentOperatorIsSegment) {
         // Switching to segment field
