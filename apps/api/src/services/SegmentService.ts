@@ -758,6 +758,7 @@ export class SegmentService {
       'triggeredWithin',
       'triggeredOlderThan',
       'notTriggered',
+      'notTriggeredWithin',
     ];
 
     if (!validOperators.includes(filter.operator)) {
@@ -778,6 +779,7 @@ export class SegmentService {
       'olderThan',
       'triggeredWithin',
       'triggeredOlderThan',
+      'notTriggeredWithin',
     ];
 
     if (operatorsNeedingValue.includes(filter.operator) && filter.value === undefined) {
@@ -785,7 +787,7 @@ export class SegmentService {
     }
 
     // Validate unit for time-based operators
-    if (['within', 'triggeredWithin', 'olderThan', 'triggeredOlderThan'].includes(filter.operator) && !filter.unit) {
+    if (['within', 'triggeredWithin', 'olderThan', 'triggeredOlderThan', 'notTriggeredWithin'].includes(filter.operator) && !filter.unit) {
       throw new HttpException(400, `"${filter.operator}" operator requires a unit (days, hours, or minutes)`);
     }
   }
@@ -1166,6 +1168,28 @@ export class SegmentService {
           },
         };
 
+      case 'notTriggeredWithin': {
+        // Contact has not triggered this event within the timeframe (includes never-triggered contacts)
+        if (!unit) {
+          throw new HttpException(400, 'Unit is required for "notTriggeredWithin" operator');
+        }
+
+        const now = new Date();
+        const milliseconds = this.getMilliseconds(value as number, unit);
+        const since = new Date(now.getTime() - milliseconds);
+
+        return {
+          events: {
+            none: {
+              name: eventName,
+              createdAt: {
+                gte: since,
+              },
+            },
+          },
+        };
+      }
+
       default:
         throw new HttpException(400, `Unsupported operator for event field: ${operator}`);
     }
@@ -1277,6 +1301,27 @@ export class SegmentService {
             },
           },
         };
+
+      case 'notTriggeredWithin': {
+        // Contact has not had this email activity within the timeframe (includes contacts with no activity)
+        if (!unit) {
+          throw new HttpException(400, 'Unit is required for "notTriggeredWithin" operator');
+        }
+
+        const now = new Date();
+        const milliseconds = this.getMilliseconds(value as number, unit);
+        const since = new Date(now.getTime() - milliseconds);
+
+        return {
+          emails: {
+            none: {
+              [field]: {
+                gte: since,
+              },
+            },
+          },
+        };
+      }
 
       default:
         throw new HttpException(400, `Unsupported operator for email activity field: ${operator}`);
