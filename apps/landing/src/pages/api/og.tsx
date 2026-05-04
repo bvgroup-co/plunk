@@ -17,18 +17,18 @@ export default function handler(req: NextRequest) {
   const fontData = getBricolageFont();
 
   const titleLength = title.length;
-  const fontSize = titleLength < 35 ? 72 : titleLength < 55 ? 60 : titleLength < 75 ? 50 : 42;
+  const fontSize = titleLength < 35 ? 144 : titleLength < 55 ? 120 : titleLength < 75 ? 100 : 84;
 
   return new ImageResponse(
     (
       <div
         style={{
-          width: '1200px',
-          height: '630px',
+          width: '2400px',
+          height: '1260px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: '64px 72px',
+          padding: '128px 144px',
           backgroundColor: '#ffffff',
           fontFamily: '"Bricolage Grotesque"',
           position: 'relative',
@@ -39,26 +39,26 @@ export default function handler(req: NextRequest) {
         <div
           style={{
             position: 'absolute',
-            bottom: '-60px',
-            right: '-30px',
+            bottom: '-120px',
+            right: '-60px',
             opacity: 0.035,
             display: 'flex',
           }}
         >
-          <svg width="480" height="480" viewBox="0 0 1080 1080" fill="none">
+          <svg width="960" height="960" viewBox="0 0 1080 1080" fill="none">
             <path d={PLUNK_P_PATH} fill="#000000" />
           </svg>
         </div>
 
         {/* Top row: logo + URL */}
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            <svg width="30" height="30" viewBox="0 0 1080 1080" fill="none">
+          <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
+            <svg width="60" height="60" viewBox="0 0 1080 1080" fill="none">
               <path d={PLUNK_P_PATH} fill="#171717" />
             </svg>
             <span
               style={{
-                fontSize: '22px',
+                fontSize: '44px',
                 fontWeight: 800,
                 color: '#171717',
                 letterSpacing: '-0.03em',
@@ -67,22 +67,22 @@ export default function handler(req: NextRequest) {
               Plunk
             </span>
           </div>
-          <span style={{fontSize: '15px', color: '#a3a3a3', letterSpacing: '0.01em'}}>
+          <span style={{fontSize: '30px', color: '#a3a3a3', letterSpacing: '0.01em'}}>
             useplunk.com
           </span>
         </div>
 
         {/* Main content */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '920px'}}>
+        <div style={{display: 'flex', flexDirection: 'column', gap: '36px', maxWidth: '1840px'}}>
           {tag ? (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: '6px 14px',
+                padding: '12px 28px',
                 backgroundColor: '#f4f4f5',
-                borderRadius: '6px',
-                fontSize: '15px',
+                borderRadius: '12px',
+                fontSize: '30px',
                 color: '#52525b',
                 fontWeight: 600,
                 width: 'fit-content',
@@ -99,6 +99,7 @@ export default function handler(req: NextRequest) {
               color: '#0a0a0a',
               lineHeight: 1.08,
               letterSpacing: '-0.04em',
+              whiteSpace: 'pre-wrap',
             }}
           >
             {title}
@@ -106,7 +107,7 @@ export default function handler(req: NextRequest) {
           {description ? (
             <div
               style={{
-                fontSize: '22px',
+                fontSize: '44px',
                 color: '#737373',
                 lineHeight: 1.5,
                 fontWeight: 400,
@@ -123,8 +124,8 @@ export default function handler(req: NextRequest) {
       </div>
     ),
     {
-      width: 1200,
-      height: 630,
+      width: 2400,
+      height: 1260,
       fonts: [
         {
           name: 'Bricolage Grotesque',
