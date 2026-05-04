@@ -21,10 +21,9 @@
 
 ## Introduction
 
-Plunk is an open-source email platform built on top of AWS SES. It allows you to easily send emails from your
-applications.
-It can be considered as a self-hosted alternative to services
-like [SendGrid](https://sendgrid.com/), [Resend](https://resend.com) or [Mailgun](https://www.mailgun.com/).
+Transactional emails, marketing campaigns, and workflow automation — in one platform. Self-hostable, $0.001 per email, no contact limits.
+
+It is a self-hosted alternative to tools like [SendGrid](https://sendgrid.com/), [Resend](https://resend.com) or [Mailgun](https://www.mailgun.com/).
 
 ## Features
 
