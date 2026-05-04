@@ -333,7 +333,7 @@ const FilterRow = memo(function FilterRow({filter, onChange, onRemove, available
       setOpen(false);
       setSearch('');
     },
-    [availableFields, filter.operator, fieldType, onChange, getDefaultValueForType, getOperatorsForType],
+    [availableFields, filter.operator, filter.value, filter.unit, fieldType, onChange, getDefaultValueForType, getOperatorsForType],
   );
 
   // Get label for selected field
