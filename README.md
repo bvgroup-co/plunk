@@ -23,7 +23,7 @@
 
 Transactional emails, marketing campaigns, and workflow automation — in one platform. Self-hostable, $0.001 per email, no contact limits.
 
-It is a self-hosted alternative to tools like [SendGrid](https://sendgrid.com/), [Resend](https://resend.com) or [Mailgun](https://www.mailgun.com/).
+An open-source, self-hosted alternative to tools [SendGrid](https://sendgrid.com/), [Resend](https://resend.com) or [Mailgun](https://www.mailgun.com/).
 
 ## Features
 
@@ -35,6 +35,7 @@ It is a self-hosted alternative to tools like [SendGrid](https://sendgrid.com/),
 - **Contact Management**: Manage contacts with custom fields and full activity history
 - **Analytics**: Track opens, clicks, bounces, and engagement metrics in real-time
 - **Custom Domains**: Verify and send from your own domains with DKIM/SPF support
+- **Inbound Emails**: Receive and process incoming emails with custom routing rules
 
 ## Sponsors
 
