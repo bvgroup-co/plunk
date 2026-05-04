@@ -54,7 +54,7 @@ export default function MarkdownToEmail() {
           description:
             'Convert Markdown to email-safe HTML instantly — handles inline styles, table layouts, and compatibility across email clients. Free, no sign-up.',
           url: 'https://www.useplunk.com/tools/markdown-to-email',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email HTML Converter'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Markdown+to+Email+HTML+Converter&tag=Tool', alt: 'Plunk Markdown to Email', width: 1200, height: 630}],
         }}
       />
 

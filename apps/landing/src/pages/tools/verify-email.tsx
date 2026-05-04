@@ -65,7 +65,7 @@ export default function VerifyEmailPage() {
           title: 'Email Validator | Free Email Address Verification Tool | Plunk',
           description: 'Free email validator. Check email addresses for validity, typos, disposable domains, and MX records. Verify any email instantly.',
           url: 'https://www.useplunk.com/tools/verify-email',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Validator Tool'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Free+Email+Address+Validator&tag=Tool', alt: 'Plunk Email Validator Tool', width: 1200, height: 630}],
         }}
       />
 

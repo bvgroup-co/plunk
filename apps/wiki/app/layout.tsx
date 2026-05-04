@@ -32,7 +32,7 @@ export default function Layout({children}: {children: ReactNode}) {
           property="og:description"
           content="Documentation for Plunk, the open-source email platform. Learn how to integrate Plunk into your application and manage your email communications."
         />
-        <meta property="og:image" content="https://docs.useplunk.com/assets/card.png" />
+        <meta property="og:image" content="https://docs.useplunk.com/api/og?title=Documentation" />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
@@ -42,7 +42,7 @@ export default function Layout({children}: {children: ReactNode}) {
           property="twitter:description"
           content="Documentation for Plunk, the open-source email platform. Learn how to integrate Plunk into your application and manage your email communications."
         />
-        <meta property="twitter:image" content="https://docs.useplunk.com/assets/card.png" />
+        <meta property="twitter:image" content="https://docs.useplunk.com/api/og?title=Documentation" />
 
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

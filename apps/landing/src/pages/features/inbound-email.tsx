@@ -78,6 +78,9 @@ export default function InboundEmailFeature() {
           property="og:description"
           content="Receive emails at your custom domain and automatically process them. Capture leads, create support tickets, and trigger workflows from incoming emails."
         />
+        <meta property="og:image" content="https://www.useplunk.com/api/og?title=Inbound+Email+Processing&tag=Feature" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content="https://www.useplunk.com/api/og?title=Inbound+Email+Processing&tag=Feature" />
       </Head>
 
       <Navbar />

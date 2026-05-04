@@ -162,6 +162,14 @@ export default function Index() {
           title: 'Plunk — Open-Source Transactional Email Platform',
           description:
             'Send transactional emails, run marketing campaigns, and automate workflows — all open-source and self-hostable. $0.001/email, no contact limits.',
+          images: [
+            {
+              url: 'https://www.useplunk.com/api/og?title=The+Open-Source+Email+Platform',
+              width: 1200,
+              height: 630,
+              alt: 'Plunk — The Open-Source Email Platform',
+            },
+          ],
         }}
       />
       <Script

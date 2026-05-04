@@ -59,7 +59,7 @@ export default function CustomerioComparison() {
           description:
             "Frustrated with Customer.io's complexity and cost? Plunk is open-source with simple workflow automation and transparent pay-as-you-go pricing.",
           url: 'https://www.useplunk.com/vs/customerio',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Customer.io'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Customer.io+Alternative%3A+Open-Source+%26+Developer-Focused&tag=Comparison', alt: 'Plunk vs Customer.io', width: 1200, height: 630}],
         }}
       />
 

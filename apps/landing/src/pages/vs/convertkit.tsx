@@ -64,7 +64,7 @@ export default function ConvertkitComparison() {
           description:
             'Developer-first alternative to ConvertKit. Pay per email instead of per subscriber. Open-source, self-hostable, with powerful automation.',
           url: 'https://www.useplunk.com/vs/convertkit',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs ConvertKit'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=ConvertKit+Alternative+for+Developers&tag=Comparison', alt: 'Plunk vs ConvertKit', width: 1200, height: 630}],
         }}
       />
 

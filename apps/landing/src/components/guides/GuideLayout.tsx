@@ -27,9 +27,12 @@ export function GuideLayout({
   readTime,
   children,
   canonical,
-  ogImage = 'https://www.useplunk.com/assets/card.png',
+  ogImage,
   faqs,
 }: GuideLayoutProps) {
+  const resolvedOgImage =
+    ogImage ||
+    `https://www.useplunk.com/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&tag=Guide`;
   const [headings, setHeadings] = useState<{id: string; text: string; level: number}[]>([]);
   const [activeId, setActiveId] = useState<string>('');
 
@@ -93,7 +96,7 @@ export function GuideLayout({
           description: description,
           url: canonical,
           type: 'article',
-          images: [{url: ogImage, alt: title}],
+          images: [{url: resolvedOgImage, alt: title, width: 1200, height: 630}],
           article: {
             publishedTime: lastUpdated,
             modifiedTime: lastUpdated,
@@ -106,7 +109,7 @@ export function GuideLayout({
         type="Article"
         url={canonical || ''}
         title={title}
-        images={[ogImage]}
+        images={[resolvedOgImage]}
         datePublished={lastUpdated}
         dateModified={lastUpdated}
         authorName="Plunk"

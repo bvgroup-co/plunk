@@ -61,7 +61,7 @@ export default function KlaviyoComparison() {
           description:
             "E-commerce email automation without Klaviyo's price tag. Pay-as-you-go pricing, open-source, self-hostable.",
           url: 'https://www.useplunk.com/vs/klaviyo',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Klaviyo'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Klaviyo+Alternative%3A+Affordable+E-commerce+Email&tag=Comparison', alt: 'Plunk vs Klaviyo', width: 1200, height: 630}],
         }}
       />
 

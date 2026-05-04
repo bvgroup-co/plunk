@@ -63,7 +63,7 @@ export default function SendGridComparison() {
           description:
             "Tired of SendGrid's pricing tiers and complexity? Plunk is open-source with pay-as-you-go pricing at $0.001/email and no lock-in.",
           url: 'https://www.useplunk.com/vs/sendgrid',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs SendGrid'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=SendGrid+Alternative%3A+Open+Source+%26+Pay-As-You-Go&tag=Comparison', alt: 'Plunk vs SendGrid', width: 1200, height: 630}],
         }}
       />
 

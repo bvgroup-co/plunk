@@ -59,7 +59,7 @@ export default function ResendComparison() {
           description:
             'Resend uses fixed subscription pricing. Plunk is pay-as-you-go at $0.001/email — open-source, self-hostable, with marketing and automation included.',
           url: 'https://www.useplunk.com/vs/resend',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Resend'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Open-Source+Resend+Alternative&tag=Comparison', alt: 'Plunk vs Resend', width: 1200, height: 630}],
         }}
       />
 

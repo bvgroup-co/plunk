@@ -63,7 +63,7 @@ export default function BrevoComparison() {
           description:
             "Done with Brevo's contact-based pricing? Plunk is open-source, self-hostable, and charges per email not per contact.",
           url: 'https://www.useplunk.com/vs/brevo',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Brevo'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Brevo+Alternative%3A+Developer-First+%26+Open+Source&tag=Comparison', alt: 'Plunk vs Brevo', width: 1200, height: 630}],
         }}
       />
 

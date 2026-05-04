@@ -63,7 +63,7 @@ export default function LoopsComparison() {
           description:
             'Need more control than Loops offers? Plunk is open-source and self-hostable with pay-as-you-go pricing and no contact limits.',
           url: 'https://www.useplunk.com/vs/loops',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Loops'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Loops+Alternative%3A+Open+Source+%26+Self-Hostable&tag=Comparison', alt: 'Plunk vs Loops', width: 1200, height: 630}],
         }}
       />
 

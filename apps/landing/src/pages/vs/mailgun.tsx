@@ -59,7 +59,7 @@ export default function MailgunComparison() {
           description:
             'Switching from Mailgun? Plunk is open-source with pay-as-you-go pricing, marketing campaigns, and workflow automation — no subscription tiers.',
           url: 'https://www.useplunk.com/vs/mailgun',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Mailgun'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Mailgun+Alternative%3A+Open-Source+with+Marketing+%26+Automation&tag=Comparison', alt: 'Plunk vs Mailgun', width: 1200, height: 630}],
         }}
       />
 

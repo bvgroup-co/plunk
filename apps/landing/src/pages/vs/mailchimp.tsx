@@ -64,7 +64,7 @@ export default function MailchimpComparison() {
           description:
             'Plunk is Mailchimp for developers: code-first email platform with modern API. Pay per email, not per contact.',
           url: 'https://www.useplunk.com/vs/mailchimp',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Mailchimp'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Mailchimp+Alternative+for+Developers&tag=Comparison', alt: 'Plunk vs Mailchimp', width: 1200, height: 630}],
         }}
       />
 

@@ -238,7 +238,7 @@ export default function SpamCheckerPage() {
           title: 'Email Spam Checker | Free Subject Line & Content Spam Test | Plunk',
           description: 'Free spam checker. Test your email subject line and content for factors that cause emails to land in spam folders.',
           url: 'https://www.useplunk.com/tools/spam-checker',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Spam Checker'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Free+Email+Spam+Checker&tag=Tool', alt: 'Plunk Spam Checker', width: 1200, height: 630}],
         }}
       />
 

@@ -79,6 +79,9 @@ export default function EmailEditorFeature() {
           property="og:description"
           content="The email editor that speaks both languages. Switch seamlessly between visual and code editing, preview with real data, and create templates that work everywhere."
         />
+        <meta property="og:image" content="https://www.useplunk.com/api/og?title=Email+Editor&tag=Feature" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content="https://www.useplunk.com/api/og?title=Email+Editor&tag=Feature" />
       </Head>
 
       <Navbar />

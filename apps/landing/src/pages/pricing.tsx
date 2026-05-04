@@ -79,6 +79,14 @@ export default function Pricing() {
           title: 'Plunk Pricing | The Open-Source Email Platform',
           description:
             'Transparent email pricing at $0.001 per email with no contact limits. Free plan includes 1,000 emails/month. No hidden fees.',
+          images: [
+            {
+              url: 'https://www.useplunk.com/api/og?title=Simple%2C+Honest+Pricing&description=%240.001+per+email.+No+contact+limits.+Free+to+start.',
+              width: 1200,
+              height: 630,
+              alt: 'Plunk Pricing',
+            },
+          ],
         }}
         additionalMetaTags={[{property: 'title', content: 'Plunk Pricing | The Open-Source Email Platform'}]}
       />

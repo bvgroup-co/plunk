@@ -48,8 +48,21 @@ export async function generateMetadata(props: {params: Promise<{slug?: string[]}
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  const ogUrl = new URL('https://docs.useplunk.com/api/og');
+  ogUrl.searchParams.set('title', page.data.title);
+  if (page.data.description) {
+    ogUrl.searchParams.set('description', page.data.description);
+  }
+
   return {
     title: page.data.title,
     description: page.data.description,
+    openGraph: {
+      images: [{url: ogUrl.toString(), width: 1200, height: 630}],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: [ogUrl.toString()],
+    },
   };
 }

@@ -60,7 +60,7 @@ export default function PostmarkComparison() {
           description:
             'Postmark starts at $15/month for 10k emails. Plunk charges $0.001/email — no subscription, no minimums. Plus marketing campaigns and open-source code.',
           url: 'https://www.useplunk.com/vs/postmark',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Postmark'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Postmark+Alternative%3A+Pay-As-You-Go+vs+Fixed+Pricing&tag=Comparison', alt: 'Plunk vs Postmark', width: 1200, height: 630}],
         }}
       />
 

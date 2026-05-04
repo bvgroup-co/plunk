@@ -112,7 +112,7 @@ export default function GuidesIndex() {
           description:
             'Learn email best practices, authentication (DKIM, SPF, DMARC), deliverability optimization, and more.',
           url: 'https://www.useplunk.com/guides',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Guides'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Email+Guides+for+Developers&tag=Guide', alt: 'Plunk Guides', width: 1200, height: 630}],
         }}
       />
 

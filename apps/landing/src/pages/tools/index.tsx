@@ -64,7 +64,7 @@ export default function ToolsIndex() {
           description:
             'Free email developer tools: spam checker, email address validator, and markdown-to-email converter. No sign-up required.',
           url: 'https://www.useplunk.com/tools',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk Email Tools'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Free+Email+Developer+Tools&tag=Tool', alt: 'Plunk Email Tools', width: 1200, height: 630}],
         }}
       />
 

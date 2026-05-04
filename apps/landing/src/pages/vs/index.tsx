@@ -99,7 +99,7 @@ export default function CompetitorsIndex() {
           description:
             'Open-source alternative to Resend, Mailgun, and SendGrid. Transactional + marketing emails in one self-hostable platform at $0.001/email.',
           url: 'https://www.useplunk.com/vs',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Competitors'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Best+Email+Platform+Alternatives&tag=Comparison', alt: 'Plunk vs Competitors', width: 1200, height: 630}],
         }}
       />
 

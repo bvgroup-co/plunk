@@ -93,6 +93,9 @@ export default function SegmentsFeature() {
           property="og:description"
           content="Create dynamic and static segments to organize your contacts. Filter by behavior, attributes, and engagement."
         />
+        <meta property="og:image" content="https://www.useplunk.com/api/og?title=Audience+Segmentation&tag=Feature" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content="https://www.useplunk.com/api/og?title=Audience+Segmentation&tag=Feature" />
       </Head>
 
       <Navbar />

@@ -78,6 +78,9 @@ export default function WorkflowsFeature() {
           property="og:description"
           content="Build sophisticated email automation workflows with visual no-code builder. Create event-driven sequences, conditional branching, and time-based delays."
         />
+        <meta property="og:image" content="https://www.useplunk.com/api/og?title=Email+Workflow+Automation&tag=Feature" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content="https://www.useplunk.com/api/og?title=Email+Workflow+Automation&tag=Feature" />
       </Head>
 
       <Navbar />

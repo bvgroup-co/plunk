@@ -61,7 +61,7 @@ export default function BentoComparison() {
           description:
             'Open-source alternative to Bento. API-first email platform without CRM bloat. Self-hostable, pay-as-you-go pricing.',
           url: 'https://www.useplunk.com/vs/bento',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs Bento'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=Bento+Alternative%3A+Developer-First+Email+Platform&tag=Comparison', alt: 'Plunk vs Bento', width: 1200, height: 630}],
         }}
       />
 

@@ -61,7 +61,7 @@ export default function ActiveCampaignComparison() {
           description:
             "Powerful email automation without ActiveCampaign's complexity and cost. Open-source, developer-friendly, pay-as-you-go pricing.",
           url: 'https://www.useplunk.com/vs/activecampaign',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs ActiveCampaign'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=ActiveCampaign+Alternative%3A+Open-Source+%26+Affordable&tag=Comparison', alt: 'Plunk vs ActiveCampaign', width: 1200, height: 630}],
         }}
       />
 

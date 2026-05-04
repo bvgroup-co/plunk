@@ -61,7 +61,7 @@ export default function MailerliteComparison() {
           description:
             'The truly developer-first MailerLite alternative. Open-source, self-hostable, pay per email not per subscriber.',
           url: 'https://www.useplunk.com/vs/mailerlite',
-          images: [{url: 'https://www.useplunk.com/assets/card.png', alt: 'Plunk vs MailerLite'}],
+          images: [{url: 'https://www.useplunk.com/api/og?title=MailerLite+Alternative%3A+Open-Source+%26+Self-Hostable&tag=Comparison', alt: 'Plunk vs MailerLite', width: 1200, height: 630}],
         }}
       />
 

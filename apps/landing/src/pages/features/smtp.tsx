@@ -89,6 +89,9 @@ export default function SMTPFeature() {
           property="og:description"
           content="Send emails via SMTP or API. Works with any email client or application. Secure TLS/SSL connections with automatic domain validation and full tracking."
         />
+        <meta property="og:image" content="https://www.useplunk.com/api/og?title=SMTP+Email+Sending&tag=Feature" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content="https://www.useplunk.com/api/og?title=SMTP+Email+Sending&tag=Feature" />
       </Head>
 
       <Navbar />
