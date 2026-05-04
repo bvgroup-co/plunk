@@ -241,7 +241,7 @@ export function ActivityFeed({typeFilter, dateRangeDays = 30, contactId}: Activi
         <div className="space-y-4">
           {upcomingActivities.map((activity, index) => (
             <div key={`${activity.id}-${index}`}>
-              <ActivityItem activity={activity} isUpcoming={true} />
+              <ActivityItem activity={activity} status="upcoming" />
               {index < upcomingActivities.length - 1 && <div className="border-t border-neutral-100 my-4" />}
             </div>
           ))}

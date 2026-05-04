@@ -74,12 +74,16 @@ export default function WorkflowEditorPage() {
   const router = useRouter();
   const {id} = router.query;
   const [activeTab, setActiveTab] = useState<'builder' | 'executions'>('builder');
-  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-  const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
-  const [showCancelAllDialog, setShowCancelAllDialog] = useState(false);
-  const [executionToCancel, setExecutionToCancel] = useState<string | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  type WorkflowDialog =
+    | {type: 'none'}
+    | {type: 'settings'}
+    | {type: 'cancelAll'; cancelling: boolean}
+    | {type: 'cancelOne'; executionId: string; cancelling: boolean}
+    | {type: 'editStep'; step: WorkflowStep}
+    | {type: 'delete'};
+
+  const [dialog, setDialog] = useState<WorkflowDialog>({type: 'none'});
 
   const {data: workflow, mutate} = useSWR<WorkflowWithDetails>(id ? `/workflows/${id}` : null, {
     revalidateOnFocus: false,
@@ -106,31 +110,29 @@ export default function WorkflowEditorPage() {
 
   // Handler for cancelling a single execution
   const handleCancelExecution = async (executionId: string) => {
-    setIsCancelling(true);
+    setDialog({type: 'cancelOne', executionId, cancelling: true});
     try {
       await network.fetch('DELETE', `/workflows/${id}/executions/${executionId}`);
       toast.success('Execution cancelled successfully');
+      setDialog({type: 'none'});
       void mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to cancel execution');
-    } finally {
-      setIsCancelling(false);
-      setExecutionToCancel(null);
+      setDialog({type: 'cancelOne', executionId, cancelling: false});
     }
   };
 
   // Handler for cancelling all executions
   const handleCancelAllExecutions = async () => {
-    setIsCancelling(true);
+    setDialog(d => (d.type === 'cancelAll' ? {...d, cancelling: true} : d));
     try {
       const result = await network.fetch<{cancelled: number}>('POST', `/workflows/${id}/executions/cancel-all`);
       toast.success(`Successfully cancelled ${result.cancelled} execution(s)`);
+      setDialog({type: 'none'});
       void mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to cancel executions');
-    } finally {
-      setIsCancelling(false);
-      setShowCancelAllDialog(false);
+      setDialog(d => (d.type === 'cancelAll' ? {...d, cancelling: false} : d));
     }
   };
 
@@ -312,7 +314,7 @@ export default function WorkflowEditorPage() {
       await network.fetch<Workflow, typeof WorkflowSchemas.update>('PATCH', `/workflows/${id}`, data);
       toast.success('Workflow updated successfully');
       void mutate();
-      setShowSettingsDialog(false);
+      setDialog({type: 'none'});
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update workflow');
     }
@@ -336,13 +338,13 @@ export default function WorkflowEditorPage() {
       if (stepId && workflow) {
         const step = workflow.steps.find(s => s.id === stepId);
         if (step) {
-          setEditingStep(step);
+          setDialog({type: 'editStep', step});
         }
       }
     };
 
     const handleOpenSettingsEvent = () => {
-      setShowSettingsDialog(true);
+      setDialog({type: 'settings'});
     };
 
     window.addEventListener('workflow-edit-step', handleEditStepEvent);
@@ -398,13 +400,13 @@ export default function WorkflowEditorPage() {
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Button variant="ghost" size="icon" onClick={() => setShowSettingsDialog(true)} aria-label="Settings">
+            <Button variant="ghost" size="icon" onClick={() => setDialog({type: 'settings'})} aria-label="Settings">
               <Settings className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowDeleteDialog(true)}
+              onClick={() => setDialog({type: 'delete'})}
               aria-label="Delete workflow"
               className="text-neutral-400 hover:text-red-600 hover:bg-red-50"
             >
@@ -542,7 +544,7 @@ export default function WorkflowEditorPage() {
                   <CardDescription>View and manage all executions of this workflow</CardDescription>
                 </div>
                 {activeExecutionsCount > 0 && (
-                  <Button variant="outline" onClick={() => setShowCancelAllDialog(true)}>
+                  <Button variant="outline" onClick={() => setDialog({type: 'cancelAll', cancelling: false})}>
                     Cancel All Active ({activeExecutionsCount})
                   </Button>
                 )}
@@ -616,8 +618,8 @@ export default function WorkflowEditorPage() {
                               <Button
                                 variant="destructiveGhost"
                                 size="sm"
-                                onClick={() => setExecutionToCancel(execution.id)}
-                                disabled={isCancelling}
+                                onClick={() => setDialog({type: 'cancelOne', executionId: execution.id, cancelling: false})}
+                                disabled={dialog.type === 'cancelOne' && dialog.cancelling}
                               >
                                 Cancel
                               </Button>
@@ -639,37 +641,38 @@ export default function WorkflowEditorPage() {
         <>
           <SettingsDialog
             workflow={workflow}
-            open={showSettingsDialog}
-            onOpenChange={setShowSettingsDialog}
+            open={dialog.type === 'settings'}
+            onOpenChange={open => !open && setDialog({type: 'none'})}
             onSave={handleUpdateSettings}
           />
-          {editingStep && (
+          {dialog.type === 'editStep' && (
             <EditStepDialog
-              step={editingStep}
+              step={dialog.step}
               workflowId={id as string}
-              open={!!editingStep}
-              onOpenChange={open => !open && setEditingStep(null)}
+              open={true}
+              onOpenChange={open => !open && setDialog({type: 'none'})}
               onSuccess={() => mutate()}
             />
           )}
 
           {/* Cancel Single Execution Confirmation */}
           <ConfirmDialog
-            open={!!executionToCancel}
-            onOpenChange={open => !open && setExecutionToCancel(null)}
+            open={dialog.type === 'cancelOne'}
+            onOpenChange={open => !open && setDialog({type: 'none'})}
             onConfirm={() => {
-              if (executionToCancel) {
-                return handleCancelExecution(executionToCancel);
+              if (dialog.type === 'cancelOne') {
+                return handleCancelExecution(dialog.executionId);
               }
             }}
             title="Cancel Execution"
             description={
-              executionToCancel && executionsData?.executions ? (
+              dialog.type === 'cancelOne' && executionsData?.executions ? (
                 <div className="space-y-2">
                   <p>
                     Are you sure you want to cancel the workflow execution for{' '}
                     <strong>
-                      {executionsData.executions.find(e => e.id === executionToCancel)?.contact.email || 'this contact'}
+                      {executionsData.executions.find(e => e.id === dialog.executionId)?.contact.email ||
+                        'this contact'}
                     </strong>
                     ?
                   </p>
@@ -685,13 +688,13 @@ export default function WorkflowEditorPage() {
             confirmText="Cancel Execution"
             cancelText="Keep Running"
             variant="destructive"
-            isLoading={isCancelling}
+            status={dialog.type === 'cancelOne' && dialog.cancelling ? 'loading' : 'idle'}
           />
 
           {/* Cancel All Executions Confirmation */}
           <ConfirmDialog
-            open={showCancelAllDialog}
-            onOpenChange={setShowCancelAllDialog}
+            open={dialog.type === 'cancelAll'}
+            onOpenChange={open => !open && setDialog({type: 'none'})}
             onConfirm={handleCancelAllExecutions}
             title="Cancel All Active Executions"
             description={
@@ -709,13 +712,13 @@ export default function WorkflowEditorPage() {
             confirmText={`Cancel ${activeExecutionsCount} Execution${activeExecutionsCount !== 1 ? 's' : ''}`}
             cancelText="Keep Running"
             variant="destructive"
-            isLoading={isCancelling}
+            status={dialog.type === 'cancelAll' && dialog.cancelling ? 'loading' : 'idle'}
           />
 
           {/* Delete Workflow Confirmation */}
           <ConfirmDialog
-            open={showDeleteDialog}
-            onOpenChange={setShowDeleteDialog}
+            open={dialog.type === 'delete'}
+            onOpenChange={open => !open && setDialog({type: 'none'})}
             onConfirm={handleDelete}
             title="Delete Workflow"
             description="Are you sure you want to delete this workflow? This action cannot be undone."

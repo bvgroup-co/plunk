@@ -92,11 +92,11 @@ export default function Settings() {
   const {data: user} = useUser();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showResetDialog, setShowResetDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [resetConfirmText, setResetConfirmText] = useState('');
+
+  type SettingsDialog = {type: 'none'} | {type: 'regenerate'} | {type: 'delete'} | {type: 'reset'};
+  const [dialog, setDialog] = useState<SettingsDialog>({type: 'none'});
   const [isLoadingBilling, setIsLoadingBilling] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('auto');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
@@ -235,18 +235,18 @@ export default function Settings() {
       await projectsMutate();
 
       setSuccessMessage('API keys regenerated successfully');
-      setShowRegenerateDialog(false);
+      setDialog({type: 'none'});
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to regenerate API keys');
-      setShowRegenerateDialog(false);
+      setDialog({type: 'none'});
     }
   };
 
   const promptRegenerateKeys = () => {
-    setShowRegenerateDialog(true);
+    setDialog({type: 'regenerate'});
   };
 
   const handleStartSubscription = async (currency: string = 'auto') => {
@@ -314,7 +314,7 @@ export default function Settings() {
       await network.fetch('POST', `/users/@me/projects/${activeProject.id}/reset`);
 
       setSuccessMessage('Project reset successfully. All data has been cleared.');
-      setShowResetDialog(false);
+      setDialog({type: 'none'});
       setResetConfirmText('');
 
       // Refresh the page to reload data
@@ -323,7 +323,7 @@ export default function Settings() {
       }, 1500);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to reset project');
-      setShowResetDialog(false);
+      setDialog({type: 'none'});
       setResetConfirmText('');
     }
   };
@@ -338,7 +338,7 @@ export default function Settings() {
       await network.fetch('DELETE', `/users/@me/projects/${activeProject.id}`);
 
       setSuccessMessage('Project deleted successfully. Redirecting...');
-      setShowDeleteDialog(false);
+      setDialog({type: 'none'});
       setDeleteConfirmText('');
 
       // Refresh projects list and redirect to dashboard
@@ -350,7 +350,7 @@ export default function Settings() {
       }, 1500);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to delete project');
-      setShowDeleteDialog(false);
+      setDialog({type: 'none'});
       setDeleteConfirmText('');
     }
   };
@@ -587,7 +587,7 @@ export default function Settings() {
                           <span>API keys, domains, billing information</span>
                         </div>
                       </div>
-                      <Button type="button" variant="outline" onClick={() => setShowResetDialog(true)} className="shrink-0">
+                      <Button type="button" variant="outline" onClick={() => setDialog({type: 'reset'})} className="shrink-0">
                         Reset Data
                       </Button>
                     </div>
@@ -614,7 +614,7 @@ export default function Settings() {
                       <Button
                         type="button"
                         variant="destructive"
-                        onClick={() => setShowDeleteDialog(true)}
+                        onClick={() => setDialog({type: 'delete'})}
                         className="shrink-0"
                       >
                         Delete Project
@@ -753,7 +753,7 @@ export default function Settings() {
                 {/* Billing Limits */}
                 <BillingLimits
                   projectId={activeProject.id}
-                  hasSubscription={!!activeProject.subscription}
+                  tier={activeProject.subscription ? 'paid' : 'free'}
                   billingEnabled={billingEnabled}
                 />
 
@@ -814,7 +814,7 @@ export default function Settings() {
         </div>
 
         {/* Regenerate Keys Confirmation Dialog */}
-        <Dialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
+        <Dialog open={dialog.type === 'regenerate'} onOpenChange={open => !open && setDialog({type: 'none'})}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -833,7 +833,7 @@ export default function Settings() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowRegenerateDialog(false)}>
+              <Button variant="outline" onClick={() => setDialog({type: 'none'})}>
                 Cancel
               </Button>
               <Button variant="destructive" onClick={handleRegenerateKeys}>
@@ -844,7 +844,7 @@ export default function Settings() {
         </Dialog>
 
         {/* Reset Project Confirmation Dialog */}
-        <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <Dialog open={dialog.type === 'reset'} onOpenChange={open => !open && setDialog({type: 'none'})}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader className="space-y-3">
               <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
@@ -876,7 +876,7 @@ export default function Settings() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowResetDialog(false);
+                  setDialog({type: 'none'});
                   setResetConfirmText('');
                 }}
                 className="w-full"
@@ -896,7 +896,7 @@ export default function Settings() {
         </Dialog>
 
         {/* Delete Project Confirmation Dialog */}
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <Dialog open={dialog.type === 'delete'} onOpenChange={open => !open && setDialog({type: 'none'})}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader className="space-y-3">
               <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -934,7 +934,7 @@ export default function Settings() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowDeleteDialog(false);
+                  setDialog({type: 'none'});
                   setDeleteConfirmText('');
                 }}
                 className="w-full"

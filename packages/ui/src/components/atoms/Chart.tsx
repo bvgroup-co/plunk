@@ -29,7 +29,7 @@ interface ChartContextProps {
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
 function useChart() {
-  const context = React.useContext(ChartContext);
+  const context = React.use(ChartContext);
 
   if (!context) {
     throw new Error('useChart must be used within a <ChartContainer />');
@@ -47,8 +47,7 @@ interface ChartContainerProps extends React.ComponentProps<'div'> {
   children: React.ComponentProps<typeof RechartsPrimitive.ResponsiveContainer>['children'];
 }
 
-const ChartContainer = React.forwardRef<HTMLDivElement, ChartContainerProps>(
-  ({id, className, children, config, ...props}, ref) => {
+function ChartContainer({id, className, children, config, ref, ...props}: ChartContainerProps) {
     const uniqueId = React.useId();
     const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`;
 
@@ -65,8 +64,7 @@ const ChartContainer = React.forwardRef<HTMLDivElement, ChartContainerProps>(
         </div>
       </ChartContext.Provider>
     );
-  },
-);
+}
 ChartContainer.displayName = 'ChartContainer';
 
 // ============================================
@@ -119,25 +117,22 @@ interface ChartTooltipContentProps
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
-const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContentProps>(
-  (
-    {
-      active,
-      payload,
-      className,
-      indicator = 'dot',
-      hideLabel = false,
-      hideIndicator = false,
-      label,
-      labelFormatter,
-      labelClassName,
-      formatter,
-      color,
-      nameKey,
-      labelKey,
-    },
-    ref,
-  ) => {
+function ChartTooltipContent({
+  active,
+  payload,
+  className,
+  indicator = 'dot',
+  hideLabel = false,
+  hideIndicator = false,
+  label,
+  labelFormatter,
+  labelClassName,
+  formatter,
+  color,
+  nameKey,
+  labelKey,
+  ref,
+}: ChartTooltipContentProps & {ref?: React.Ref<HTMLDivElement>}) {
     const {config} = useChart();
 
     const tooltipLabel = React.useMemo(() => {
@@ -235,8 +230,7 @@ const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContent
         </div>
       </div>
     );
-  },
-);
+}
 ChartTooltipContent.displayName = 'ChartTooltipContent';
 
 // ============================================
@@ -252,8 +246,14 @@ interface ChartLegendContentProps extends Omit<React.ComponentProps<'div'>, 'pay
 
 const ChartLegend = RechartsPrimitive.Legend;
 
-const ChartLegendContent = React.forwardRef<HTMLDivElement, ChartLegendContentProps>(
-  ({className, hideIcon = false, payload, verticalAlign = 'bottom', nameKey}, ref) => {
+function ChartLegendContent({
+  className,
+  hideIcon = false,
+  payload,
+  verticalAlign = 'bottom',
+  nameKey,
+  ref,
+}: ChartLegendContentProps & {ref?: React.Ref<HTMLDivElement>}) {
     const {config} = useChart();
 
     if (!payload?.length) {
@@ -290,8 +290,7 @@ const ChartLegendContent = React.forwardRef<HTMLDivElement, ChartLegendContentPr
         })}
       </div>
     );
-  },
-);
+}
 ChartLegendContent.displayName = 'ChartLegendContent';
 
 export {ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, ChartStyle};

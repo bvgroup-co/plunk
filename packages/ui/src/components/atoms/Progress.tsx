@@ -3,12 +3,12 @@ import * as ProgressPrimitive from '@radix-ui/react-progress';
 
 import {cn} from '../../lib';
 
-interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
+interface ProgressProps extends React.ComponentProps<typeof ProgressPrimitive.Root> {
   indicatorClassName?: string;
 }
 
-const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root>, ProgressProps>(
-  ({className, value, indicatorClassName, ...props}, ref) => (
+function Progress({className, value, indicatorClassName, ref, ...props}: ProgressProps) {
+  return (
     <ProgressPrimitive.Root
       ref={ref}
       className={cn('relative h-4 w-full overflow-hidden rounded-full bg-neutral-100', className)}
@@ -19,8 +19,8 @@ const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root
         style={{transform: `translateX(-${100 - (value || 0)}%)`}}
       />
     </ProgressPrimitive.Root>
-  ),
-);
+  );
+}
 Progress.displayName = ProgressPrimitive.Root.displayName;
 
 export {Progress};

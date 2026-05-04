@@ -106,14 +106,18 @@ export default function CampaignDetailsPage() {
   );
 
   const [editedCampaign, setEditedCampaign] = useState<Partial<Campaign>>({});
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [scheduledDateTime, setScheduledDateTime] = useState('');
-  const [isTestEmailDialogOpen, setIsTestEmailDialogOpen] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
-  const [sendingTestEmail, setSendingTestEmail] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [showSendDialog, setShowSendDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  type CampaignDialog =
+    | {type: 'none'}
+    | {type: 'schedule'}
+    | {type: 'testEmail'; sending: boolean}
+    | {type: 'send'}
+    | {type: 'cancel'}
+    | {type: 'delete'};
+
+  const [dialog, setDialog] = useState<CampaignDialog>({type: 'none'});
 
   // Automatically initialize edit fields when campaign is loaded and is a draft
   const isEditMode = campaign?.data.status === CampaignStatus.DRAFT;
@@ -172,7 +176,7 @@ export default function CampaignDetailsPage() {
       // Show confirmation with user's local time
       const localTimeString = formatFullDateTime(scheduledDate);
       toast.success(`Campaign scheduled for ${localTimeString}`);
-      setIsScheduleDialogOpen(false);
+      setDialog({type: 'none'});
       setScheduledDateTime('');
       void mutate();
     } catch (error) {
@@ -186,7 +190,7 @@ export default function CampaignDetailsPage() {
       return;
     }
 
-    setSendingTestEmail(true);
+    setDialog({type: 'testEmail', sending: true});
 
     try {
       await network.fetch<{success: boolean; message: string}>('POST', `/campaigns/${id}/test`, {
@@ -194,12 +198,12 @@ export default function CampaignDetailsPage() {
       } as any);
 
       toast.success(`Test email sent to ${testEmailAddress}`);
-      setIsTestEmailDialogOpen(false);
+      setDialog({type: 'none'});
       setTestEmailAddress('');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send test email');
     } finally {
-      setSendingTestEmail(false);
+      setDialog(d => (d.type === 'testEmail' ? {type: 'testEmail', sending: false} : d));
     }
   };
 
@@ -370,7 +374,7 @@ export default function CampaignDetailsPage() {
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
+                  onClick={() => setDialog({type: 'delete'})}
                   className="flex-1 sm:flex-none"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -395,7 +399,7 @@ export default function CampaignDetailsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-72">
-                    <DropdownMenuItem onClick={() => setIsTestEmailDialogOpen(true)} className="py-3 cursor-pointer">
+                    <DropdownMenuItem onClick={() => setDialog({type: 'testEmail', sending: false})} className="py-3 cursor-pointer">
                       <div className="flex items-start gap-3">
                         <TestTube className="h-4 w-4 mt-0.5 text-neutral-700" />
                         <div className="flex flex-col gap-0.5 flex-1">
@@ -406,7 +410,7 @@ export default function CampaignDetailsPage() {
                         </div>
                       </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowSendDialog(true)} className="py-3 cursor-pointer">
+                    <DropdownMenuItem onClick={() => setDialog({type: 'send'})} className="py-3 cursor-pointer">
                       <div className="flex items-start gap-3">
                         <Send className="h-4 w-4 mt-0.5 text-neutral-700" />
                         <div className="flex flex-col gap-0.5 flex-1">
@@ -417,7 +421,7 @@ export default function CampaignDetailsPage() {
                         </div>
                       </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsScheduleDialogOpen(true)} className="py-3 cursor-pointer">
+                    <DropdownMenuItem onClick={() => setDialog({type: 'schedule'})} className="py-3 cursor-pointer">
                       <div className="flex items-start gap-3">
                         <Calendar className="h-4 w-4 mt-0.5 text-neutral-700" />
                         <div className="flex flex-col gap-0.5 flex-1">
@@ -531,7 +535,6 @@ export default function CampaignDetailsPage() {
                   onFromNameChange={value => setEditedCampaign({...editedCampaign, fromName: value})}
                   onReplyToChange={value => setEditedCampaign({...editedCampaign, replyTo: value})}
                   fromNamePlaceholder={activeProject?.name || 'Your Company'}
-                  showFromNameHelpText
                   layout="vertical"
                 />
               </CardContent>
@@ -658,7 +661,7 @@ export default function CampaignDetailsPage() {
           </Card>
 
           {/* Test Email Dialog */}
-          <Dialog open={isTestEmailDialogOpen} onOpenChange={setIsTestEmailDialogOpen}>
+          <Dialog open={dialog.type === 'testEmail'} onOpenChange={open => !open && setDialog({type: 'none'})}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Send Test Email</DialogTitle>
@@ -695,21 +698,25 @@ export default function CampaignDetailsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsTestEmailDialogOpen(false);
+                    setDialog({type: 'none'});
                     setTestEmailAddress('');
                   }}
                 >
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleSendTestEmail} disabled={sendingTestEmail || !testEmailAddress}>
-                  {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                <Button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={(dialog.type === 'testEmail' && dialog.sending) || !testEmailAddress}
+                >
+                  {dialog.type === 'testEmail' && dialog.sending ? 'Sending...' : 'Send Test Email'}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Schedule Dialog */}
-          <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+          <Dialog open={dialog.type === 'schedule'} onOpenChange={open => !open && setDialog({type: 'none'})}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Schedule Campaign</DialogTitle>
@@ -801,7 +808,7 @@ export default function CampaignDetailsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsScheduleDialogOpen(false);
+                    setDialog({type: 'none'});
                     setScheduledDateTime('');
                   }}
                 >
@@ -816,11 +823,11 @@ export default function CampaignDetailsPage() {
         </form>
 
         {/* Sticky Save Bar */}
-        <StickySaveBar hasChanges={hasChanges} isSubmitting={isSubmitting} onSave={handleSave} />
+        <StickySaveBar status={isSubmitting ? 'saving' : hasChanges ? 'dirty' : 'idle'} onSave={handleSave} />
 
         <ConfirmDialog
-          open={showSendDialog}
-          onOpenChange={setShowSendDialog}
+          open={dialog.type === 'send'}
+          onOpenChange={open => !open && setDialog({type: 'none'})}
           onConfirm={handleSend}
           title="Send Campaign"
           description="Are you sure you want to send this campaign now? This action cannot be undone."
@@ -829,8 +836,8 @@ export default function CampaignDetailsPage() {
         />
 
         <ConfirmDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
+          open={dialog.type === 'delete'}
+          onOpenChange={open => !open && setDialog({type: 'none'})}
           onConfirm={handleDelete}
           title="Delete Campaign"
           description="Are you sure you want to delete this draft campaign? This action cannot be undone."
@@ -864,7 +871,7 @@ export default function CampaignDetailsPage() {
           {/* Actions */}
           {(c.status === CampaignStatus.SCHEDULED || c.status === CampaignStatus.SENDING) && (
             <div className="flex justify-end">
-              <Button variant="destructive" onClick={() => setShowCancelDialog(true)} className="w-full sm:w-auto">
+              <Button variant="destructive" onClick={() => setDialog({type: 'cancel'})} className="w-full sm:w-auto">
                 <XCircle className="h-4 w-4" />
                 <span className="hidden sm:inline">Cancel Campaign</span>
                 <span className="sm:hidden">Cancel</span>
@@ -1069,8 +1076,8 @@ export default function CampaignDetailsPage() {
       </div>
 
       <ConfirmDialog
-        open={showCancelDialog}
-        onOpenChange={setShowCancelDialog}
+        open={dialog.type === 'cancel'}
+        onOpenChange={open => !open && setDialog({type: 'none'})}
         onConfirm={handleCancel}
         title="Cancel Campaign"
         description="Are you sure you want to cancel this campaign?"

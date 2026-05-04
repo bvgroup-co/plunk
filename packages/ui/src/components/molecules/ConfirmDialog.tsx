@@ -12,7 +12,7 @@ export interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'default' | 'destructive';
-  isLoading?: boolean;
+  status?: 'idle' | 'loading';
 }
 
 export function ConfirmDialog({
@@ -24,8 +24,10 @@ export function ConfirmDialog({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'default',
-  isLoading = false,
+  status = 'idle',
 }: ConfirmDialogProps) {
+  const isLoading = status === 'loading';
+
   const handleConfirm = async () => {
     await onConfirm();
     onOpenChange(false);

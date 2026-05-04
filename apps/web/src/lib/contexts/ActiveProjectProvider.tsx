@@ -1,5 +1,5 @@
 import type {Project} from '@plunk/db';
-import {createContext, type ReactNode, useContext, useEffect, useState} from 'react';
+import {createContext, type ReactNode, use, useEffect, useState} from 'react';
 import {useSWRConfig} from 'swr';
 
 import {useProjects} from '../hooks/useProject';
@@ -74,7 +74,7 @@ export function ActiveProjectProvider({children}: {children: ReactNode}) {
 }
 
 export function useActiveProject() {
-  const context = useContext(ActiveProjectContext);
+  const context = use(ActiveProjectContext);
   if (context === undefined) {
     throw new Error('useActiveProject must be used within an ActiveProjectProvider');
   }

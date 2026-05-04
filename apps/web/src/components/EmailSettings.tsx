@@ -11,14 +11,9 @@ interface EmailSettingsProps {
   fromPlaceholder?: string;
   fromNamePlaceholder?: string;
   replyToPlaceholder?: string;
-  showFromNameHelpText?: boolean;
   layout?: 'vertical' | 'grid';
 }
 
-/**
- * Reusable email settings component for from, fromName, and replyTo fields
- * Used in campaign and template forms
- */
 export function EmailSettings({
   from,
   fromName,
@@ -29,7 +24,6 @@ export function EmailSettings({
   fromPlaceholder = 'hello',
   fromNamePlaceholder = 'Your Company',
   replyToPlaceholder,
-  showFromNameHelpText = false,
   layout = 'grid',
 }: EmailSettingsProps) {
   // Use from email's local part as the reply-to placeholder if not provided
@@ -63,11 +57,9 @@ export function EmailSettings({
             onChange={e => onFromNameChange(e.target.value)}
             placeholder={fromNamePlaceholder}
           />
-          {showFromNameHelpText && (
-            <p className="text-xs text-neutral-500 mt-1">
-              The sender name that appears in the recipient&apos;s inbox. Defaults to your project name if not set.
-            </p>
-          )}
+          <p className="text-xs text-neutral-500 mt-1">
+            The sender name that appears in the recipient&apos;s inbox. Defaults to your project name if not set.
+          </p>
         </div>
       </GridWrapper>
 

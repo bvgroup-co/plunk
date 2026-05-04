@@ -110,7 +110,7 @@ function isEmailActivity(type: string): boolean {
 
 interface ActivityItemProps {
   activity: Activity;
-  isUpcoming?: boolean;
+  status?: 'upcoming' | 'completed';
 }
 
 interface ActivityConfig {
@@ -342,11 +342,12 @@ function getActivityConfig(activity: Activity): ActivityConfig {
   }
 }
 
-export const ActivityItem = memo(function ActivityItem({activity, isUpcoming = false}: ActivityItemProps) {
+export const ActivityItem = memo(function ActivityItem({activity, status = 'completed'}: ActivityItemProps) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const config = getActivityConfig(activity);
   const Icon = config.icon;
   const timestamp = new Date(activity.timestamp);
+  const isUpcoming = status === 'upcoming';
   const relativeTime = isUpcoming ? getUpcomingTime(timestamp) : getRelativeTime(timestamp);
 
   return (

@@ -9,7 +9,6 @@ interface ApiKeyDisplayProps {
   description?: string;
   isSecret?: boolean;
   onRegenerate?: () => Promise<void>;
-  showRegenerate?: boolean;
 }
 
 export function ApiKeyDisplay({
@@ -18,7 +17,6 @@ export function ApiKeyDisplay({
   description,
   isSecret = false,
   onRegenerate,
-  showRegenerate = false,
 }: ApiKeyDisplayProps) {
   const [showKey, setShowKey] = useState(!isSecret);
   const [copied, setCopied] = useState(false);
@@ -101,7 +99,7 @@ export function ApiKeyDisplay({
               )}
             </AnimatePresence>
           </Button>
-          {showRegenerate && onRegenerate && (
+          {onRegenerate && (
             <Button
               type="button"
               variant="outline"

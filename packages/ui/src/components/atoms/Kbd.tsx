@@ -1,8 +1,8 @@
 import * as React from 'react';
 import {cn} from '../../lib';
 
-export const Kbd = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
-  ({className, ...props}, ref) => (
+export function Kbd({className, ref, ...props}: React.ComponentProps<'kbd'>) {
+  return (
     <kbd
       ref={ref}
       className={cn(
@@ -11,6 +11,6 @@ export const Kbd = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElemen
       )}
       {...props}
     />
-  ),
-);
+  );
+}
 Kbd.displayName = 'Kbd';

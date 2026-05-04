@@ -59,13 +59,13 @@ const formatEmailCost = (emailCount: number, currency: string | null): string =>
 
 interface BillingLimitsProps {
   projectId: string;
-  hasSubscription: boolean;
+  tier: 'free' | 'paid';
   billingEnabled: boolean;
 }
 
 type LimitsFormValues = z.infer<typeof BillingLimitSchemas.update>;
 
-export function BillingLimits({projectId, hasSubscription, billingEnabled}: BillingLimitsProps) {
+export function BillingLimits({projectId, tier, billingEnabled}: BillingLimitsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -132,7 +132,7 @@ export function BillingLimits({projectId, hasSubscription, billingEnabled}: Bill
   };
 
   // Free tier projects can view their usage but can't edit limits
-  const canEditLimits = hasSubscription;
+  const canEditLimits = tier === 'paid';
 
   // If billing is not enabled, don't show the component
   if (!billingEnabled) {
@@ -160,7 +160,7 @@ export function BillingLimits({projectId, hasSubscription, billingEnabled}: Bill
       <CardHeader>
         <CardTitle>Billing Limits</CardTitle>
         <CardDescription>
-          {hasSubscription
+          {tier === 'paid'
             ? 'Set monthly limits for each email category. Limits reset on the 1st of each month.'
             : 'Free tier projects have a total limit of 1,000 emails per month across all categories.'}
         </CardDescription>
@@ -168,7 +168,7 @@ export function BillingLimits({projectId, hasSubscription, billingEnabled}: Bill
       <CardContent>
         <div className="space-y-6">
           {/* Free tier info banner */}
-          {!hasSubscription && limitsData && (
+          {tier !== 'paid' && limitsData && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <div className="ml-2">
@@ -208,7 +208,7 @@ export function BillingLimits({projectId, hasSubscription, billingEnabled}: Bill
           {!isEditing && limitsData && (
             <div className="space-y-4">
               {/* For free tier, show total usage across all categories */}
-              {!hasSubscription ? (
+              {tier !== 'paid' ? (
                 <UsageDisplay
                   category="Total Emails (All Categories)"
                   usage={limitsData.workflows}

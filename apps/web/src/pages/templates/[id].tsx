@@ -21,7 +21,7 @@ import {ArrowLeft, Save, Trash2, TriangleAlert} from 'lucide-react';
 import Link from 'next/link';
 import {NextSeo} from 'next-seo';
 import {useRouter} from 'next/router';
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {toast} from 'sonner';
 import useSWR from 'swr';
 import {TemplateSchemas, detectUnsubscribeSignal} from '@plunk/shared';
@@ -38,7 +38,6 @@ export default function TemplateEditorPage() {
 
   const [editedTemplate, setEditedTemplate] = useState<Partial<Template>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Initialize edit fields when template loads
@@ -54,16 +53,12 @@ export default function TemplateEditorPage() {
         replyTo: template.replyTo || '',
         type: template.type,
       });
-      // Reset hasChanges when loading fresh data
-      setHasChanges(false);
     }
   }, [template, editedTemplate]);
 
-  // Track changes
-  useEffect(() => {
-    if (!template || Object.keys(editedTemplate).length === 0) return;
-
-    const changed =
+  const hasChanges = useMemo(() => {
+    if (!template || Object.keys(editedTemplate).length === 0) return false;
+    return (
       editedTemplate.name !== template.name ||
       (editedTemplate.description || '') !== (template.description || '') ||
       editedTemplate.subject !== template.subject ||
@@ -71,9 +66,8 @@ export default function TemplateEditorPage() {
       editedTemplate.from !== template.from ||
       (editedTemplate.fromName || '') !== (template.fromName || '') ||
       (editedTemplate.replyTo || '') !== (template.replyTo || '') ||
-      editedTemplate.type !== template.type;
-
-    setHasChanges(changed);
+      editedTemplate.type !== template.type
+    );
   }, [editedTemplate, template]);
 
   // Warn before leaving page with unsaved changes
@@ -96,7 +90,6 @@ export default function TemplateEditorPage() {
       });
 
       // Silent save - no toast notification
-      setHasChanges(false);
       void mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save template');
@@ -267,7 +260,6 @@ export default function TemplateEditorPage() {
                   onFromNameChange={value => setEditedTemplate({...editedTemplate, fromName: value})}
                   onReplyToChange={value => setEditedTemplate({...editedTemplate, replyTo: value})}
                   fromNamePlaceholder={activeProject?.name || 'Your Company'}
-                  showFromNameHelpText
                   layout="vertical"
                 />
               </CardContent>
@@ -290,7 +282,7 @@ export default function TemplateEditorPage() {
       </form>
 
       {/* Sticky Save Bar */}
-      <StickySaveBar hasChanges={hasChanges} isSubmitting={isSubmitting} onSave={handleSave} />
+      <StickySaveBar status={isSubmitting ? 'saving' : hasChanges ? 'dirty' : 'idle'} onSave={handleSave} />
 
       {/* Delete Template Confirmation */}
       <ConfirmDialog

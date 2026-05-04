@@ -76,7 +76,6 @@ export function EmailEditor({value, onChange, placeholder, subject, from, replyT
   // Fetch contacts for preview using SWR
   const {contacts} = useContacts({limit: 50});
 
-  // Update available variables when fields change
   useEffect(() => {
     if (availableFields.length > 0) {
       setAvailableVariables(availableFields);
