@@ -61,5 +61,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!llms\\.mdx|api/search|_next|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|xml|txt)).*)',],
+  matcher: ['/((?!llms\\.mdx|api/search|_next|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|xml|txt|webmanifest)).*)',],
 };
