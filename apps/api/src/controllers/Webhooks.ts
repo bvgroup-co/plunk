@@ -159,13 +159,17 @@ export class Webhooks {
 
             if (body.content) {
               try {
-                const parsed = await simpleParser(body.content);
-                // Prefer HTML body, fallback to text if no HTML available
-                htmlBody = parsed.html ? String(parsed.html) : parsed.text || undefined;
-                signale.info('[WEBHOOK] Email content parsed successfully');
+                const parsed = await simpleParser(Buffer.from(body.content));
+                htmlBody =
+                  (parsed.html ? String(parsed.html) : undefined) ??
+                  parsed.textAsHtml ??
+                  parsed.text ??
+                  undefined;
+                signale.info(
+                  `[WEBHOOK] Email content parsed — html: ${!!parsed.html}, text: ${!!parsed.text}, result length: ${htmlBody?.length ?? 0}`,
+                );
               } catch (parseError) {
                 signale.error('[WEBHOOK] Failed to parse email content:', parseError);
-                // Continue processing without content
               }
             }
 
