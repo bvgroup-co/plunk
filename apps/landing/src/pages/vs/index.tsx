@@ -85,6 +85,24 @@ const competitors = [
     description: 'All-in-one platform vs focused email solution',
     features: ['Transactional Emails', 'Marketing Campaigns', 'API-First'],
   },
+  {
+    name: 'Mailjet',
+    slug: 'mailjet',
+    description: 'Subscription-based email vs pay-as-you-go open source',
+    features: ['Transactional Emails', 'Marketing Campaigns', 'Workflow Automation'],
+  },
+  {
+    name: 'Buttondown',
+    slug: 'buttondown',
+    description: 'Newsletter publishing vs full email platform',
+    features: ['Newsletters', 'Transactional Emails', 'Pay-as-you-go'],
+  },
+  {
+    name: 'Amazon SES',
+    slug: 'amazon-ses',
+    description: 'Raw email delivery vs complete email platform',
+    features: ['Transactional Emails', 'Marketing Campaigns', 'Self-Hostable'],
+  },
 ];
 
 export default function CompetitorsIndex() {
@@ -182,10 +200,11 @@ export default function CompetitorsIndex() {
                   whileInView={{opacity: 1, y: 0}}
                   viewport={{once: true}}
                   transition={{duration: 0.5, delay: index * 0.04, ease: [0.22, 1, 0.36, 1]}}
+                  className={'h-full'}
                 >
                   <Link
                     href={`/vs/${competitor.slug}`}
-                    className={'group flex flex-col justify-between rounded-[28px] border border-neutral-200 bg-white p-6 sm:p-8 transition hover:border-neutral-900'}
+                    className={'group flex h-full flex-col justify-between rounded-[28px] border border-neutral-200 bg-white p-6 sm:p-8 transition hover:border-neutral-900'}
                   >
                     <div className={'flex items-start justify-between'}>
                       <h3
