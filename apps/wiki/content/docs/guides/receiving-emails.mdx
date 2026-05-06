@@ -1,110 +1,145 @@
 ---
 title: Receiving emails
-description: Receive incoming emails at your verified domain and trigger automated workflows
+description: Receive incoming email at your verified domain and turn it into events you can drive workflows from
 icon: Inbox
 ---
 
-Plunk can receive emails sent to your verified domain and turn them into `email.received` events. This allows you to build automated workflows that respond to inbound emails, such as support ticket systems, auto-responders, or email-based integrations.
+Plunk can receive emails sent to any address at your verified domain, store them in your project, and emit an `email.received` event you can drive workflows from. This unlocks auto-replies, ticketing, conditional forwarding, and any other "do something when an email arrives" pattern.
 
-## How it works
+## What happens when an email arrives
 
-When someone sends an email to your verified domain (e.g., `support@yourdomain.com` or `hello@yourdomain.com`), Plunk will:
+When someone emails an address at your verified domain, Plunk:
 
-1. Receive the email through AWS SES
-2. Automatically create or update a contact for the sender
-3. Trigger an `email.received` event that can start workflows
-4. Make the email metadata available to your workflow steps
+1. Parses the message and stores it as an inbound `Email` record visible in your project's Activity feed.
+2. Creates the sender as a contact in your project (or updates them if they already exist), subscribed by default.
+3. Tracks an `email.received` event on the sender contact, which any workflow can listen to.
 
-The sender is automatically added to your contacts as a subscribed contact, allowing you to respond using Plunk's email sending capabilities.
+The HTML body is sanitized before being stored — scripts, iframes, event handlers, and `javascript:` URIs are stripped. Plain text is preserved as-is when no HTML part is available.
 
-## Setting up inbound email
+## Setup
 
-<div className='fd-steps [&_h3]:fd-step'>
+import {Step, Steps} from 'fumadocs-ui/components/steps';
 
-### Verify your domain
+<Steps>
 
-Before you can receive emails, your domain must be verified in Plunk. Follow the [verifying domains](/guides/verifying-domains) guide to set up the required DKIM, SPF, and MX records for sending.
+<Step>
+
+### Verify your domain for sending
+
+Inbound is only enabled on domains that are fully verified for sending (DKIM + SPF + the bounce-feedback MX). Follow the [Verifying domains](/guides/verifying-domains) guide first.
+
+</Step>
+
+<Step>
 
 ### Add the inbound MX record
 
-In your project settings, navigate to the **Domains** tab and expand your verified domain. You'll see an optional "Inbound Email" section with an MX record configuration:
+Open your project's **Domains** tab, expand the verified domain, and look for the **Inbound Email** section. Plunk shows you the exact MX record value to add to your DNS — copy it from there and add it as an MX record on your domain.
 
-- **Type**: MX
-- **Name**: `yourdomain.com` (your root domain)
-- **Value**: `10 inbound-smtp.eu-north-1.amazonaws.com`
-
-Add this MX record to your domain's DNS settings. The priority value `10` ensures that inbound emails are routed to AWS SES for processing.
-
-<Callout title="Multiple MX records" variant="warning">
-  If you're already using MX records for another email service (like Google Workspace or Microsoft 365), adding this MX
-  record may conflict. You can only have one primary email receiver per domain. Consider using a subdomain (e.g.,
-  `mail.yourdomain.com`) if you need to maintain both services.
+<Callout title="Conflict with existing email" type="warn">
+A domain can only have one primary inbound MX target. If you already use Google Workspace, Microsoft 365, or another provider for receiving email on the apex domain, your existing email will break if you switch the MX to point at Plunk. The usual fix is to receive Plunk inbound on a subdomain (e.g. `mail.yourdomain.com` or `support.yourdomain.com`) so you can keep your main mailbox on the existing provider. The subdomain still needs to be verified for sending in Plunk before its MX will be accepted.
 </Callout>
+
+</Step>
+
+<Step>
 
 ### Wait for DNS propagation
 
-DNS changes can take anywhere from a few minutes to 48 hours to fully propagate. You can verify the MX record is set correctly using:
+DNS changes take anywhere from a few minutes to 48 hours to propagate. You can verify the MX record is live:
 
 ```bash
 dig MX yourdomain.com
 ```
 
-You should see the AWS SES inbound endpoint in the response.
+You should see the value Plunk gave you in the response.
 
-</div>
+</Step>
 
-## Creating workflows with email.received
+<Step>
 
-Once your MX record is configured, you can create workflows that respond to incoming emails.
+### Send a test email
 
-### Event trigger
+Send an email from any external account to any address at your domain (e.g. `anything@yourdomain.com`) and check that:
 
-Create a new workflow and use `email.received` as the trigger event. This workflow will run every time an email is received at your domain.
+- A new `Email` row appears in the project's Activity feed with type **Inbound**.
+- The sender shows up as a contact in the **Contacts** tab.
+- An `email.received` event is recorded on that contact.
 
-### Available event data
+</Step>
 
-The `email.received` event includes the following data that you can use in your workflow steps:
+</Steps>
 
-| Field                  | Type     | Description                                       |
-| ---------------------- | -------- | ------------------------------------------------- |
-| `messageId`            | string   | Unique identifier for the received message        |
-| `from`                 | string   | Email address of the sender                       |
-| `fromHeader`           | string   | Full "From" header including display name         |
-| `to`                   | string   | Primary recipient email address                   |
-| `subject`              | string   | Email subject line                                |
-| `timestamp`            | string   | ISO 8601 timestamp when the email was received    |
-| `recipients`           | string[] | All recipient email addresses                     |
-| `hasContent`           | boolean  | Whether the email body was captured               |
-| `body`                 | string   | HTML body of the email (or plain text if no HTML) |
-| `spamVerdict`          | string   | Spam check result (e.g., "PASS", "FAIL")          |
-| `virusVerdict`         | string   | Virus scan result (e.g., "PASS", "FAIL")          |
-| `spfVerdict`           | string   | SPF authentication result                         |
-| `dkimVerdict`          | string   | DKIM authentication result                        |
-| `dmarcVerdict`         | string   | DMARC authentication result                       |
-| `processingTimeMillis` | number   | Time taken to process the email                   |
+## What gets stored
 
-You can access these fields in your workflow using variable syntax, for example: `{{event.subject}}`, `{{event.from}}`, or `{{event.body}}`.
+Every accepted inbound email shows up in your project's Activity feed alongside outbound emails — you can search, filter, and inspect them the same way.
 
-### Example: Auto-reply workflow
+Plunk stores: the parsed and sanitized HTML body (or plain text if no HTML is available), the headers surfaced in the event payload below, the authentication and spam verdicts, and the message ID.
 
-Here's a simple workflow that sends an automatic reply when an email is received at `support@yourdomain.com`:
+**Plunk does not store**: the original raw message, attachments, threading headers (`In-Reply-To`, `References`), or headers beyond what's exposed on the event. If you need any of those, forward the email to your own service via a `WEBHOOK` step in the workflow that fires.
 
-1. **Trigger**: `email.received`
-2. **Condition**: Check if `{{event.to}}` equals `support@yourdomain.com`
-3. **Send Email**:
+## The `email.received` event
+
+The event is emitted on the sender contact (auto-created if it doesn't exist yet) and carries the full parsed message in its data field:
+
+import {TypeTable} from 'fumadocs-ui/components/type-table';
+
+<TypeTable
+  type={{
+    messageId: { type: 'string', description: 'Unique message identifier for the received email.' },
+    from: { type: 'string', description: 'Sender email address (envelope / `From` header).' },
+    fromHeader: { type: 'string', description: 'Full "From" header including display name, e.g. `"Ada <ada@example.com>"`.' },
+    to: { type: 'string', description: 'Primary recipient at your verified domain.' },
+    recipients: { type: 'array of strings', description: 'Every recipient address (covers `To`, `Cc`, and BCC envelope recipients).' },
+    subject: { type: 'string', description: 'Subject line.' },
+    timestamp: { type: 'string', description: 'ISO 8601 receive timestamp.' },
+    hasContent: { type: 'boolean', description: '`true` when a body was successfully parsed.' },
+    body: { type: 'string', description: 'Sanitized HTML body, or plain text if no HTML part. See sanitization rules above.' },
+    spamVerdict: { type: 'string', description: 'Spam check result. One of `PASS`, `FAIL`, `GRAY`, or `PROCESSING_FAILED`.' },
+    virusVerdict: { type: 'string', description: 'Virus scan result. One of `PASS`, `FAIL`, `GRAY`, or `PROCESSING_FAILED`.' },
+    spfVerdict: { type: 'string', description: 'SPF authentication result.' },
+    dkimVerdict: { type: 'string', description: 'DKIM authentication result.' },
+    dmarcVerdict: { type: 'string', description: 'DMARC authentication result.' },
+    processingTimeMillis: { type: 'number', description: 'How long it took to process the email.' },
+  }}
+/>
+
+The event is **always** emitted — Plunk does not block emails based on the spam, virus, or authentication verdicts. Filter them yourself in the workflow that fires.
+
+In templates and workflow steps, access these fields via the event variable namespace, e.g. `{{event.subject}}`, `{{event.from}}`, or `{{event.body}}`.
+
+## Building workflows on inbound
+
+### Auto-reply
+
+A minimal auto-reply on `support@yourdomain.com`:
+
+1. **Trigger**: `email.received`.
+2. **Condition**: continue only if `event.to` equals `support@yourdomain.com` and `event.spamVerdict == "PASS"` and `event.virusVerdict == "PASS"`.
+3. **Send email**:
    - **To**: `{{event.from}}`
    - **Subject**: `Re: {{event.subject}}`
-   - **Body**: `Thank you for your message. We received: "{{event.body}}". We'll get back to you soon!`
+   - **Body**: `Thanks for your message. We've received your email and will respond within one business day.`
 
-This workflow reads the incoming email body and includes it in the auto-reply response.
+Use a `TRANSACTIONAL` template for the auto-reply so it bypasses subscription checks (the sender is auto-subscribed but you don't want to fail to reply if they later unsubscribe).
 
-### Example: Forward to webhook
+### Routing by recipient
 
-For more advanced processing (like ticket creation or AI analysis), you can forward the email content to your own API:
+Route different addresses to different downstream actions in a single workflow:
 
-1. **Trigger**: `email.received`
+1. **Trigger**: `email.received`.
+2. **Condition**: branch on `event.to`:
+   - `support@…` → ticketing webhook → auto-reply.
+   - `sales@…`   → CRM webhook → notify Slack.
+   - `billing@…` → billing system webhook.
+
+### Forward to your API
+
+For richer processing (NLP classification, ticket creation, attachments not captured by Plunk), forward the email to your own backend:
+
+1. **Trigger**: `email.received`.
 2. **Webhook**:
-   - **URL**: `https://api.example.com/support/tickets`
+   - **URL**: `https://api.example.com/inbound`
    - **Method**: `POST`
    - **Body**:
      ```json
@@ -112,59 +147,89 @@ For more advanced processing (like ticket creation or AI analysis), you can forw
        "from": "{{event.from}}",
        "subject": "{{event.subject}}",
        "body": "{{event.body}}",
-       "timestamp": "{{event.timestamp}}"
+       "messageId": "{{event.messageId}}",
+       "timestamp": "{{event.timestamp}}",
+       "verdicts": {
+         "spam": "{{event.spamVerdict}}",
+         "virus": "{{event.virusVerdict}}",
+         "spf": "{{event.spfVerdict}}",
+         "dkim": "{{event.dkimVerdict}}",
+         "dmarc": "{{event.dmarcVerdict}}"
+       }
      }
      ```
 
-Your backend receives the full email content and can process it (create a ticket, run AI analysis, etc.).
+### Filter spam and virus before processing
+
+Always include a `CONDITION` step early in the workflow that drops anything where `spamVerdict` or `virusVerdict` is `FAIL`. Plunk does not pre-filter for you.
 
 ## Multi-project domains
 
-If you have verified the same domain in multiple projects, incoming emails will be processed for **all projects** that have the domain verified. Each project will:
+If the same domain is verified in multiple projects, every inbound email is delivered to **every project** that has it verified — each gets its own `Email` record, its own contact upsert, and its own `email.received` event. This is by design (it lets you split a single inbox across staging and production projects, or hand off the same inbound stream to multiple teams).
 
-- Create/update the sender as a contact in that project
-- Trigger the `email.received` event in that project
-- Run any workflows configured for that event
+If you don't want this, only verify the domain in one project at a time.
 
-This allows you to segment inbound email handling across different projects if needed.
+## Billing
 
-## Limitations
+Inbound emails count toward your project's email usage at **1 credit per received email**, just like outbound. The free tier and paid tiers consume the same pool.
 
-- **Catch-all addresses**: Plunk receives emails sent to any address at your verified domain (e.g., `anything@yourdomain.com`). You can use workflow conditions to route emails based on the `to` field.
-- **Attachments**: Email attachments are not currently captured or stored.
-- **Email size**: AWS SES has a maximum message size limit of 40 MB for inbound emails.
+You can set a per-project inbound cap under **Billing → Limits**. Once the cap is reached, **inbound emails are silently dropped for that project** until the cap resets — they aren't queued or replayed. Other projects sharing the same domain are unaffected by another project's cap.
 
 ## Security considerations
 
-Plunk captures several security verdicts for each incoming email:
+- **Treat the body as untrusted user input.** Plunk sanitizes HTML to prevent the obvious script-injection paths, but the message can still contain phishing links, social-engineering content, and unicode lookalikes. Don't render the body verbatim in any UI you control without re-escaping it for that context.
+- **Authentication verdicts are advisory.** Plunk records SPF / DKIM / DMARC results on the event but does not enforce them. Build your own policy: dropping unauthenticated mail at the workflow's first `CONDITION` step is a sensible default for sensitive inboxes (billing, account changes).
+- **Senders are auto-subscribed.** Inbound senders enter your audience as subscribed contacts. If you don't want that, add an `UPDATE_CONTACT` step at the end of the inbound workflow to set `subscribed: false`.
+- **Reply-loop risk.** If your auto-reply sends back to a domain you also receive on (or to a list address), you can create an infinite loop. Add a `CONDITION` that drops messages where `event.from` matches your own domain.
 
-- **SPF (Sender Policy Framework)**: Verifies the sender's mail server is authorized
-- **DKIM (DomainKeys Identified Mail)**: Validates the email hasn't been tampered with
-- **DMARC (Domain-based Message Authentication)**: Combines SPF and DKIM for additional validation
-- **Spam verdict**: AWS SES's spam detection result
-- **Virus verdict**: AWS SES's virus scanning result
+## Limitations
 
-You can use these verdicts in workflow conditions to automatically filter or quarantine suspicious emails before processing them.
+- **Catch-all only**: Plunk routes anything sent to any address at your domain to the same handler. You filter on `event.to` inside the workflow.
+- **No attachments**: attachments are dropped during parsing. Forward to your own service if you need them.
+- **No raw MIME**: the original message is not retained.
+- **No threading**: Plunk doesn't group inbound messages into threads or correlate them with outbound replies.
+- **40 MB size cap**: messages larger than 40 MB are rejected before processing.
 
 ## Troubleshooting
 
-### Emails not being received
+import {Accordion, Accordions} from 'fumadocs-ui/components/accordion';
 
-1. **Check DNS propagation**: Verify the MX record is correctly set using `dig MX yourdomain.com`
-2. **Verify domain**: Ensure your domain is fully verified in Plunk (all DKIM, SPF, and MX records for sending)
-3. **Check workflow**: Create a simple test workflow with just an `email.received` trigger and a webhook to verify events are being generated
-4. **Check sender**: Try sending from a different email provider as some may cache DNS records
+<Accordions type="single">
 
-### Duplicate events
+<Accordion title="Emails are not being received">
 
-If you have the same domain verified in multiple projects, you will receive duplicate `email.received` events (one per project). This is expected behavior. Use project-specific workflows to handle this.
+1. **DNS**: `dig MX yourdomain.com` — confirm the value Plunk gave you appears in the response.
+2. **Domain verification**: in the dashboard, confirm the domain is fully verified for sending. Inbound MX won't process anything on an unverified domain.
+3. **Workflow not firing**: build a test workflow with just an `email.received` trigger and a webhook to a service like webhook.site to see whether events are being emitted at all. If yes, the issue is in your workflow logic; if no, it's upstream.
+4. **Sender DNS cache**: some senders cache MX lookups for hours. Test from a different email provider.
 
-### Security verdicts failing
+</Accordion>
 
-If incoming emails consistently show failing security verdicts:
+<Accordion title="Email arrives in Activity but no workflow runs">
 
-- **SPF failures**: The sender's domain may not have SPF configured correctly
-- **DKIM failures**: The sender's domain may not have DKIM configured, or the email was forwarded/modified in transit
-- **DMARC failures**: The sender fails both SPF and DKIM checks
+- Check the workflow trigger event name is exactly `email.received`.
+- Check the workflow is **enabled** — workflows are created disabled.
+- Check the workflow's `CONDITION` steps aren't filtering everything out (verdict checks are a common culprit when the sender domain has loose authentication).
 
-These are issues with the sender's configuration, not your Plunk setup. You can choose to process these emails anyway or filter them using workflow conditions.
+</Accordion>
+
+<Accordion title="Inbound email is dropped">
+
+- Check **Billing → Limits** for an inbound cap that's been reached.
+- Check the project's status in the dashboard — a disabled project doesn't process inbound mail.
+
+</Accordion>
+
+<Accordion title="Verdicts are consistently FAIL">
+
+This points at the sender's configuration, not yours:
+
+- **SPF failures**: sender's domain has no SPF record or doesn't list their sending IP.
+- **DKIM failures**: sender's domain has no DKIM, or the message was modified in transit (some forwarding services break DKIM).
+- **DMARC failures**: sender fails both SPF and DKIM, or has strict alignment that forwarding broke.
+
+You can either drop these in your workflow or process them anyway — your call.
+
+</Accordion>
+
+</Accordions>

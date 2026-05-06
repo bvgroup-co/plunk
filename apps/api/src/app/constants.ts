@@ -128,6 +128,6 @@ export const OPENROUTER_API_KEY = validateEnv('OPENROUTER_API_KEY', '');
 export const OPENROUTER_MODEL = validateEnv('OPENROUTER_MODEL', 'anthropic/claude-3-haiku');
 export const PHISHING_DETECTION_SAMPLE_RATE = Number(validateEnv('PHISHING_DETECTION_SAMPLE_RATE', '0.1')); // Default 10% of emails
 export const PHISHING_DETECTION_ENABLED = OPENROUTER_API_KEY !== '';
-export const PHISHING_CONFIDENCE_THRESHOLD = Number(validateEnv('PHISHING_CONFIDENCE_THRESHOLD', '95')); // Confidence % to disable project (default 85%)
+export const PHISHING_CONFIDENCE_THRESHOLD = Number(validateEnv('PHISHING_CONFIDENCE_THRESHOLD', '95')); // Confidence % required to auto-disable project from a single detection
 export const PHISHING_CUMULATIVE_THRESHOLD = Number(validateEnv('PHISHING_CUMULATIVE_THRESHOLD', '3')); // Number of phishing detections before auto-disable (default 3)
 export const PHISHING_CUMULATIVE_WINDOW_MS = Number(validateEnv('PHISHING_CUMULATIVE_WINDOW_MS', '3600000')); // Time window for cumulative tracking in ms (default 1 hour)

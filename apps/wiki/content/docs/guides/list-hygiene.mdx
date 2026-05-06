@@ -8,24 +8,32 @@ Plunk automatically monitors the bounce and complaint rates of your emails to he
 
 ## Bounce Management
 
-A bounce occurs when an email cannot be delivered to the recipient's inbox. When an email bounces, Plunk will automatically unsubscribe the contact and also send an event on the contact for `email.bounced`.
+A bounce occurs when an email cannot be delivered to the recipient's inbox. Plunk records every bounce as an `email.bounce` event on the contact, and automatically unsubscribes the contact **only on permanent (hard) bounces**. Transient (soft) bounces don't change subscription state — they're typically retried by the upstream mail server.
 
 ### Types of Bounces
-| Type | Description |
-|------|-------------|
-| Hard Bounce | Permanent delivery failure (e.g., invalid email address) |
-| Soft Bounce | Temporary delivery failure (e.g., mailbox full) |
+
+| Type | Description | Auto-unsubscribes? |
+|------|-------------|---------------------|
+| **Permanent (hard)** | Permanent delivery failure — invalid address, blocked domain, recipient rejected. | Yes |
+| **Transient (soft)** | Temporary delivery failure — mailbox full, server unavailable, greylisted. | No |
+| **Undetermined** | The upstream provider couldn't classify the bounce. | No |
+
+Both bounce types fire an `email.bounce` event you can branch on inside workflows or webhooks (use the event payload's `bounceType` field to distinguish them).
 
 ### Preventing bounces
-- [Verify email addresses](/api-reference/public-api/verifyEmail)
-- Regularly clean your email list
-- Use double opt-in for subscriptions
+
+- [Verify email addresses](/api-reference/public-api/verifyEmail) at signup before adding them to your list.
+- Regularly clean your email list — segment unengaged contacts and re-confirm or remove them.
+- Build a confirmation flow with a workflow that sends a verification email and only marks the contact as confirmed when they click through.
 
 ## Complaint Management
 
-A complaint occurs when a recipient marks your email as spam. When a complaint is received, Plunk will automatically unsubscribe the contact and send an event on the contact for `email.complaint`.
+A complaint occurs when a recipient marks your email as spam in their inbox provider. When Plunk receives that complaint, the contact is **always automatically unsubscribed** and Plunk fires an `email.complaint` event on the contact.
+
+Complaints are taken more seriously than bounces by mail providers — even a small complaint rate can hurt your sender reputation and deliverability.
 
 ### Preventing complaints
-- Ensure your emails are relevant and valuable to your audience
-- Include a clear unsubscribe link in every email
-- Monitor your email frequency to avoid overwhelming your contacts
+- Ensure your emails are relevant and valuable to your audience.
+- Include a clear, working unsubscribe link in every marketing email — Plunk injects this automatically for `MARKETING` template/campaign types.
+- Monitor your email frequency to avoid overwhelming your contacts.
+- Make sure recipients clearly opted in. Avoid scraped, purchased, or stale lists.

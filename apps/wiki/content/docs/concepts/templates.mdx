@@ -4,7 +4,33 @@ description: Create reusable email templates for your campaigns, workflows and t
 icon: SwatchBook
 ---
 
-Templates are stored in the Plunk dashboard and can be used in campaigns, workflows and transactional emails.
+Templates are stored in the Plunk dashboard and can be used in campaigns, workflows, and transactional emails sent through `/v1/send`.
+
+## Anatomy of a template
+
+A template bundles everything needed to render an email: content, sender, and behaviour.
+
+import {TypeTable} from 'fumadocs-ui/components/type-table';
+
+<TypeTable
+  type={{
+    name: { type: 'string', required: true, description: 'Internal name shown in the dashboard.' },
+    description: { type: 'string', description: 'Optional internal note.' },
+    subject: { type: 'string', required: true, description: 'Email subject line. Supports template variables.' },
+    body: { type: 'string', required: true, description: 'HTML body. Supports template variables.' },
+    from: { type: 'string', required: true, description: 'Sender email — must be on a verified domain.' },
+    fromName: { type: 'string', description: 'Optional sender display name.' },
+    replyTo: { type: 'string', description: 'Optional reply-to address.' },
+    type: { type: 'string', required: true, description: 'One of `MARKETING`, `TRANSACTIONAL`, or `HEADLESS`. See [Template types](#templates-types).' },
+    style: { type: 'object', description: "Editor style metadata used by the dashboard's drag-and-drop editor. You can ignore this when creating templates via the API." },
+  }}
+/>
+
+When a template is used by `/v1/send`, the request can override any of `subject`, `body`, `from`, `fromName`, `replyTo` — the template's values act as defaults.
+
+### Sender domain verification
+
+The `from` address must be on a verified domain. Creating or updating a template with an unverified `from` returns `403`. See [Verifying domains](/guides/verifying-domains).
 
 ## Designing templates
 
@@ -49,6 +75,11 @@ The following fields are reserved by Plunk but can still be used.
 
 You can preview your templates by selecting a contact in the preview window. This will allow you to see how the template will look for that specific contact, with their data populated.
 
+## Duplicating and finding usage
+
+- `POST /templates/:id/duplicate` — creates an editable copy. Useful for A/B variants or as a starting point for related emails.
+- `GET /templates/:id/usage` — lists every campaign, workflow step, and other reference that points at this template. Use this to answer "what breaks if I change this template?" or to find leftover references before deletion.
+
 ## Templates types
 
 There are three types of templates in Plunk. Each type is treated at the same priority when sending emails, you should not pick one type over the other based on deliverability or performance.
@@ -58,3 +89,20 @@ There are three types of templates in Plunk. Each type is treated at the same pr
 | Marketing     | Yes              | Yes                      | Automatically includes a Plunk-hosted unsubscribe footer. Will not be sent to contacts who are unsubscribed          |
 | Transactional | No               | No                       | Does not include any way to unsubscribe. Will be sent to any contact, regardless of subscription state               |
 | Headless      | Yes              | No                       | Respects opt-out like marketing, but no Plunk footer is appended. You are responsible for providing an unsubscribe mechanism in the email body. Use `{{unsubscribeUrl}}` or `{{manageUrl}}` to link to Plunk's managed unsubscribe page |
+
+## What's next
+
+<Cards>
+  <Card title="Transactional emails" href="/concepts/transactional-emails">
+    Send templated emails directly through `/v1/send`.
+  </Card>
+  <Card title="Campaigns" href="/concepts/campaigns">
+    Broadcast a template to a segment or audience.
+  </Card>
+  <Card title="Workflows" href="/concepts/workflows">
+    Send templates as part of automated journeys.
+  </Card>
+  <Card title="Localization" href="/guides/localization">
+    Translate the unsubscribe footer and contact-facing pages.
+  </Card>
+</Cards>

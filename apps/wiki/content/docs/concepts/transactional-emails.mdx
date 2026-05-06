@@ -9,12 +9,24 @@ Transactional emails are emails sent directly through the API. They are typicall
 ## Sending with attachments
 Plunk supports sending attachments with transactional emails. By default, you can include up to 10 attachments per email with a maximum total size of 10MB. Attachments should be base64 encoded and included in the `attachments` array when sending the email via the [/v1/email/send](/api-reference/public-api/sendEmail) endpoint.
 
-Self-hosters can raise these limits via environment variables to match the capacity of the underlying email provider (AWS SES supports up to 40MB per message by default):
-
-| Variable | Default | Description |
-|---|---|---|
-| `MAX_ATTACHMENT_SIZE_MB` | `10` | Maximum total attachment size in megabytes |
-| `MAX_ATTACHMENTS_COUNT` | `10` | Maximum number of attachments per email |
+The total message size cannot exceed 40 MB. Self-hosters can adjust the defaults — see [Environment variables](/self-hosting/environment-variables).
 
 ## Sending from a template
 You can also send transactional emails using a [template](/concepts/templates) you have created in the dashboard. This allows you to reuse the same design and content for multiple emails, while still personalizing them with contact data.
+
+## What's next
+
+<Cards>
+  <Card title="Send Email API" href="/api-reference/public-api/sendEmail">
+    Full reference for `POST /v1/send`.
+  </Card>
+  <Card title="Templates" href="/concepts/templates">
+    Author reusable email designs.
+  </Card>
+  <Card title="API keys" href="/guides/api-keys">
+    Authenticating requests with `sk_*` and `pk_*` keys.
+  </Card>
+  <Card title="Webhooks" href="/guides/webhooks">
+    Track delivery, opens, clicks, and bounces of your sends.
+  </Card>
+</Cards>

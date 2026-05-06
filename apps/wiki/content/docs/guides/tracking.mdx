@@ -1,32 +1,42 @@
 ---
 title: Tracking
-description: Tracking for opens and clicks in your emails
+description: Track opens and clicks on the emails you send through Plunk
 icon: HatGlasses
 ---
 
-Plunk provides built-in tracking for email opens and link clicks. This allows you to monitor the engagement of your emails and gain insights into how your contacts interact with your content.
+Plunk provides built-in tracking for email opens and link clicks so you can monitor engagement and drive workflows or segments off email activity.
 
 ## Open tracking
 
-When open tracking is enabled, Plunk includes a small, invisible tracking pixel in your emails. When a contact opens the email, the pixel is loaded, and Plunk records the open event.
+When open tracking is enabled, Plunk includes a small invisible tracking pixel at the bottom of your email. When the recipient's mail client loads the pixel, the open is recorded as an `email.open` event on the contact.
 
 ### Considerations
-- Open tracking relies on the loading of images in the email client. If a contact has images disabled, the open event may not be recorded.
-- Some email clients may pre-load images, which can result in false open events.
+
+- Open tracking depends on the mail client loading remote images. If a contact has images disabled, no open is recorded.
+- Some clients (and corporate mail security gateways) pre-fetch images, which can produce false positive opens.
+- Apple Mail Privacy Protection masks individual opens — opens from Apple Mail are recorded but reflect proxy fetches rather than human reads.
 
 ## Click tracking
 
-Click tracking is enabled by default for all emails sent through Plunk. When a contact clicks on a link in the email, Plunk records the click event and tracks which link was clicked.
+When click tracking is enabled, Plunk rewrites links in your email body to route through a tracking redirect. When a contact clicks a link, Plunk records the click and the original URL on an `email.click` event before forwarding the contact to the destination.
 
 ### Considerations
-- Click tracking works by rewriting the URLs in your email to point to Plunk's tracking servers
-- Some email clients or security software may block tracking links, which can result in missed click events
+
+- Some mail clients and security tools pre-scan links, which can produce false positive clicks.
+- The rewrite is transparent to recipients but means link URLs in the email source no longer match the original destination.
 
 ## Configuration
-There are three levels of configuration for tracking:
 
-| Level | Description |
-|-------|-------------|
-| Enabled | Tracking is enabled for all emails |
-| Disabled | Tracking is disabled for all emails |
-| Marketing only | Tracking is enabled only for marketing emails (templates and campaigns) |
+Tracking is configured per project under **Settings → Tracking**. Three modes are available:
+
+| Mode             | Behaviour                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| **Enabled**      | Tracking is applied to every email.                                                        |
+| **Disabled**     | No tracking is applied to any email.                                                       |
+| **Marketing only** | Tracking is applied to marketing sends (campaigns and emails sent by workflow steps using marketing or headless templates). Transactional sends — anything via `/v1/send` using a transactional template, or campaigns of type `TRANSACTIONAL` — are sent without tracking. |
+
+Tracking is **all or nothing** within a single send — there's no separate toggle for opens vs clicks. Pick the mode that fits your privacy and analytics requirements.
+
+<Callout title="Tracking mode availability" type="info">
+On self-hosted instances, the Marketing-only mode is only available when a no-tracking configuration set is configured. See [Self-hosting → Email setup](/self-hosting/email-setup) for details.
+</Callout>

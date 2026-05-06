@@ -27,11 +27,17 @@ Invalid request format or parameters. Check the error details for specific issue
 ### 401 Unauthorized
 Authentication failed or missing. Verify your API key.
 
+### 402 Payment Required
+A billing limit has been reached or the operation requires a plan upgrade. Returned with `BILLING_LIMIT_EXCEEDED` and `UPGRADE_REQUIRED`.
+
 ### 403 Forbidden
-Not authorized to access this resource. Check permissions or project status.
+Not authorized to access this resource. Check permissions or project status. Also returned when email verification is required (`EMAIL_VERIFICATION_REQUIRED`) or the project has been disabled (`PROJECT_DISABLED`).
 
 ### 404 Not Found
 The requested resource does not exist. Verify the resource ID.
+
+### 409 Conflict
+The request conflicts with the current state of a resource — for example, creating a contact with an email that already exists, or updating to an email that's already taken. Returned with `CONFLICT`.
 
 ### 422 Unprocessable Entity
 Request validation failed. Check the `errors` array for field-level details.
@@ -96,6 +102,7 @@ All errors include a machine-readable `code` field for programmatic handling. He
 | `FORBIDDEN` | 403 | Not allowed to perform this action |
 | `PROJECT_ACCESS_DENIED` | 403 | No access to this project |
 | `PROJECT_DISABLED` | 403 | Project has been disabled |
+| `EMAIL_VERIFICATION_REQUIRED` | 403 | The user's email address must be verified before this action |
 
 ### Validation & Input Errors
 
@@ -442,55 +449,56 @@ if (!data.success) {
 
 ### Common Issues and Solutions
 
-#### Authentication Issues (401)
+import {Accordion, Accordions} from 'fumadocs-ui/components/accordion';
 
-**Problem**: `INVALID_API_KEY` or `MISSING_AUTH`
+<Accordions type="single">
 
-**Solutions**:
-- Verify your API key is copied correctly (no extra spaces)
-- Check you're using the right key type (`sk_` for secret, `pk_` for public)
-- Ensure the `Authorization` header uses Bearer token format
-- Verify the key hasn't been revoked or regenerated
+<Accordion title="Authentication Issues (401) — INVALID_API_KEY or MISSING_AUTH">
 
-#### Validation Issues (422)
+- Verify your API key is copied correctly (no extra spaces).
+- Check you're using the right key type (`sk_` for secret, `pk_` for public).
+- Ensure the `Authorization` header uses Bearer token format.
+- Verify the key hasn't been revoked or regenerated.
 
-**Problem**: `VALIDATION_ERROR` with field errors
+</Accordion>
 
-**Solutions**:
-- Check the `errors` array for specific field issues
-- Verify all required fields are included
-- Ensure field types match (strings quoted, numbers unquoted)
-- Review the API reference for correct request format
+<Accordion title="Validation Issues (422) — VALIDATION_ERROR">
 
-#### Not Found Issues (404)
+- Check the `errors` array for specific field issues.
+- Verify all required fields are included.
+- Ensure field types match (strings quoted, numbers unquoted).
+- Review the API reference for the correct request format.
 
-**Problem**: `TEMPLATE_NOT_FOUND`, `CONTACT_NOT_FOUND`, etc.
+</Accordion>
 
-**Solutions**:
-- Verify the resource ID is correct
-- Check the resource belongs to your project
-- Ensure the resource hasn't been deleted
-- List available resources via the API to confirm IDs
+<Accordion title="Not Found Issues (404) — TEMPLATE_NOT_FOUND, CONTACT_NOT_FOUND, etc.">
 
-#### Rate Limit Issues (429)
+- Verify the resource ID is correct.
+- Check the resource belongs to your project.
+- Ensure the resource hasn't been deleted.
+- List available resources via the API to confirm IDs.
 
-**Problem**: `RATE_LIMIT_EXCEEDED`
+</Accordion>
 
-**Solutions**:
-- Implement exponential backoff (wait 1s, 2s, 4s, 8s between retries)
-- Reduce request frequency
-- Consider upgrading your plan for higher limits
-- Batch operations when possible
+<Accordion title="Rate Limit Issues (429) — RATE_LIMIT_EXCEEDED">
 
-#### Server Errors (500)
+- Implement exponential backoff (wait 1s, 2s, 4s, 8s between retries).
+- Reduce request frequency.
+- Consider upgrading your plan for higher limits.
+- Batch operations when possible.
 
-**Problem**: `INTERNAL_SERVER_ERROR`
+</Accordion>
 
-**Solutions**:
-- Note the request ID from the error response
-- Wait a moment and retry the request
-- Check [status.useplunk.com](https://status.useplunk.com) for incidents
-- Contact support with the request ID if the issue persists
+<Accordion title="Server Errors (500) — INTERNAL_SERVER_ERROR">
+
+- Note the request ID from the error response.
+- Wait a moment and retry the request.
+- Check [status.useplunk.com](https://status.useplunk.com) for incidents.
+- Contact support with the request ID if the issue persists.
+
+</Accordion>
+
+</Accordions>
 
 ### Best Practices
 

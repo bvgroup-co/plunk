@@ -178,7 +178,7 @@
       "post": {
         "tags": ["Public API"],
         "summary": "Send transactional email",
-        "description": "Send a transactional email via the public API. Automatically creates/updates contacts.",
+        "description": "Send a transactional email via the public API. Automatically creates or updates the recipient contact.\n\n**Required content:** either a `template` ID, **or** both `subject` and `body`. Template fields can be overridden by explicit request fields.\n\n**Sender:** `from` is required unless using a template that already has a `from` configured. The sender's domain must be verified.\n\n**Multiple recipients:** when `to` is an array, each recipient is processed sequentially with its own contact upsert and rendered email — there is no batch-send semantics. Sending is always immediate; for scheduled sends, use a Campaign.\n\n**Attachments:** up to 10 attachments per email and 10 MB total by default. The total message size cannot exceed 40 MB.",
         "operationId": "sendEmail",
         "requestBody": {
           "required": true,
@@ -186,7 +186,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["to", "from"],
+                "required": ["to"],
                 "properties": {
                   "to": {
                     "oneOf": [
@@ -243,11 +243,14 @@
                   },
                   "subject": {
                     "type": "string",
-                    "description": "Email subject (required if no template)"
+                    "minLength": 1,
+                    "maxLength": 998,
+                    "description": "Email subject. Required if no `template` is provided. Cannot contain newline characters."
                   },
                   "body": {
                     "type": "string",
-                    "description": "Email body HTML (required if no template)"
+                    "minLength": 1,
+                    "description": "Email body (HTML). Required if no `template` is provided."
                   },
                   "template": {
                     "type": "string",
@@ -281,33 +284,32 @@
                   },
                   "name": {
                     "type": "string",
-                    "description": "Sender display name (alternative to using from.name)"
+                    "description": "**Deprecated.** Sender display name. Prefer `from: { name, email }`. Used only as a fallback when `from` is a string and no name is set there."
                   },
                   "subscribed": {
                     "type": "boolean",
-                    "description": "Whether recipient is subscribed to marketing emails. Defaults to false for transactional emails.",
-                    "default": false
+                    "description": "Subscription state to apply to the recipient. For **new** contacts, defaults to `false` on `/v1/send`. For **existing** contacts, omitting this preserves their current state — pass `true` or `false` to explicitly change it. A change emits `contact.subscribed` or `contact.unsubscribed`."
                   },
                   "data": {
                     "type": "object",
                     "additionalProperties": true,
-                    "description": "Template variables"
+                    "description": "Variables for template rendering and contact data updates. Each value can be:\n- A primitive (string, number, boolean) — saved on the contact and available as a template variable.\n- `null` — deletes the field from the contact.\n- An empty string — skipped (does not overwrite existing data).\n- An object `{ value, persistent: false }` — used for this send only, not stored on the contact (good for one-shot password reset codes, magic links).\n\nReserved keys (`id`, `plunk_id`, `plunk_email`, `email`, `unsubscribeUrl`, `subscribeUrl`, `manageUrl`) are silently filtered out."
                   },
                   "headers": {
                     "type": "object",
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "Custom email headers"
+                    "description": "Custom email headers. Header names cannot contain `\\r\\n`. Header values are limited to 998 characters and cannot contain `\\r\\n` (header injection is rejected)."
                   },
                   "reply": {
                     "type": "string",
                     "format": "email",
-                    "description": "Reply-to address"
+                    "description": "Reply-to address."
                   },
                   "attachments": {
                     "type": "array",
-                    "description": "Email attachments (max 10 attachments, 10MB total)",
+                    "description": "Email attachments. Default cap: 10 attachments and 10 MB total. The full message size cannot exceed 40 MB.",
                     "maxItems": 10,
                     "items": {
                       "type": "object",
@@ -316,16 +318,26 @@
                         "filename": {
                           "type": "string",
                           "maxLength": 255,
-                          "description": "Attachment filename"
+                          "description": "Attachment filename. Cannot contain newline or quote characters."
                         },
                         "content": {
                           "type": "string",
-                          "description": "Base64 encoded file content"
+                          "description": "Base64-encoded file content."
                         },
                         "contentType": {
                           "type": "string",
                           "maxLength": 255,
-                          "description": "MIME type (e.g., application/pdf, image/png)"
+                          "description": "MIME type (e.g., `application/pdf`, `image/png`)."
+                        },
+                        "contentId": {
+                          "type": "string",
+                          "description": "Content-ID for inline images. Required when `disposition` is `inline`. Reference the image in the email body via `<img src=\"cid:yourContentId\">`."
+                        },
+                        "disposition": {
+                          "type": "string",
+                          "enum": ["attachment", "inline"],
+                          "default": "attachment",
+                          "description": "Use `inline` together with `contentId` to embed images in the body. Use `attachment` (the default) for downloadable files."
                         }
                       }
                     }
@@ -529,7 +541,7 @@
       "post": {
         "tags": ["Public API"],
         "summary": "Track event",
-        "description": "Track an event for a contact. Automatically creates/updates the contact.",
+        "description": "Track an event for a contact. Automatically creates or upserts the contact, then records the event. Tracked events can be used as workflow triggers, segment filters, and audience filters.\n\n**Reserved event names** (rejected with `VALIDATION_ERROR` and code `reserved_event`): anything matching `email.*`, `contact.subscribed`, `contact.unsubscribed`, `segment.<slug>.entry`, `segment.<slug>.exit`. These are emitted by Plunk itself.\n\n**No idempotency**: re-tracking the same event creates a new event record.",
         "operationId": "trackEvent",
         "requestBody": {
           "required": true,
@@ -542,21 +554,20 @@
                   "email": {
                     "type": "string",
                     "format": "email",
-                    "description": "Contact email"
+                    "description": "Contact email. The contact is auto-created if it doesn't exist."
                   },
                   "event": {
                     "type": "string",
-                    "description": "Event name"
+                    "description": "Event name. Cannot match the reserved patterns above."
                   },
                   "subscribed": {
                     "type": "boolean",
-                    "description": "Whether contact is subscribed to marketing emails. Defaults to true for event tracking.",
-                    "default": true
+                    "description": "Subscription state to apply to the contact. **New** contacts default to subscribed (`true`). **Existing** contacts keep their current state unless you pass an explicit value here. Pass `false` to track an event without resubscribing an unsubscribed contact."
                   },
                   "data": {
                     "type": "object",
                     "additionalProperties": true,
-                    "description": "Event data and contact metadata"
+                    "description": "Contact data and one-off event variables. Persistent values (primitives, plain objects) are saved on the contact and become available as template variables. Pass `{ value, persistent: false }` for one-shot variables that should not be stored on the contact (e.g. order IDs, transaction details). `null` deletes a field. Empty strings are ignored. Reserved keys are filtered out — see the contacts concept page."
                   }
                 }
               },
@@ -830,7 +841,7 @@
       "get": {
         "tags": ["Contacts"],
         "summary": "List contacts",
-        "description": "Get a paginated list of contacts with cursor-based pagination",
+        "description": "Get a paginated list of contacts with cursor-based pagination.",
         "operationId": "listContacts",
         "parameters": [
           {
@@ -840,20 +851,12 @@
             "$ref": "#/components/parameters/Cursor"
           },
           {
-            "name": "subscribed",
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Filter by subscription status"
-          },
-          {
             "name": "search",
             "in": "query",
             "schema": {
               "type": "string"
             },
-            "description": "Search by email"
+            "description": "Case-insensitive substring match on email."
           }
         ],
         "responses": {
@@ -864,7 +867,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "contacts": {
+                    "data": {
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/Contact"
@@ -873,14 +876,14 @@
                     "cursor": {
                       "type": "string",
                       "nullable": true,
-                      "description": "Cursor for next page"
+                      "description": "Cursor for the next page. Pass this back as the `cursor` query parameter to fetch the next page."
                     },
                     "hasMore": {
                       "type": "boolean"
                     },
                     "total": {
                       "type": "integer",
-                      "description": "Total count (only included on first page)"
+                      "description": "Total count. Only populated on the first page (when no `cursor` is supplied); subsequent pages return `0` to avoid the recount cost."
                     }
                   }
                 }
@@ -1027,7 +1030,7 @@
       "patch": {
         "tags": ["Contacts"],
         "summary": "Update contact",
-        "description": "Update an existing contact",
+        "description": "Update an existing contact's email, subscription state, or `data` fields.",
         "operationId": "updateContact",
         "parameters": [
           {
@@ -1046,12 +1049,19 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Change the contact's email address. Returns 409 if another contact in the project already uses this email."
+                  },
                   "subscribed": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Update subscription state. Flipping this fires `contact.subscribed` or `contact.unsubscribed`."
                   },
                   "data": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": true,
+                    "description": "Patch contact data. `null` deletes a key, empty strings are ignored, primitives are stored. Reserved keys are silently filtered out."
                   }
                 }
               }
@@ -1068,6 +1078,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "An existing contact already uses the email you're trying to set."
           }
         }
       },

@@ -44,12 +44,27 @@ See [Environment Variables](/self-hosting/environment-variables) for all options
 
 ## Ports
 
-| Port | Service |
-|------|---------|
-| 80 | Nginx (HTTP) |
-| 465 | SMTP (implicit TLS) |
-| 587 | SMTP (STARTTLS) |
-| 9000 | Minio API |
+| Port  | Service                                  |
+| ----- | ---------------------------------------- |
+| 80    | Nginx (HTTP) — fronts API, dashboard, landing, wiki |
+| 465   | SMTP (implicit TLS)                      |
+| 587   | SMTP (STARTTLS)                          |
+| 8080  | API server (proxied through nginx; not usually exposed externally) |
+| 9000  | Minio API                                |
+| 9001  | Minio web console                        |
+
+When deploying behind a reverse proxy or load balancer, expose port 80 (and 465/587 if using SMTP). Postgres, Redis, and Minio are kept internal to the Docker network by default.
+
+## Health check
+
+The API exposes a health endpoint at `/health` for orchestrators (Docker Compose, Kubernetes, load balancers):
+
+```bash
+curl https://api.yourdomain.com/health
+# { "status": "ok", "time": ..., "uptime": ... }
+```
+
+Use this for liveness/readiness probes. It returns `200` when the API process is up and able to serve requests.
 
 ## Running Individual Services
 

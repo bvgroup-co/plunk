@@ -1,19 +1,121 @@
 ---
 title: API Keys
-description: Manage your API keys and understand their usage
+description: How Plunk's two-key model works and how to use, rotate, and revoke keys safely
 icon: Key
 ---
 
-Each project has two unique API keys. A public key and a secret key. These keys are used to authenticate requests made to Plunk's API.
+Every project in Plunk has exactly two API keys: a **public** key and a **secret** key. Both authenticate requests to the same API but cover different surfaces.
 
-## Public Key
-The public API key can only be used with the [/v1/track](/api-reference/public-api/trackEvent) endpoint to track events. This key can be safely exposed in client-side applications.
+## Where to find your keys
 
-## Secret Key
-The secret API key can be used with all other endpoints in Plunk's API. This key should be kept confidential and not exposed in client-side applications.
+In the dashboard, open your project and go to **Settings → API Keys**. Both keys are visible — copy them and store them in environment variables (never commit them to source control).
 
-If this key is compromised, a malicious actor could read and modify your project data, send emails, and perform other actions on your behalf.
+## The two keys
 
-## Regenerating API Keys
-If you believe your API keys have been compromised, you can regenerate them in the project settings.
-Keep in mind that regenerating an API key will invalidate both keys, so make sure to update your applications with the new key.
+| Key        | Prefix | Endpoints it can call                                                              | Where it's safe to use            |
+| ---------- | ------ | ---------------------------------------------------------------------------------- | --------------------------------- |
+| Public     | `pk_`  | `POST /v1/track` only                                                              | Client-side code (browser, mobile apps) |
+| Secret     | `sk_`  | Every other endpoint — sending email, contacts, segments, campaigns, templates, workflows, domains, billing | Server-side only                  |
+
+The public key is intentionally limited so you can call `/v1/track` from a browser or mobile app to record events without exposing your project's full API surface. Anything beyond event tracking — sending emails, reading contacts, creating campaigns — requires the secret key.
+
+The project a request belongs to is derived from the key automatically. There's no separate project ID parameter on API requests.
+
+## Authenticating requests
+
+Both keys use the same `Authorization: Bearer` format. Pass the key in the `Authorization` header on every request.
+
+import {Tab, Tabs} from 'fumadocs-ui/components/tabs';
+
+<Tabs items={['cURL', 'JavaScript', 'Python']}>
+
+<Tab value="cURL">
+
+```bash
+curl https://next-api.useplunk.com/v1/send \
+  -H "Authorization: Bearer $PLUNK_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "user@example.com", "subject": "Hello", "body": "<p>Hi</p>" }'
+```
+
+</Tab>
+
+<Tab value="JavaScript">
+
+```javascript
+const response = await fetch('https://next-api.useplunk.com/v1/send', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.PLUNK_SECRET_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    to: 'user@example.com',
+    subject: 'Hello',
+    body: '<p>Hi</p>',
+  }),
+});
+```
+
+</Tab>
+
+<Tab value="Python">
+
+```python
+import os
+import requests
+
+response = requests.post(
+    'https://next-api.useplunk.com/v1/send',
+    headers={
+        'Authorization': f"Bearer {os.environ['PLUNK_SECRET_KEY']}",
+        'Content-Type': 'application/json',
+    },
+    json={
+        'to': 'user@example.com',
+        'subject': 'Hello',
+        'body': '<p>Hi</p>',
+    },
+)
+```
+
+</Tab>
+
+</Tabs>
+
+If the key prefix doesn't match the endpoint (e.g. you use `pk_` on `/v1/send`), the API returns `401` with code `INVALID_API_KEY`.
+
+## Rotating keys
+
+Both keys live as a single pair. Rotating regenerates **both** keys simultaneously — there is no way to rotate one without invalidating the other.
+
+When to rotate:
+
+- A key has been committed to a public repository or shared with someone who shouldn't have it.
+- You're offboarding a contractor or revoking a deployment's access.
+- You're following a periodic rotation policy (e.g. every 90 days).
+
+To rotate:
+
+1. Open **Settings → API Keys** in the dashboard, or call `POST /users/@me/projects/:id/regenerate-keys`.
+2. Confirm the rotation. The old keys stop working immediately.
+3. Update every consumer (your backend env vars, client-side bundles, third-party integrations).
+
+There's no grace period — plan a brief deployment window if you have multiple consumers.
+
+## Storage best practices
+
+- **Server keys (`sk_`)** belong in environment variables on the server (`.env.local` for development, your platform's secret store for production). Never bundle them into a frontend build.
+- **Client keys (`pk_`)** can be shipped in browser code, but treat them as semi-sensitive — rotate if a malicious actor abuses your tracking endpoint.
+- Use separate Plunk projects for staging and production so a leaked staging key can't touch production data.
+
+## If a key is compromised
+
+1. Rotate immediately (above).
+2. Audit the **Activity** tab for unexpected sends, contact mutations, or campaign changes during the window the key was leaked.
+3. Check **Billing → Consumption** for usage spikes that suggest the key was abused.
+4. If you find unauthorized activity, contact support with the request IDs from the suspicious entries.
+
+## API reference
+
+- `POST /users/@me/projects/:id/regenerate-keys` — regenerate both keys for a project. The response includes the new keys.

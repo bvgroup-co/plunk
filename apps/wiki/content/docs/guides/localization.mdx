@@ -1,15 +1,66 @@
 ---
 title: Localization
-description: Support for multiple languages and regions
+description: Translate the unsubscribe footer and contact-facing pages into your contacts' languages
 icon: Globe
 ---
 
-Localization in Plunk allows you to configure the language of the unsubscribe footer and contact-facing pages (subscribe, unsubscribe, manage) to better suit your audience.
+Plunk localizes the strings it controls — the auto-injected unsubscribe footer on marketing emails, the hosted unsubscribe / subscribe / preferences pages — into the language of your audience. Your own template content (subject lines, body copy) is **not** translated automatically; you control that yourself.
 
-## Configuring Localization
-You can set the default language for your project in the project settings.
+## Setting the project default
 
-## Overriding language per contact
-You can override the default language for individual contacts by setting the `locale` field in the contact data. This field should contain a valid [ISO 639](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) language code (e.g., 'en' for English, 'fr' for French, 'es' for Spanish).
+Open **Settings → Project** and pick a default language. This is used for any contact who doesn't have a specific language set on their record.
 
-When sending emails, Plunk will use the contact's specified language if available; otherwise, it will fall back to the project's default language.
+## Overriding per contact
+
+Set a `locale` field on the contact's `data` to override the project default for that recipient:
+
+```bash
+curl -X POST {{API_URL}}/v1/track \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "ada@example.com",
+    "event": "signed_up",
+    "data": { "locale": "fr" }
+  }'
+```
+
+Use a [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) / ISO 639 code that matches one of the supported languages below. You can also reference `{{locale}}` inside template variables to branch your own copy on the contact's language.
+
+If the contact's `locale` doesn't match a supported language, Plunk falls back to the project default. If neither is set, English is used.
+
+## Supported languages
+
+| Code     | Language                               |
+| -------- | -------------------------------------- |
+| `en`     | English                                |
+| `nl`     | Dutch (Nederlands)                     |
+| `fr`     | French (Français)                      |
+| `de`     | German (Deutsch)                       |
+| `es`     | Spanish (Español)                      |
+| `it`     | Italian (Italiano)                     |
+| `pt`     | Portuguese (Português)                 |
+| `pl`     | Polish (Polski)                        |
+| `cs`     | Czech (Čeština)                        |
+| `bg`     | Bulgarian (Български)                  |
+| `hi`     | Hindi (हिंदी)                          |
+| `zh-CN`  | Chinese (Simplified, China)            |
+| `zh-TW`  | Chinese (Traditional, Taiwan)          |
+| `zh-HK`  | Chinese (Traditional, Hong Kong)       |
+
+## What gets translated
+
+| Surface                                  | Translated? |
+| ---------------------------------------- | ----------- |
+| Unsubscribe footer on marketing emails   | Yes         |
+| Hosted unsubscribe / subscribe / preferences pages | Yes |
+| **Your own template subject and body**   | No — author per-language templates and branch on `{{locale}}` |
+
+## Translating your own templates
+
+Plunk doesn't translate the content of your templates. Two common patterns:
+
+- **One template per language**, picked in your code or workflow before sending. Name them with the locale suffix (`welcome-en`, `welcome-fr`).
+- **One template with branched copy**, using `{{locale}}` inside Handlebars conditionals to inline different language variants. Workable for short copy; gets unwieldy for long emails.
+
+For larger localization needs, the per-language template approach is easier to maintain.

@@ -6,51 +6,108 @@ icon: Layers
 
 Segments let you create named groups of contacts that can be targeted in campaigns and used as triggers in workflows. There are two types: **Dynamic** and **Static**.
 
-## Dynamic segments
+## Dynamic vs Static
 
-Dynamic segments evaluate a set of filter conditions against your contacts in real time. Membership is kept up to date automatically as contact data and events change — no manual work required.
+|                              | Dynamic                                                    | Static                                                  |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------- |
+| Membership                   | Computed from filter conditions in real time               | Manually curated — you decide who is in                 |
+| `condition` field            | Required — describes the filters                           | Must be omitted                                         |
+| Add/remove members via API   | Not allowed (the filter decides)                           | `POST` / `DELETE` `/segments/:id/members`               |
+| Membership recomputation     | Re-evaluated in the background when tracked                | N/A — membership only changes when you call the API     |
+| Entry/exit events            | Fired only when **Track membership changes** is enabled    | Not fired by add/remove API calls                       |
+| Updating the filter          | Member count is recomputed                                 | `condition` is silently ignored on update               |
 
-You can filter on:
-- Contact fields (`email`, `subscribed`, custom data fields like `data.plan`)
-- Contact dates (`createdAt`, `updatedAt`)
-- Custom events (`event.signed_up`, `event.purchased`, …)
-- Email activity (`email.opened`, `email.clicked`, `email.bounced`, …)
+Use dynamic segments for behavioural targeting ("subscribed users on the Pro plan who opened any email in the last 14 days"). Use static segments for one-off curated lists like beta testers, conference attendees, or contacts imported from an external system.
 
-Conditions can be combined with `AND`/`OR` logic and nested into groups for complex rules.
+## Filtering on a dynamic segment
+
+A dynamic segment's membership is defined by a filter — a set of conditions evaluated against your contacts. You can filter on:
+
+- Built-in contact fields: `email`, `subscribed`, `createdAt`, `updatedAt`.
+- Custom fields you've stored on contacts (anything under `data.*`).
+- Custom events tracked via `/v1/track` (`event.signed_up`, `event.purchased`, etc.).
+- Email engagement (`email.opened`, `email.clicked`, `email.bounced`, etc.).
+- Membership of another segment.
+
+Filters can be combined with `AND` or `OR` and nested into groups for more complex audiences — for example "subscribed Pro users **and** (opened **or** clicked an email in the last 14 days)".
+
+For the full list of fields, operators, and value types — plus worked examples — see the [Segment filter reference](/guides/segment-filters).
 
 ## Static segments
 
-Static segments are manually curated lists. Membership does not change automatically — you decide exactly who is in the segment. This is useful for things like beta testers, event attendees, or any group imported from an external source.
+Static segments are manually curated lists. Membership doesn't change automatically — you decide exactly who is in.
 
-## Creating a segment
+### Creating
 
-Go to **Segments** in the dashboard and click **Create Segment**. Use the toggle at the top to choose **Dynamic** or **Static**.
+Go to **Segments** in the dashboard and click **Create Segment**, then choose **Static**. You can optionally add initial members straight away using the contact search.
 
-**For dynamic segments**, use the filter builder to define your conditions. Plunk will show you a live count of matching contacts.
+### Adding and removing members
 
-**For static segments**, you can optionally add initial members right away using the contact search. Start typing an email address and select contacts from the list — selected contacts appear as chips you can remove before saving.
+Open a static segment and use the **Add Members** search to find contacts. The search looks up contacts already in your project, so you can't accidentally add someone who doesn't exist. Contacts already in the segment are greyed out.
 
-## Managing static segment members
+Programmatically, use:
 
-Open a static segment and use the **Add Members** search to find and select contacts. The search looks up contacts already in your project, so you can't accidentally add someone who doesn't exist. Contacts already in the segment are greyed out.
+- `POST /segments/:id/members` — add contacts by email. Body: `{ emails: string[], createMissing?: boolean, subscribed?: boolean }`. With `createMissing: true`, contacts that don't exist yet are created (and start subscribed unless you pass `subscribed: false`). The response reports `{ added, created, notFound }`.
+- `DELETE /segments/:id/members` — remove contacts by email. Body: `{ emails: string[] }`. Returns `{ removed }`.
 
-To remove a member, click the remove button on their row in the members list.
+Both endpoints **only** accept static segments. Calling them on a dynamic segment returns `400`.
 
-## Track membership changes
+Membership changes via these API calls are immediate but **do not** fire `entry`/`exit` events — those are reserved for dynamic, tracked segments.
 
-Both segment types support **Track membership changes**. When enabled, Plunk fires a webhook event each time a contact enters or leaves the segment:
+## Tracking membership changes
 
-- `segment.trial-users.entry` — contact joined the segment
-- `segment.trial-users.exit` — contact left the segment
+Dynamic segments can opt into **Track membership changes**. When enabled, Plunk fires events whenever a contact enters or leaves the segment:
 
-Where `trial-users` is derived from the segment name. See [Webhooks](/guides/webhooks) for the full event payload.
+- `segment.<slug>.entry` — contact joined
+- `segment.<slug>.exit` — contact left
+
+The `<slug>` is derived from the segment name: lowercased, accents and punctuation stripped, whitespace replaced with hyphens, repeated hyphens collapsed. `"VIP Customers"` becomes `segment.vip-customers.entry`. Pick segment names that produce stable slugs — renaming a segment changes the event name.
+
+Use these events to drive workflows (welcome a contact when they enter a "Trial users" segment, send a re-engagement email when they exit "Active users", etc.). See [Webhooks](/guides/webhooks) for the payload format.
+
+### How tracking works
+
+The member count updates immediately when you create or change a dynamic segment's filter. After that, Plunk recomputes membership in the background on a regular cadence — diffing current matches against the previous set, recording entries and exits, and emitting the corresponding events.
+
+Because of this background cadence, the `memberCount` shown in the dashboard can lag the live state by a few minutes. If you need a fresh value or want to drive a workflow off `entry` / `exit` immediately:
+
+- `POST /segments/:id/refresh` — force a count refresh (cheap, no events).
+- `POST /segments/:id/compute` — force a full membership recomputation, which fires any pending entry/exit events.
 
 ## Using segments
 
-Segments can be used in:
-- Targeting contacts in [email campaigns](/concepts/campaigns)
-- Triggering workflows in [marketing automation](/concepts/workflows)
+Segments can be used to:
 
-## Managing members via API
+- Target contacts in [email campaigns](/concepts/campaigns) (set the campaign audience to a segment)
+- Trigger workflows in [marketing automation](/concepts/workflows) (use the `segment.<slug>.entry` event)
 
-If you need to manage static segment membership programmatically, use the `POST /segments/:id/members` and `DELETE /segments/:id/members` endpoints. See the [API reference](/api-reference/overview#segments) for details.
+## Performance notes
+
+- Date filters on `data.*` rely on ISO 8601 string ordering — store dates as ISO 8601 strings (`2026-05-06T12:00:00Z`) rather than Unix timestamps if you want to use `within` / `olderThan` on them.
+- Nesting many untracked dynamic segments inside one another increases evaluation cost. If a segment is referenced by others, enable **Track membership** on it so its members are looked up directly instead of recomputed each time.
+- The cached `memberCount` may be a few minutes behind reality. Treat it as approximate; use `POST /segments/:id/refresh` to force a refresh if you need an exact count.
+
+## Deleting a segment
+
+Deleting a segment that's referenced by an active campaign (in `DRAFT`, `SCHEDULED`, or `SENDING` state) returns `409 Conflict`. Cancel the campaign or pick a different audience first.
+
+## API reference
+
+See the segments API endpoints in the [API overview](/api-reference/overview#segments) — list, get, create, update, delete, list members, add/remove static members, refresh count, and compute membership.
+
+## What's next
+
+<Cards>
+  <Card title="Filter reference" href="/guides/segment-filters">
+    Deep-link reference for every filter field, operator, and value type.
+  </Card>
+  <Card title="Custom fields" href="/guides/custom-fields">
+    How `data.*` fields are typed and used in filters.
+  </Card>
+  <Card title="Campaigns" href="/concepts/campaigns">
+    Use a segment as a campaign audience.
+  </Card>
+  <Card title="Workflows" href="/concepts/workflows">
+    Trigger workflows from segment entry / exit events.
+  </Card>
+</Cards>

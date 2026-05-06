@@ -1,0 +1,216 @@
+---
+title: Segment filter reference
+description: How to write filters for dynamic segments, campaign audiences, and workflow conditions
+icon: ListFilter
+---
+
+The same filter format powers three things: **dynamic segments**, **campaign audiences** with `audienceType: "FILTERED"`, and **`CONDITION` steps inside workflows**. Learn it once, use it everywhere.
+
+For a conceptual introduction, see the [Segments concept page](/concepts/segments).
+
+## How a filter is structured
+
+A filter has two parts: a top-level connector (`AND` or `OR`) and a list of **groups**. Each group holds one or more conditions, which are combined with `AND` inside the group. The top-level connector then joins the groups together.
+
+That sounds complicated, so a quick example: "subscribed users **and** on the Pro plan **and** (opened **or** clicked an email recently)".
+
+```json
+{
+  "logic": "AND",
+  "groups": [
+    {
+      "filters": [
+        { "field": "subscribed", "operator": "equals", "value": true },
+        { "field": "data.plan",  "operator": "equals", "value": "pro" }
+      ]
+    },
+    {
+      "filters": [],
+      "conditions": {
+        "logic": "OR",
+        "groups": [
+          { "filters": [{ "field": "email.opened",  "operator": "triggeredWithin", "value": 14, "unit": "days" }] },
+          { "filters": [{ "field": "email.clicked", "operator": "triggeredWithin", "value": 14, "unit": "days" }] }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Groups can nest by setting `conditions` on a group — that lets you build "this AND (that OR this)" expressions without flattening logic. In the dashboard, the segment builder UI handles this for you visually.
+
+## Fields you can filter on
+
+The `field` value is namespaced by prefix — the prefix tells Plunk what part of the contact you're querying.
+
+| Field pattern              | Targets                                                          | Examples                          |
+| -------------------------- | ---------------------------------------------------------------- | --------------------------------- |
+| `email`                    | The contact's email address                                      | `email`                           |
+| `subscribed`               | The contact's subscription state                                 | `subscribed`                      |
+| `createdAt`, `updatedAt`   | Built-in contact timestamps                                      | `createdAt`                       |
+| `data.<path>`              | Custom contact data — supports nested paths                      | `data.plan`, `data.profile.tier`  |
+| `event.<eventName>`        | Custom events tracked via `/v1/track`                            | `event.signed_up`                 |
+| `email.<activity>`         | Email engagement: `sent`, `delivered`, `opened`, `clicked`, `bounced`, `complained` | `email.opened`           |
+| `segment.<segmentId>`      | Membership of another segment                                    | `segment.cuid_of_other_segment`   |
+
+## Operators
+
+Operators are grouped by the kind of field they work on.
+
+### Text fields
+
+For `email` and any `data.<key>` that holds a string.
+
+| Operator      | What it does                                              |
+| ------------- | --------------------------------------------------------- |
+| `equals`      | Exact match. Case-insensitive on `email`, exact on `data.*`. |
+| `notEquals`   | Negation of `equals`.                                     |
+| `contains`    | Case-insensitive substring match.                         |
+| `notContains` | Negation of `contains`.                                   |
+
+### Yes/no fields
+
+For `subscribed` and any `data.<key>` that holds `true` or `false`.
+
+| Operator    | What it does                |
+| ----------- | --------------------------- |
+| `equals`    | Match true or false.        |
+| `notEquals` | Negation.                   |
+
+### Dates and timestamps
+
+For `createdAt`, `updatedAt`, and any `data.<key>` that holds an ISO 8601 date string.
+
+| Operator                                   | What it does                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `equals` / `notEquals`                     | Match the timestamp. If the value is just a date (`YYYY-MM-DD`), the comparison covers the whole UTC day.                  |
+| `greaterThan` / `lessThan`                 | Strictly after / strictly before.                                                                                          |
+| `greaterThanOrEqual` / `lessThanOrEqual`   | Inclusive variants.                                                                                                        |
+| `within`                                   | Within the last N units. Pair with `unit: "days" / "hours" / "minutes"`.                                                  |
+| `olderThan`                                | More than N units ago. Pair with `unit`.                                                                                  |
+
+For custom date fields (`data.<key>`), `within` and `olderThan` only work when the value is stored as an ISO 8601 string (e.g. `"2026-05-06T12:00:00Z"`). Unix timestamps and other formats won't compare correctly.
+
+### Numbers
+
+For any `data.<key>` that holds a number: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`. No `unit` is needed.
+
+### Field existence
+
+For any `data.<key>`, regardless of value type.
+
+| Operator    | What it does                                          |
+| ----------- | ----------------------------------------------------- |
+| `exists`    | The key is present on the contact and is not null.    |
+| `notExists` | The key is missing or explicitly null.                |
+
+### Events and email activity
+
+These operators apply to both `event.<eventName>` (custom events) and `email.<activity>` (email engagement).
+
+| Operator              | What it does                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `triggered`           | The contact has had this event at least once, ever.                                                     |
+| `notTriggered`        | The contact has never had this event.                                                                   |
+| `triggeredWithin`     | At least one occurrence in the last N units. Pair with `unit`.                                          |
+| `triggeredOlderThan`  | Has had this event, but not within the last N units. Pair with `unit`.                                  |
+| `notTriggeredWithin`  | Has not had this event in the last N units. Includes contacts who have never triggered it. Pair with `unit`. |
+
+### Segment membership
+
+For `segment.<segmentId>`, where `<segmentId>` is the ID of another segment in your project.
+
+| Operator              | What it does                                              |
+| --------------------- | --------------------------------------------------------- |
+| `memberOfSegment`     | Contact is currently in the referenced segment.           |
+| `notMemberOfSegment`  | Contact is not in the referenced segment.                 |
+
+## Quick reference: what to pass with each operator
+
+- **Need a `value`**: `equals`, `notEquals`, `contains`, `notContains`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `within`, `olderThan`, `triggeredWithin`, `triggeredOlderThan`, `notTriggeredWithin`.
+- **Need a `unit`** (`"days"`, `"hours"`, or `"minutes"`): `within`, `olderThan`, `triggeredWithin`, `triggeredOlderThan`, `notTriggeredWithin`.
+- **Need nothing extra**: `exists`, `notExists`, `triggered`, `notTriggered`, `memberOfSegment`, `notMemberOfSegment`.
+
+## Examples
+
+### Engaged users on the Pro plan
+
+Subscribed Pro-plan users who opened or clicked any email in the last 14 days but haven't clicked anything in the last 30 days.
+
+```json
+{
+  "logic": "AND",
+  "groups": [
+    {
+      "filters": [
+        { "field": "subscribed", "operator": "equals", "value": true },
+        { "field": "data.plan",  "operator": "equals", "value": "pro" }
+      ]
+    },
+    {
+      "filters": [],
+      "conditions": {
+        "logic": "OR",
+        "groups": [
+          { "filters": [{ "field": "email.opened",  "operator": "triggeredWithin", "value": 14, "unit": "days" }] },
+          { "filters": [{ "field": "email.clicked", "operator": "triggeredWithin", "value": 14, "unit": "days" }] }
+        ]
+      }
+    },
+    {
+      "filters": [
+        { "field": "email.clicked", "operator": "notTriggeredWithin", "value": 30, "unit": "days" }
+      ]
+    }
+  ]
+}
+```
+
+### New trial users without a purchase
+
+Subscribed contacts created in the last 7 days who haven't yet triggered a `purchase` event.
+
+```json
+{
+  "logic": "AND",
+  "groups": [
+    {
+      "filters": [
+        { "field": "subscribed",     "operator": "equals",       "value": true },
+        { "field": "createdAt",      "operator": "within",       "value": 7, "unit": "days" },
+        { "field": "event.purchase", "operator": "notTriggered" }
+      ]
+    }
+  ]
+}
+```
+
+### Power users above a tier
+
+Members of the `power-users` segment whose lifetime value is at least 500.
+
+```json
+{
+  "logic": "AND",
+  "groups": [
+    {
+      "filters": [
+        { "field": "segment.<powerUsersSegmentId>", "operator": "memberOfSegment" },
+        { "field": "data.lifetimeValue", "operator": "greaterThanOrEqual", "value": 500 }
+      ]
+    }
+  ]
+}
+```
+
+## Related
+
+<Cards>
+  <Card title="Segments" href="/concepts/segments">
+    Static vs dynamic segments, membership tracking, and entry / exit events.
+  </Card>
+  <Card title="Custom fields" href="/guides/custom-fields">
+    How `data.*` fields are typed and used in filters.
+  </Card>
+</Cards>

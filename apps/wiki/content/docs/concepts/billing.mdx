@@ -1,19 +1,89 @@
 ---
 title: Billing
-description: Understand Plunk's billing model
+description: How Plunk's pricing, limits, and consumption work
 icon: CreditCard
 ---
 
-Plunk's pricing is based on the number of emails sent each month. You can send both marketing and transactional emails under the same plan.
+Plunk's pricing is based on the number of emails sent each month. Marketing emails, transactional emails, workflow sends, and inbound emails are all counted under the same monthly usage. Pricing on this page applies to the hosted version at [useplunk.com](https://www.useplunk.com); self-hosted instances run on their own infrastructure.
 
-## Free Tier
-Free tier projects can send up to 1,000 emails per month at no cost. Projects on this tier will include a Plunk-branded footer in all emails.
+## Plans
 
-## Pay-as-you-go
-After upgrading from the free tier, you will be charged per email sent at $0.001 per email. There are no monthly fees or commitments, you only pay for what you use.
+### Free tier
 
-You are able to monitor your email usage and set billing limits per category in the billing tab of the project settings.
+Free tier projects can send up to 1,000 emails per month at no cost. Free-tier projects include a Plunk-branded footer in marketing emails. Inbound emails count toward the 1,000-email allowance.
 
-## Special considerations
-- Emails that contain an attachment will incur double the cost (e.g. 1 email with attachment = 2 emails for billing purposes)
-- Inbound emails count towards the email limit at the same rate as outbound emails (e.g. 1 inbound email = 1 email for billing purposes)
+### Pay-as-you-go
+
+After upgrading from the free tier, you're charged per email sent at $0.001 per email. There are no monthly fees and no commitments — you only pay for what you use.
+
+You can monitor consumption and set per-category caps under **Settings → Billing**.
+
+## What counts as an email
+
+Every send and inbound receive contributes to your monthly usage:
+
+| Source                          | Cost                                 |
+| ------------------------------- | ------------------------------------ |
+| Transactional sends (`/v1/send`) | 1 credit per recipient               |
+| Campaigns                       | 1 credit per recipient               |
+| Workflow `SEND_EMAIL` steps     | 1 credit per send                    |
+| Inbound emails                  | 1 credit per received email          |
+| **Emails with attachments**     | **2 credits** per email              |
+
+Emails with one or more attachments cost double. There's no extra charge based on attachment size — one credit per attached email regardless of whether it's 100 KB or 10 MB.
+
+## Per-category billing limits
+
+Set monthly caps per category to control runaway sends from any single source. This is useful if, for example, you want to ensure transactional capacity is always available even if a campaign accidentally over-sends.
+
+| Category        | What it caps                                                  |
+| --------------- | ------------------------------------------------------------- |
+| Transactional   | Emails sent through `/v1/send`                                |
+| Campaigns       | Emails sent as part of a campaign                             |
+| Workflows       | Emails sent by `SEND_EMAIL` steps inside a workflow           |
+| Inbound         | Inbound emails received at your verified domain               |
+
+Configure caps in **Settings → Billing → Limits**. Each category cap is independent — you can set just one, all of them, or none.
+
+## What happens when a limit is hit
+
+When you exceed a per-category cap or your overall plan allowance:
+
+- **Outbound API calls** (`/v1/send`, campaign sends, workflow sends) return `402 Payment Required` with error code `BILLING_LIMIT_EXCEEDED`. Your application should handle this gracefully — typically by queuing the work or surfacing an error to the user.
+- **Inbound emails** are dropped silently for the affected project until the cap resets. They aren't queued or replayed.
+- Limits reset at the start of each billing period.
+
+You'll also receive a notification (email and/or in-app) when a cap is approached or hit.
+
+## Invoices and payment
+
+Stripe handles billing. From the **Settings → Billing** page you can:
+
+- Open the **Stripe billing portal** to update payment methods, addresses, and tax IDs.
+- View and download every invoice for the project.
+- See current period consumption with a breakdown by category.
+
+If a payment fails, Stripe retries on its standard schedule. Repeated failures eventually pause the project's ability to send — keep your payment method up to date to avoid disruption.
+
+## API reference
+
+- `GET /users/@me/projects/:id/billing-consumption` — current period usage by category.
+- `GET /users/@me/projects/:id/billing-limits` — read per-category caps.
+- `PUT /users/@me/projects/:id/billing-limits` — update per-category caps.
+- `GET /users/@me/projects/:id/billing-invoices` — list invoices.
+- `POST /users/@me/projects/:id/billing-portal` — generate a Stripe billing portal URL.
+- `POST /users/@me/projects/:id/checkout` — start a Stripe Checkout session for upgrades.
+
+## What's next
+
+<Cards>
+  <Card title="List hygiene" href="/guides/list-hygiene">
+    Reduce wasted sends by keeping bounce and complaint rates low.
+  </Card>
+  <Card title="Receiving emails" href="/guides/receiving-emails">
+    Inbound emails count toward your monthly usage.
+  </Card>
+  <Card title="Self-hosting" href="/self-hosting/introduction">
+    Run Plunk on your own infrastructure for full control over costs.
+  </Card>
+</Cards>

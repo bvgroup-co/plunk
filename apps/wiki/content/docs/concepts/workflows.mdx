@@ -1,41 +1,100 @@
 ---
 title: Workflows
-description: Set up automated email sequences and trigger them from your apps
+description: Build automated, multi-step contact journeys triggered by events, segments, schedules, or manual entry
 icon: Workflow
 ---
 
-Workflows in Plunk allow you to create automated email sequences that can be triggered based on events you send using the API.
+Workflows are graph-based automations that move contacts through a sequence of steps — sending emails, waiting for activity, branching on conditions, calling webhooks, updating contact data, or exiting. Each contact that enters a workflow runs through it independently as a **workflow execution**.
 
-## Prerequisites for workflows
-### Sending an event
-Workflows are triggered by sending events to Plunk using the [/v1/track](/api-reference/public-api/trackEvent) endpoint. When sending an event, you can specify the contact it is associated with and include any relevant data.
+## Triggers
 
-### Creating a template
-Before setting up the workflow, ensure you have created a template that will be used for the emails sent by the workflow. You can create templates in the [Templates](/concepts/templates) section of the dashboard.
+A workflow has a single **trigger** that decides how contacts enter:
 
-## Creating a workflow
-To create a workflow, navigate to the [Workflows](/concepts/workflows) section of the dashboard and create a workflow.
+| Trigger type | When it fires                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| `EVENT`      | Any time a matching event is tracked on a contact (custom event via `/v1/track`, system events such as `email.received` or `contact.subscribed`, or segment entry/exit events). |
+| `MANUAL`     | Only when you explicitly start an execution via `POST /workflows/:id/executions`.                      |
+| `SCHEDULE`   | On a recurring schedule defined by `triggerConfig` (e.g. cron expression).                             |
 
-<Callout
- title="Trigger"
- variant="idea">
-When creating a workflow, you can not change the trigger event after the workflow has been created. Make sure to choose the correct event name that will trigger the workflow.
-</Callout>
+When you create a workflow via the API, the trigger defaults to `EVENT` with the event name you provide. To use `MANUAL` or `SCHEDULE`, change `triggerType` and `triggerConfig` with `PATCH /workflows/:id` after creation.
 
-### Defining workflow steps
-Workflows consists of multiple steps that define the sequence of actions to be taken.
+A workflow's trigger event name **cannot be changed after the first execution** — pick it carefully. Other trigger configuration (delays, conditions inside steps) remains editable.
 
-| Step Type | Description |
-|-----------|-------------|
-| Send Email | Sends an email to the contact using a specified template. You can customize the email content using variables from the event data. |
-| Delay | Pauses the workflow for a specified duration before proceeding to the next step. |
-| Wait for Event | Pauses the workflow until a specified event is received for the contact. You can also set a timeout duration to proceed if the event is not received within that time. |
-| Condition | Evaluates a condition based on the event data or contact data and branches the workflow accordingly. |
-| Webhook | Sends a webhook to a specified URL with the event and contact data. |
-| Update Contact | Updates the contact's data with specified key-value pairs. |
-| Exit | Terminates the workflow for the contact. |
+## Lifecycle and the `enabled` flag
 
-## Managing workflow executions
-You can monitor and manage contacts going through workflows in the executions tab of the workflow detail page. Here you can see the status of each execution, cancel a specific execution or all executions.
+Workflows are created with `enabled: false`. **No executions start until you flip `enabled` to `true`** — this is the most common reason "my workflow isn't firing."
 
-A workflow will be locked while there are active executions. If you want to make changes to a running workflow you will either need to pause it and wait for all executions to complete, or cancel all active executions.
+The `allowReentry` flag (default `false`) controls whether a contact can enter the same workflow more than once. Leave it off for "first-touch only" sequences (welcome emails, onboarding) and turn it on for re-engageable journeys (re-prompts, repeated nudges).
+
+## Step types
+
+A workflow always begins with a single auto-created `TRIGGER` step. You build the rest of the graph by adding steps and **transitions** (edges) between them.
+
+| Step type         | Purpose                                                                                                | Required config                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `TRIGGER`         | Auto-created entry point. Holds the trigger configuration.                                             | `eventName` (for `EVENT` trigger)                                |
+| `SEND_EMAIL`      | Sends an email to the contact using a template. Template variables resolve from contact data + execution context. | `templateId`, optional `from` override                  |
+| `DELAY`           | Pauses the execution for a fixed duration before continuing.                                           | `amount`, `unit` (`minutes` / `hours` / `days`)                  |
+| `WAIT_FOR_EVENT`  | Pauses until a specified event is tracked on the contact, with a timeout fallback.                     | `eventName`, `timeout` (seconds)                                 |
+| `CONDITION`       | Branches the execution based on contact data or event data. Each `CONDITION` step has two outgoing transitions tagged `yes` / `no`. | A filter expression (same shape as segment filters) |
+| `WEBHOOK`         | Calls an external HTTPS endpoint with contact + execution context as the JSON body.                    | `url`, optional `method`, `headers`                              |
+| `UPDATE_CONTACT`  | Patches contact data — useful for tagging contacts as they progress (`{ stage: "activated" }`).        | `data` object                                                    |
+| `EXIT`            | Terminates the execution. Optionally records an `exitReason` for analytics.                            | optional `reason`                                                |
+
+## Transitions
+
+Transitions are the edges of the workflow graph. For most step types a transition is a simple "next" pointer. For `CONDITION` steps, each transition carries a `branch` discriminator (`"yes"` or `"no"`) so the engine knows which path to take when the condition evaluates.
+
+When deleting a step in the middle of a chain, pass `?splice=true` on `DELETE /workflows/:id/steps/:stepId` to automatically reconnect the surrounding transitions; otherwise the deletion leaves the graph disconnected.
+
+## Executions
+
+Each contact entering the workflow creates a `WorkflowExecution`. Executions move through these states:
+
+| Status      | Meaning                                                                                       |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| `RUNNING`   | Currently processing a step (or about to).                                                    |
+| `WAITING`   | Paused inside a `DELAY` or `WAIT_FOR_EVENT` step.                                             |
+| `COMPLETED` | Reached the end of the graph successfully.                                                    |
+| `EXITED`    | Hit an `EXIT` step. `exitReason` records why.                                                 |
+| `FAILED`    | An unrecoverable error occurred (e.g. webhook returned non-2xx after retries, template not found). |
+| `CANCELLED` | Cancelled manually via the API or dashboard.                                                  |
+
+Each execution carries a `context` JSON object that's merged with the contact's `data` when rendering templates and evaluating conditions. When you start an execution manually with `POST /workflows/:id/executions`, you can pass an initial `context` — this is how you parameterise per-execution variables (a coupon code, a referrer name) without storing them on the contact.
+
+## Locking active workflows
+
+A workflow is **locked** for structural edits while it has active (`RUNNING` or `WAITING`) executions. To make breaking changes — adding/removing steps, changing the trigger event, switching trigger type — first either:
+
+- Disable the workflow and wait for active executions to complete, or
+- `POST /workflows/:id/executions/cancel-all` to cancel everything in flight.
+
+Cosmetic changes (renaming, editing template content referenced by steps) don't require this.
+
+## Common patterns
+
+- **Welcome series** — `EVENT` trigger on `signed_up`, send welcome email, delay 2 days, send tips email, delay 5 days, send upgrade nudge.
+- **Inbound auto-reply** — `EVENT` trigger on `email.received`, `CONDITION` on `event.spamVerdict == "PASS"`, then `SEND_EMAIL` with an auto-reply template. See [Receiving emails](/guides/receiving-emails).
+- **Re-engagement** — Triggered by a segment exit (`segment.active-users.exit`), send a "we miss you" email, wait 7 days for any `email.opened` event, branch on whether the contact engaged.
+- **Webhook fan-out** — `EVENT` trigger on `purchase.completed`, `WEBHOOK` step to your CRM, `UPDATE_CONTACT` to tag `{ tier: "customer" }`, `SEND_EMAIL` with the receipt.
+
+## API reference
+
+Workflows are managed through the `/workflows` API. See the [API overview](/api-reference/overview#workflows) for the full route list — the API exposes endpoints for the workflow itself, its steps, its transitions, and its executions.
+
+## What's next
+
+<Cards>
+  <Card title="Templates" href="/concepts/templates">
+    Author the email content used by `SEND_EMAIL` steps.
+  </Card>
+  <Card title="Receiving emails" href="/guides/receiving-emails">
+    Trigger workflows from inbound mail with `email.received`.
+  </Card>
+  <Card title="Webhooks" href="/guides/webhooks">
+    Use `WEBHOOK` steps to call your own services from a workflow.
+  </Card>
+  <Card title="Segments" href="/concepts/segments">
+    Trigger workflows from segment entry / exit events.
+  </Card>
+</Cards>

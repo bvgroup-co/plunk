@@ -7,11 +7,13 @@ description: Configuration reference
 
 | Variable       | Required | Description                                                                  | Example                                           |
 | -------------- | -------- | ---------------------------------------------------------------------------- | ------------------------------------------------- |
-| `JWT_SECRET`   | Yes      | Secret key used to sign JWT tokens. Generate with `openssl rand -base64 32`. | `s3cr3t...`                                       |
-| `DB_PASSWORD`  | Yes      | PostgreSQL database password. Used by the Docker Compose setup.              | `changeme123`                                     |
-| `DATABASE_URL` | Yes      | Full PostgreSQL connection string. Auto-configured in Docker.                | `postgresql://plunk:password@postgres:5432/plunk` |
-| `REDIS_URL`    | Yes      | Redis connection string.                                                     | `redis://redis:6379`                              |
-| `PORT`         | No       | Port the API server listens on.                                              | `8080` (default)                                  |
+| `JWT_SECRET`          | Yes      | Secret key used to sign JWT tokens. Generate with `openssl rand -base64 32`. | `s3cr3t...`                                       |
+| `DB_PASSWORD`         | Yes      | PostgreSQL database password. Used by the Docker Compose setup.              | `changeme123`                                     |
+| `DATABASE_URL`        | Yes      | Full PostgreSQL connection string used by the application at runtime (typically through PgBouncer). Auto-configured in Docker. | `postgresql://plunk:password@postgres:5432/plunk` |
+| `DIRECT_DATABASE_URL` | Yes      | Direct PostgreSQL connection string used by Prisma migrations. Must bypass any connection pooler. Auto-configured in Docker.   | `postgresql://plunk:password@postgres:5432/plunk` |
+| `REDIS_URL`           | Yes      | Redis connection string.                                                     | `redis://redis:6379`                              |
+| `NODE_ENV`            | No       | Application environment. Set to `production` for production deployments.     | `production`                                      |
+| `PORT`                | No       | Port the API server listens on.                                              | `8080` (default)                                  |
 
 ## URLs & Domains
 
@@ -51,6 +53,15 @@ The bundled Docker setup includes Minio with defaults that work out of the box. 
 | `S3_BUCKET`            | No       | Bucket name for file uploads.                                      | `uploads`           |
 | `S3_PUBLIC_URL`        | No       | Publicly accessible base URL for stored files.                     | —                   |
 | `S3_FORCE_PATH_STYLE`  | No       | Use path-style URLs instead of virtual-hosted. Required for Minio. | `true`              |
+
+## Attachments
+
+Plunk supports attachments on transactional emails. AWS SES caps total message size at 40 MB; the defaults below leave headroom but can be tuned for your use case.
+
+| Variable                 | Required | Description                                                                                                              | Default |
+| ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------ | ------- |
+| `MAX_ATTACHMENT_SIZE_MB` | No       | Maximum total attachment size in megabytes per email. Hard upper bound enforced by AWS SES is 40 MB.                     | `10`    |
+| `MAX_ATTACHMENTS_COUNT`  | No       | Maximum number of attachments per email.                                                                                 | `10`    |
 
 ## SMTP Server
 
@@ -128,7 +139,7 @@ Plunk can use AI to detect and block phishing emails before they're sent. Requir
 | `OPENROUTER_API_KEY`             | No       | OpenRouter API key. When set, enables AI-powered phishing detection.                              | —                          |
 | `OPENROUTER_MODEL`               | No       | LLM model to use for content analysis. See [OpenRouter models](https://openrouter.ai/models).     | `anthropic/claude-3-haiku` |
 | `PHISHING_DETECTION_SAMPLE_RATE` | No       | Percentage of emails to check (0.0-1.0). For example, `0.1` means 10% of emails are analyzed.     | `0.1` (10%)                |
-| `PHISHING_CONFIDENCE_THRESHOLD`  | No       | Minimum confidence percentage (0-100) required to auto-disable a project from a single detection. | `85`                       |
+| `PHISHING_CONFIDENCE_THRESHOLD`  | No       | Minimum confidence percentage (0-100) required to auto-disable a project from a single detection. | `95`                       |
 | `PHISHING_CUMULATIVE_THRESHOLD`  | No       | Number of phishing detections within the time window required to auto-disable a project.          | `3`                        |
 | `PHISHING_CUMULATIVE_WINDOW_MS`  | No       | Time window in milliseconds for cumulative phishing tracking.                                     | `3600000` (1 hour)         |
 

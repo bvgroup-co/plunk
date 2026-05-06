@@ -1,15 +1,93 @@
 ---
 title: Campaigns
-description: Broadcast to your contacts
+description: One-off broadcast emails sent to a defined audience
 icon: Megaphone
 ---
 
-Campaigns are a one-time email sent to a group of contacts. They are typically used for newsletters, announcements, or promotions.
+Campaigns are one-off email sends to a defined audience — newsletters, announcements, product launches, promotions. Unlike workflows, a campaign sends once at a single point in time (immediately or at a scheduled time) and is then frozen.
 
-## Targeting contacts
-When you create a campaign, you can send it to all subscribed contacts, or target a specific segment you have created in the [Segments](/concepts/segments) section.
+## Anatomy of a campaign
 
-## Sending a campaign
-Once you have designed your campaign and selected the target audience, you can schedule it to be sent immediately or at a later time. You can also choose to send a test email to yourself or any other team member before sending it to your contacts.
+A campaign captures everything needed to render and deliver one batch of emails:
 
-Campaigns will be queued and sent in the background. You can monitor the sending progress and view detailed analytics on opens, clicks, and bounces in the campaign detail page. Depending on the size of your audience, it may take some time for all emails to be sent.
+import {TypeTable} from 'fumadocs-ui/components/type-table';
+
+<TypeTable
+  type={{
+    name: { type: 'string', required: true, description: 'Internal name shown in the dashboard.' },
+    description: { type: 'string', description: 'Optional internal note.' },
+    subject: { type: 'string', required: true, description: 'Email subject line. Supports the same template variables as [Templates](/concepts/templates).' },
+    body: { type: 'string', required: true, description: 'HTML body. Supports template variables.' },
+    from: { type: 'string', required: true, description: 'Sender email — must be on a verified domain.' },
+    fromName: { type: 'string', description: 'Optional sender display name (e.g. `Acme Marketing <hello@acme.com>`).' },
+    replyTo: { type: 'string', description: 'Optional reply-to address.' },
+    type: { type: 'string', required: true, description: 'One of `MARKETING`, `TRANSACTIONAL`, or `HEADLESS`. Same semantics as [template types](/concepts/templates#templates-types). Controls the unsubscribe footer and whether unsubscribed contacts are skipped.' },
+    audienceType: { type: 'string', required: true, description: 'Who this campaign is sent to. One of `ALL`, `SEGMENT`, or `FILTERED` — see below.' },
+    segmentId: { type: 'string', description: 'Required when `audienceType = SEGMENT`.' },
+    audienceCondition: { type: 'object', description: 'Inline filter when `audienceType = FILTERED`. Uses the same format as [segment filters](/guides/segment-filters).' },
+    scheduledFor: { type: 'string', description: 'ISO 8601 timestamp. If set, the campaign sends at that time; if null, it sends immediately when you trigger send.' },
+  }}
+/>
+
+The campaign also keeps denormalised stats once it sends: `totalRecipients`, `sentCount`, `deliveredCount`, `openedCount`, `clickedCount`, `bouncedCount`. Fetch them via `GET /campaigns/:id/stats`.
+
+## Targeting an audience
+
+Campaigns support three audience types:
+
+- **`ALL`** — every subscribed contact in the project. Quick way to broadcast to your full list.
+- **`SEGMENT`** — every contact that's currently a member of a specific [segment](/concepts/segments). Reuses logic you've already built.
+- **`FILTERED`** — an inline filter condition (same JSON shape as segment filters). Lets you hand-craft an audience for a one-off send without saving a reusable segment.
+
+`MARKETING` and `HEADLESS` campaigns automatically skip unsubscribed contacts. `TRANSACTIONAL` campaigns deliver to everyone matching the audience regardless of subscription state — use it sparingly and only for genuine transactional content.
+
+## Sender domain verification
+
+The `from` address must be on a domain you've verified for sending. Creating or updating a campaign with an unverified `from` returns `403`. See [Verifying domains](/guides/verifying-domains).
+
+## Lifecycle
+
+| Status      | Meaning                                                                       |
+| ----------- | ----------------------------------------------------------------------------- |
+| `DRAFT`     | Created but not yet scheduled or sent. Editable.                              |
+| `SCHEDULED` | Scheduled for a future time via `scheduledFor`. Cancellable.                  |
+| `SENDING`   | Send is in progress — the queue is processing recipients.                     |
+| `SENT`      | Send is complete. Stats are final.                                            |
+| `CANCELLED` | Cancelled before completion. Terminal state from `DRAFT`, `SCHEDULED`, or `SENDING`. |
+
+Once a campaign is `SENT` or `CANCELLED` it can't be edited or resent — duplicate it instead with `POST /campaigns/:id/duplicate` to create an editable copy.
+
+## Sending and scheduling
+
+Trigger a send with `POST /campaigns/:id/send`. The campaign is queued and sent in the background; depending on the audience size, this can take seconds for small lists to longer for very large ones. You can monitor progress on the campaign detail page in the dashboard.
+
+To cancel a `SCHEDULED` or `SENDING` campaign, call `POST /campaigns/:id/cancel`. Cancellation stops further sending but cannot recall emails that have already been handed off to the recipient's mail server.
+
+## Test sends
+
+Send a single test email with `POST /campaigns/:id/test`. Body: `{ email: "you@example.com" }` — a single address, not an array. Test sends use the same template variable resolution as the real send but always send to the address you specify, so they're useful for previewing personalisation against your own contact data.
+
+## Duplicating
+
+`POST /campaigns/:id/duplicate` creates a new `DRAFT` campaign with the same content, audience, and settings as the source. Useful for A/B variants and recurring sends.
+
+## API reference
+
+See the [API overview](/api-reference/overview#campaigns) for the full set of campaign endpoints — list, get, create, update, delete, send, cancel, duplicate, test, and stats.
+
+## What's next
+
+<Cards>
+  <Card title="Templates" href="/concepts/templates">
+    Create reusable email designs to send through campaigns.
+  </Card>
+  <Card title="Segments" href="/concepts/segments">
+    Build audiences for `audienceType: SEGMENT` campaigns.
+  </Card>
+  <Card title="Verifying domains" href="/guides/verifying-domains">
+    Required before you can send from your own domain.
+  </Card>
+  <Card title="List hygiene" href="/guides/list-hygiene">
+    Keep bounce and complaint rates healthy.
+  </Card>
+</Cards>

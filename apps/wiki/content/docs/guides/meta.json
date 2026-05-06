@@ -1,3 +1,15 @@
 {
-  "pages": ["list-hygiene", "verifying-domains", "receiving-emails", "tracking", "api-keys", "localization", "webhooks"]
+  "pages": [
+    "list-hygiene",
+    "verifying-domains",
+    "receiving-emails",
+    "tracking",
+    "api-keys",
+    "localization",
+    "webhooks",
+    "importing-contacts",
+    "custom-fields",
+    "segment-filters",
+    "unsubscribe-pages"
+  ]
 }

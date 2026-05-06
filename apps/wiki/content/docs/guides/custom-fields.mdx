@@ -1,0 +1,135 @@
+---
+title: Custom fields
+description: Store arbitrary data on your contacts and use it for personalization, segmentation, and workflows
+icon: Tags
+---
+
+Every contact in Plunk has a `data` object alongside the built-in fields (`email`, `subscribed`, `createdAt`, `updatedAt`). You decide what goes in `data` — first names, plan tiers, signup dates, internal user IDs, anything you want to use later in templates, segments, or workflow conditions.
+
+This guide covers how custom fields work end to end: setting them, the rules around types, using them, and cleaning them up.
+
+## Setting custom fields
+
+Set custom fields any time you create or update a contact:
+
+```bash
+# Via /v1/track (auto-creates the contact)
+curl -X POST {{API_URL}}/v1/track \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "ada@example.com",
+    "event": "signed_up",
+    "data": {
+      "firstName": "Ada",
+      "plan": "pro",
+      "signupDate": "2026-05-06T12:00:00Z",
+      "lifetimeValue": 240
+    }
+  }'
+
+# Via PATCH /contacts/:id
+curl -X PATCH {{API_URL}}/contacts/cnt_abc123 \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "data": { "plan": "enterprise" } }'
+```
+
+`data` is patched — only the keys you send change. Other keys keep their existing values.
+
+### Special values
+
+| Value          | Behaviour                                                                       |
+| -------------- | ------------------------------------------------------------------------------- |
+| Primitive      | Stored. Available for templates, segments, workflows.                           |
+| `null`         | Deletes the key from the contact.                                               |
+| `""` (empty)   | Ignored — does not overwrite existing data.                                     |
+| `{ value, persistent: false }` | Used for this send only; not stored on the contact. Good for one-shot codes (password resets, magic links). |
+
+## Type inference
+
+Plunk infers a type for each field the first time it sees a non-null value in your project:
+
+| Detected as | Examples                                                       |
+| ----------- | -------------------------------------------------------------- |
+| Number      | `42`, `3.14`                                                   |
+| Boolean     | `true`, `false`                                                |
+| Date        | Strings matching `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS[.sss]Z`  |
+| String      | Anything else                                                  |
+
+The inferred type powers the segment filter UI (showing date pickers for date fields, number inputs for numeric ones, etc.) and is sticky once set per project. If you mix types for a key, the original inference wins for the UI but Plunk still stores whatever value you send.
+
+To use date-aware operators (`within`, `olderThan`) on a custom field, store the value as a full ISO 8601 string — `"2026-05-06T12:00:00Z"` works, `"05/06/2026"` doesn't.
+
+## Reserved keys
+
+Some keys are managed by Plunk and **silently filtered out** of any `data` payload — sending them won't store them and won't return an error:
+
+`id`, `plunk_id`, `plunk_email`, `email`, `unsubscribeUrl`, `subscribeUrl`, `manageUrl`
+
+Plus these core contact fields, which exist outside `data`: `email`, `subscribed`, `createdAt`, `updatedAt`. To change `email` or `subscribed`, use the dedicated request fields, not `data`.
+
+`locale` is a special soft-reserved key — it's stored under `data` like other fields, but Plunk reads it for [localization](/guides/localization).
+
+## Using custom fields
+
+### In templates
+
+Reference any field by name as a Handlebars variable:
+
+```html
+<p>Hi {{firstName ?? "there"}},</p>
+<p>You've been on the {{plan}} plan since {{signupDate}}.</p>
+```
+
+The `?? fallback` syntax is Plunk-specific and lets you provide a default when the field is missing or null. Nested data (`data.profile.tier`) is accessible the same way: `{{profile.tier}}`.
+
+### In segments
+
+Reference custom fields with the `data.` prefix in segment filters:
+
+```json
+{ "field": "data.plan", "operator": "equals", "value": "pro" }
+{ "field": "data.lifetimeValue", "operator": "greaterThan", "value": 100 }
+{ "field": "data.signupDate", "operator": "within", "value": 30, "unit": "days" }
+```
+
+See the [Segments concept page](/concepts/segments) for the full filter taxonomy.
+
+### In workflows
+
+`CONDITION` steps inside workflows use the same `data.` notation. The `UPDATE_CONTACT` step lets you write to custom fields as a workflow progresses (e.g. tag `{ stage: "activated" }` after the welcome email is opened).
+
+## Inspecting your custom fields
+
+`GET /contacts/fields` returns every field — standard plus custom — that's been used in your project, with the inferred type and the share of contacts that have it set:
+
+```json
+{
+  "fields": [
+    { "field": "email",        "type": "string",  "isCustom": false, "coverage": 1.0 },
+    { "field": "data.plan",    "type": "string",  "isCustom": true,  "coverage": 0.62 },
+    { "field": "data.signupDate", "type": "date",  "isCustom": true,  "coverage": 0.95 }
+  ]
+}
+```
+
+Use this to audit your custom fields, find stale ones, and feed dropdowns in your own UI.
+
+For a single field, `GET /contacts/fields/:field/values` returns the distinct values seen for that field — useful for showing a "Filter by plan" dropdown in your dashboard.
+
+## Cleaning up unused fields
+
+Custom fields tend to accumulate. Two endpoints help:
+
+- `GET /contacts/fields/:field/usage` — lists every segment, campaign, and workflow that references the field. Run this before deleting to make sure you don't break anything.
+- `DELETE /contacts/fields/:field` — removes the field from every contact in the project.
+
+Deleting only affects contact data — segments and workflows that referenced the field continue to exist but their conditions on that field will stop matching anything. The usage endpoint helps you find and clean those up first.
+
+## Best practices
+
+- **Pick stable field names.** Renaming a field means updating every segment, template, and workflow that references it.
+- **Use ISO 8601 for dates.** Otherwise date-aware segment operators won't work.
+- **Don't put secrets in `data`.** Custom fields are visible in the dashboard and to anyone with API access. Use `{ value, persistent: false }` for one-shot codes that shouldn't persist.
+- **Prefer flat keys for high-cardinality fields.** Nested paths (`data.profile.tier`) work but are slightly harder to discover in the segment UI.

@@ -1,0 +1,70 @@
+---
+title: Unsubscribe & preferences pages
+description: Plunk's hosted pages for letting recipients unsubscribe, resubscribe, and manage their email preferences
+icon: UserX
+---
+
+Every email Plunk sends to a recipient who can unsubscribe (marketing or headless templates) carries a personalized link to a hosted page where they can manage their subscription. You don't need to build any of this — Plunk hosts the pages, handles the state changes, and tracks the events for you.
+
+## The three URL variables
+
+Three template variables are auto-injected on every send and resolve to per-recipient signed URLs:
+
+| Variable             | Page it links to                                                  | What the recipient can do                                |
+| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
+| `{{unsubscribeUrl}}` | One-click unsubscribe page                                         | Confirm they want to stop receiving marketing emails     |
+| `{{subscribeUrl}}`   | Resubscribe page                                                   | Opt back in after previously unsubscribing               |
+| `{{manageUrl}}`      | Preferences page                                                   | View their current state and toggle subscription either way |
+
+Use them anywhere in a template's body or subject line. The placeholder is replaced with a unique URL when the email is rendered for that specific contact.
+
+## Default behaviour by template type
+
+Where Plunk drops these links depends on the template type:
+
+| Template type     | Auto footer with `{{unsubscribeUrl}}`?      | Notes                                                                  |
+| ----------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| **Marketing**     | Yes — Plunk appends a localized footer      | You don't need to do anything. The footer respects the recipient's `locale`. |
+| **Headless**      | No                                          | You must include `{{unsubscribeUrl}}` (or `{{manageUrl}}`) in your body or the recipient has no way to opt out. |
+| **Transactional** | No                                          | Transactional emails skip subscription checks; an unsubscribe link is not added (and shouldn't be needed). |
+
+If you build your own footer in a marketing template, you can still rely on the auto-injected one or override it by including your own link with `{{unsubscribeUrl}}`.
+
+## Inside transactional sends
+
+`/v1/send` accepts the same template variables. Whether an unsubscribe footer is appended depends on the template you reference:
+
+- Sending with no template (just `subject` + `body`) → no auto footer.
+- Sending with a marketing template → footer auto-injected.
+- Sending with a headless or transactional template → no footer (you control the body).
+
+You can always reference `{{unsubscribeUrl}}` / `{{manageUrl}}` in your inline body if you want to render your own link.
+
+## What happens when the recipient acts
+
+When the recipient clicks one of the links and confirms:
+
+| Action                  | Effect                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| Unsubscribe             | Contact's `subscribed` flips to `false`. `contact.unsubscribed` event fires.      |
+| Resubscribe             | Contact's `subscribed` flips to `true`. `contact.subscribed` event fires.         |
+| Update via preferences  | Same as above, depending on which way they toggle.                                |
+
+You can drive workflows off `contact.unsubscribed` / `contact.subscribed` (e.g. send a "we're sorry to see you go" survey, or trigger a winback when they re-opt-in).
+
+## Localization
+
+The hosted pages and the auto-injected footer are localized into the contact's `locale` if set, or the project's default language otherwise. See [Localization](/guides/localization) for the full list of supported languages.
+
+## Branding
+
+The pages use your project's name and logo (configurable in **Settings → Project**). For more advanced customization, send marketing as **headless** templates and build the unsubscribe surface into your own product UI — link your in-product unsubscribe controls to the same `{{unsubscribeUrl}}` for one-click revocation.
+
+## API reference
+
+If you need to drive subscription changes programmatically rather than through the hosted pages — for example because you've built your own preferences UI — use the contacts API:
+
+- `PATCH /contacts/:id` with `{ "subscribed": false }` — unsubscribe a contact.
+- `PATCH /contacts/:id` with `{ "subscribed": true }` — resubscribe.
+
+Both flips automatically emit the corresponding `contact.subscribed` / `contact.unsubscribed` event, just like the hosted pages do.

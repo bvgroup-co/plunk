@@ -1,0 +1,114 @@
+---
+title: Importing contacts from CSV
+description: Bulk-load contacts and their custom fields from a CSV file
+icon: Upload
+---
+
+Plunk supports bulk-importing contacts from a CSV file — useful for migrating from another platform, loading an initial list, or syncing a large batch of contacts that you can't reasonably stream through `/v1/track`.
+
+## CSV format
+
+The CSV must have a header row. The only required column is `email`. Every other column becomes a custom field on the contact under `data.<columnName>`.
+
+A minimal file:
+
+```csv
+email
+ada@example.com
+grace@example.com
+linus@example.com
+```
+
+A richer file with custom fields:
+
+```csv
+email,firstName,plan,signupDate
+ada@example.com,Ada,pro,2026-01-15T00:00:00Z
+grace@example.com,Grace,enterprise,2025-11-02T00:00:00Z
+linus@example.com,Linus,free,2026-04-21T00:00:00Z
+```
+
+In this example, every imported contact ends up with `data.firstName`, `data.plan`, and `data.signupDate` set.
+
+### Rules and limits
+
+- **File size**: up to 5 MB per upload. For larger lists, split the file and run multiple imports.
+- **Encoding**: UTF-8. Non-UTF-8 files may produce garbled custom field values.
+- **Email column**: must be present and valid. Rows with missing or invalid emails are reported back as errors.
+- **Reserved column names**: `id`, `subscribed`, `createdAt`, `updatedAt`, and the auto-generated URL variables (`unsubscribeUrl`, etc.) are silently filtered out. Don't include them as columns.
+- **Date columns**: use ISO 8601 (`2026-05-06T12:00:00Z`) so they're typed as dates and become usable with `within` / `olderThan` segment operators.
+- **Existing contacts**: if a row's email matches an existing contact, the import **updates** the contact (merging the CSV's columns into `data`). It doesn't create a duplicate or overwrite the whole record.
+
+## Importing your CSV
+
+import {Tab, Tabs} from 'fumadocs-ui/components/tabs';
+
+<Tabs items={['Dashboard', 'API']}>
+
+<Tab value="Dashboard">
+
+1. Open **Contacts** and click **Import**.
+2. Pick your CSV file. Plunk validates the header and shows a preview of the first few rows.
+3. Confirm. The import is queued and runs in the background.
+4. The Imports page shows progress and any per-row errors when complete.
+
+</Tab>
+
+<Tab value="API">
+
+For automation, use the import API:
+
+**Step 1 — upload the CSV**
+
+```bash
+curl -X POST {{API_URL}}/contacts/import \
+  -H "Authorization: Bearer sk_..." \
+  -F "file=@contacts.csv"
+```
+
+The response includes a `jobId`:
+
+```json
+{ "jobId": "imp_abc123", "status": "queued" }
+```
+
+**Step 2 — poll for status**
+
+```bash
+curl {{API_URL}}/contacts/import/imp_abc123 \
+  -H "Authorization: Bearer sk_..."
+```
+
+Poll every few seconds until `status` is `completed` or `failed`. The response includes counts:
+
+```json
+{
+  "jobId": "imp_abc123",
+  "status": "completed",
+  "totalRows": 12000,
+  "imported": 11985,
+  "updated": 8,
+  "skipped": 0,
+  "errors": [
+    { "row": 47,   "email": "bad@",      "reason": "invalid_email" },
+    { "row": 1042, "email": "@example",  "reason": "invalid_email" }
+  ]
+}
+```
+
+`imported` counts new contacts created. `updated` counts existing contacts whose `data` was patched. `errors` lists per-row issues with row number and reason so you can fix and re-upload.
+
+</Tab>
+
+</Tabs>
+
+## Tips
+
+- **Unsubscribed contacts**: imported contacts are created subscribed by default. If your CSV represents users who never opted in, set up a workflow that filters out anyone you shouldn't email — or import them and then bulk-unsubscribe them with `POST /contacts/bulk-unsubscribe` to keep them on file but unmailed.
+- **Custom fields appear in segments immediately**: as soon as the import finishes, you can build dynamic segments on any of the imported columns.
+- **Idempotent reruns**: re-running the same CSV updates contacts in place rather than creating duplicates. If you fix a column and re-upload, all matching rows get the corrected value.
+
+## Related
+
+- [Custom fields](/guides/custom-fields) — how the `data.<column>` fields you import are typed and used.
+- [Bulk operations](/api-reference/overview#contacts) — `bulk-subscribe`, `bulk-unsubscribe`, `bulk-delete` for mass actions on existing contacts (max 1,000 per call).

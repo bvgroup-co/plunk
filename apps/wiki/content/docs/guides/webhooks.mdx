@@ -5,6 +5,7 @@ icon: Webhook
 ---
 
 import {Tab, Tabs} from 'fumadocs-ui/components/tabs';
+import {TypeTable} from 'fumadocs-ui/components/type-table';
 
 Plunk can send real-time HTTP requests to your application when specific events occur, such as email bounces, spam complaints, or custom events. This is done by creating a [workflow](/concepts/workflows) that uses the **Webhook** step to forward event data to your own endpoint.
 
@@ -48,18 +49,26 @@ Plunk automatically tracks a set of internal events that you can use as workflow
 | `segment.<name>.entry` | A contact entered a segment |
 | `segment.<name>.exit`  | A contact exited a segment  |
 
-<Callout title="Segment event names" variant="idea">
+<Callout title="Segment event names" type="info">
   Segment events use a slugified version of the segment name. For example, a segment called "VIP Users" would produce
   the events `segment.vip-users.entry` and `segment.vip-users.exit`.
 </Callout>
 
 ## Setting up a webhook
 
-<div className='fd-steps [&_h3]:fd-step'>
+import {Step, Steps} from 'fumadocs-ui/components/steps';
+
+<Steps>
+
+<Step>
 
 ### Create the workflow
 
 Navigate to the **Workflows** section in the dashboard and create a new workflow. Choose the event you want to listen for as the trigger. For example, to receive notifications when an email bounces, use `email.bounce` as the trigger event.
+
+</Step>
+
+<Step>
 
 ### Add a Webhook step
 
@@ -75,11 +84,17 @@ After the trigger, add a **Webhook** step and configure it:
 }
 ```
 
+</Step>
+
+<Step>
+
 ### Enable the workflow
 
 Once configured, enable the workflow. It will start sending webhook requests whenever the trigger event occurs.
 
-</div>
+</Step>
+
+</Steps>
 
 ## Webhook payload
 
@@ -126,18 +141,20 @@ The `event` field contains the data associated with the event that triggered the
 
 Most email events share a common set of base fields:
 
-| Field        | Description                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------------ |
-| `subject`    | The email subject line                                                                                 |
-| `from`       | The sender email address                                                                               |
-| `fromName`   | The sender display name                                                                                |
-| `messageId`  | The AWS SES message ID (for correlating with SES events)                                               |
-| `emailId`    | The Plunk email record ID (returned from `POST /v1/send`, for correlating webhooks with API responses) |
-| `templateId` | The template ID, if the email was sent using a template (otherwise `null`)                             |
-| `campaignId` | The campaign ID, if the email was part of a campaign (otherwise `null`)                                |
-| `sourceType` | How the email was triggered: `TRANSACTIONAL`, `CAMPAIGN`, `WORKFLOW`, or `INBOUND`                     |
+<TypeTable
+  type={{
+    subject: { type: 'string', description: 'The email subject line.' },
+    from: { type: 'string', description: 'The sender email address.' },
+    fromName: { type: 'string', description: 'The sender display name.' },
+    messageId: { type: 'string', description: 'Provider-side message identifier (useful for correlating with delivery logs).' },
+    emailId: { type: 'string', description: 'The Plunk email record ID — returned from `POST /v1/send`, used for correlating webhooks with API responses.' },
+    templateId: { type: 'string', description: 'The template ID, if the email was sent using a template. Otherwise `null`.' },
+    campaignId: { type: 'string', description: 'The campaign ID, if the email was part of a campaign. Otherwise `null`.' },
+    sourceType: { type: 'string', description: 'How the email was triggered. One of `TRANSACTIONAL`, `CAMPAIGN`, `WORKFLOW`, or `INBOUND`.' },
+  }}
+/>
 
-In addition to these base fields, each event includes the following event-specific fields:
+In addition to these base fields, each event includes the following event-specific fields. The base fields above (`subject`, `from`, `fromName`, `messageId`, `emailId`, `templateId`, `campaignId`, `sourceType`) are present on every email event in addition to the event-specific fields shown below.
 
 <Tabs items={['email.sent', 'email.delivery', 'email.open', 'email.click', 'email.bounce', 'email.complaint', 'email.received']}>
 
@@ -157,9 +174,11 @@ In addition to these base fields, each event includes the following event-specif
 }
 ```
 
-| Field    | Description             |
-| -------- | ----------------------- |
-| `sentAt` | When the email was sent |
+<TypeTable
+  type={{
+    sentAt: { type: 'string', description: 'ISO 8601 timestamp of when the email was accepted for delivery.' },
+  }}
+/>
 
 </Tab>
 
@@ -179,9 +198,11 @@ In addition to these base fields, each event includes the following event-specif
 }
 ```
 
-| Field         | Description                  |
-| ------------- | ---------------------------- |
-| `deliveredAt` | When the email was delivered |
+<TypeTable
+  type={{
+    deliveredAt: { type: 'string', description: 'ISO 8601 timestamp of when the email was delivered to the recipient.' },
+  }}
+/>
 
 </Tab>
 
@@ -203,11 +224,13 @@ In addition to these base fields, each event includes the following event-specif
 }
 ```
 
-| Field         | Description                                                   |
-| ------------- | ------------------------------------------------------------- |
-| `openedAt`    | When the email was first opened                               |
-| `opens`       | Total number of times this email has been opened              |
-| `isFirstOpen` | `true` if this is the first time the contact opened the email |
+<TypeTable
+  type={{
+    openedAt: { type: 'string', description: 'ISO 8601 timestamp of the first open.' },
+    opens: { type: 'number', description: 'Total number of times this email has been opened.' },
+    isFirstOpen: { type: 'boolean', description: '`true` if this is the first time the contact opened this email.' },
+  }}
+/>
 
 </Tab>
 
@@ -230,12 +253,14 @@ In addition to these base fields, each event includes the following event-specif
 }
 ```
 
-| Field          | Description                                                       |
-| -------------- | ----------------------------------------------------------------- |
-| `link`         | The URL that was clicked                                          |
-| `clickedAt`    | When the first click occurred                                     |
-| `clicks`       | Total number of times links in this email have been clicked       |
-| `isFirstClick` | `true` if this is the first click from this contact on this email |
+<TypeTable
+  type={{
+    link: { type: 'string', description: 'The URL that was clicked.' },
+    clickedAt: { type: 'string', description: 'ISO 8601 timestamp of the first click.' },
+    clicks: { type: 'number', description: 'Total number of clicks on links in this email.' },
+    isFirstClick: { type: 'boolean', description: '`true` if this is the first click from this contact on this email.' },
+  }}
+/>
 
 </Tab>
 
@@ -275,13 +300,15 @@ Transient (soft) bounce:
 }
 ```
 
-| Field             | Description                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| `bounceType`      | `Permanent` (hard bounce) or `Transient` (soft bounce, e.g. mailbox full or out-of-office)       |
-| `bouncedAt`       | When the bounce occurred (permanent bounces only)                                                |
-| `transientBounce` | `true` for soft bounces — these do not count toward bounce rate and the contact stays subscribed |
+<TypeTable
+  type={{
+    bounceType: { type: 'string', description: '`Permanent` for hard bounces, `Transient` for soft bounces (mailbox full, out-of-office, greylist).' },
+    bouncedAt: { type: 'string', description: 'ISO 8601 timestamp of when the bounce occurred. Only present on permanent bounces.' },
+    transientBounce: { type: 'boolean', description: '`true` for soft bounces — these do not count toward your bounce rate and the contact stays subscribed.' },
+  }}
+/>
 
-<Callout title="Bounce rate impact" variant="warn">
+<Callout title="Bounce rate impact" type="warn">
   Only `Permanent` bounces count toward your project's bounce rate and trigger automatic contact unsubscription.
   `Transient` bounces are tracked for visibility only.
 </Callout>
@@ -304,9 +331,11 @@ Transient (soft) bounce:
 }
 ```
 
-| Field          | Description                          |
-| -------------- | ------------------------------------ |
-| `complainedAt` | When the spam complaint was received |
+<TypeTable
+  type={{
+    complainedAt: { type: 'string', description: 'ISO 8601 timestamp of when the complaint was received.' },
+  }}
+/>
 
 </Tab>
 
@@ -334,23 +363,25 @@ This event fires when an email is received at your verified domain. See [Receivi
 }
 ```
 
-| Field                  | Description                                                           |
-| ---------------------- | --------------------------------------------------------------------- |
-| `messageId`            | The AWS SES message ID                                                |
-| `from`                 | The sender's email address                                            |
-| `fromHeader`           | The full `From` header, including display name if present             |
-| `to`                   | The recipient address at your verified domain                         |
-| `subject`              | The email subject line                                                |
-| `timestamp`            | When SES received the email                                           |
-| `recipients`           | All recipient addresses in the envelope                               |
-| `hasContent`           | Whether the email body content is available                           |
-| `body`                 | HTML body of the email (or plain text if no HTML available)           |
-| `spamVerdict`          | SES spam check result: `PASS`, `FAIL`, `GRAY`, or `PROCESSING_FAILED` |
-| `virusVerdict`         | SES virus check result                                                |
-| `spfVerdict`           | SPF authentication result                                             |
-| `dkimVerdict`          | DKIM authentication result                                            |
-| `dmarcVerdict`         | DMARC authentication result                                           |
-| `processingTimeMillis` | Time SES took to process the inbound email                            |
+<TypeTable
+  type={{
+    messageId: { type: 'string', description: 'Unique identifier for the received message.' },
+    from: { type: 'string', description: "The sender's email address." },
+    fromHeader: { type: 'string', description: 'The full `From` header, including display name if present.' },
+    to: { type: 'string', description: 'The recipient address at your verified domain.' },
+    subject: { type: 'string', description: 'The email subject line.' },
+    timestamp: { type: 'string', description: 'ISO 8601 timestamp when the email was received.' },
+    recipients: { type: 'array of strings', description: 'All recipient addresses in the envelope.' },
+    hasContent: { type: 'boolean', description: 'Whether the email body content is available.' },
+    body: { type: 'string', description: 'Sanitized HTML body of the email (or plain text if no HTML available).' },
+    spamVerdict: { type: 'string', description: 'Spam check result. One of `PASS`, `FAIL`, `GRAY`, or `PROCESSING_FAILED`.' },
+    virusVerdict: { type: 'string', description: 'Virus check result. One of `PASS`, `FAIL`, `GRAY`, or `PROCESSING_FAILED`.' },
+    spfVerdict: { type: 'string', description: 'SPF authentication result.' },
+    dkimVerdict: { type: 'string', description: 'DKIM authentication result.' },
+    dmarcVerdict: { type: 'string', description: 'DMARC authentication result.' },
+    processingTimeMillis: { type: 'number', description: 'Time taken to process the inbound email.' },
+  }}
+/>
 
 </Tab>
 
@@ -368,9 +399,11 @@ The exception is when an unsubscription is triggered automatically by an email b
 }
 ```
 
-| Field    | Value                                               |
-| -------- | --------------------------------------------------- |
-| `reason` | `"bounce"` or `"complaint"` (when system-triggered) |
+<TypeTable
+  type={{
+    reason: { type: 'string', description: 'Why the contact was unsubscribed. One of `bounce` or `complaint`. Only present when triggered automatically by a bounce or complaint.' },
+  }}
+/>
 
 #### Segment events
 
@@ -383,10 +416,12 @@ Both `segment.<name>.entry` and `segment.<name>.exit` include:
 }
 ```
 
-| Field         | Description                     |
-| ------------- | ------------------------------- |
-| `segmentId`   | The ID of the segment           |
-| `segmentName` | The display name of the segment |
+<TypeTable
+  type={{
+    segmentId: { type: 'string', description: 'The ID of the segment.' },
+    segmentName: { type: 'string', description: 'The display name of the segment.' },
+  }}
+/>
 
 #### Custom events
 
@@ -440,7 +475,7 @@ Response:
 }
 ```
 
-This eliminates the need to match by contact email + timestamp or to listen for `email.sent` webhooks just to get the SES `messageId`.
+This eliminates the need to match by contact email + timestamp or to listen for `email.sent` webhooks just to get the provider `messageId`.
 
 ## Common use cases
 
@@ -461,6 +496,27 @@ Trigger a workflow on `contact.unsubscribed` to notify your application when a c
 ### Custom event forwarding
 
 If you track custom events in Plunk (e.g. `user.signup`, `order.completed`), you can forward those same events to other services via webhooks. This turns Plunk into an event router — track once, distribute to multiple endpoints.
+
+## Receiving webhooks safely
+
+Plunk's webhook step has a few characteristics worth knowing when you build the receiving endpoint:
+
+- **Method**: defaults to `POST` with `Content-Type: application/json`. You can override the method per step.
+- **Timeout**: each request times out after **10 seconds**. Long-running endpoints should accept the request, queue the work, and return `2xx` quickly.
+- **Redirects**: up to 5 redirects are followed. Each hop is re-validated against the SSRF rules below.
+- **Public URL required**: your webhook endpoint must be reachable on the public internet. Webhooks pointed at private or internal addresses (loopback, RFC 1918 ranges, etc.) won't be delivered.
+- **Schemes**: only `http://` and `https://` are accepted. Prefer HTTPS.
+- **No automatic retries**: a non-2xx response or timeout fails the workflow step. Build idempotency into your handler and use workflow logic (a `WAIT_FOR_EVENT` step, a fallback branch) if you need retry semantics.
+- **Verify authenticity with a shared secret**: configure a secret header on the webhook step and check it on your endpoint:
+
+  ```json
+  // Webhook step → Headers
+  {
+    "Authorization": "Bearer your-shared-secret"
+  }
+  ```
+
+  The secret travels with every request from that step. Rotate it like any other shared secret. Prefer this over IP allowlisting — egress IPs can change.
 
 ## Adding conditions and delays
 

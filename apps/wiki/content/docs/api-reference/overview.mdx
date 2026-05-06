@@ -67,11 +67,9 @@ curl -X POST {{API_URL}}/contacts \
 
 ## Response format
 
-All API responses follow a standardized format for easy parsing and error handling.
+### Success responses
 
-### Success response
-
-Public API endpoints (`/v1/send`, `/v1/track`):
+Public API endpoints (`/v1/send`, `/v1/track`, `/v1/verify`) return a wrapped envelope:
 
 ```json
 {
@@ -84,30 +82,24 @@ Public API endpoints (`/v1/send`, `/v1/track`):
 }
 ```
 
-Dashboard API endpoints (contacts, templates, campaigns):
+Dashboard endpoints (contacts, templates, campaigns, segments, workflows, etc.) return the resource directly — no `success`/`data` wrapper:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "cnt_abc123",
-    "email": "user@example.com",
-    "createdAt": "2025-11-30T10:30:00.000Z"
-  }
+  "id": "cnt_abc123",
+  "email": "user@example.com",
+  "createdAt": "2025-11-30T10:30:00.000Z"
 }
 ```
 
-List endpoints with pagination:
+List endpoints with cursor pagination return:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [...],
-    "nextCursor": "abc123",
-    "hasMore": true,
-    "total": 1000
-  }
+  "data": [ /* items */ ],
+  "cursor": "def456",
+  "hasMore": true,
+  "total": 10000
 }
 ```
 
@@ -148,35 +140,37 @@ See the [Error Codes documentation](/api-reference/errors) for complete details 
 
 ## Pagination
 
-List endpoints support cursor-based pagination:
+Most list endpoints use **cursor-based** pagination:
 
 ```bash
 GET /contacts?limit=100&cursor=abc123
 ```
 
 **Parameters:**
-- `limit` — Number of items per page (default: 20, max: 100)
-- `cursor` — Pagination cursor from previous response
+- `limit` — items per page (default: 20, max: 100)
+- `cursor` — pagination cursor from the previous response's `cursor` field
 
 **Response:**
 ```json
 {
-  "items": [...],
-  "nextCursor": "def456",
+  "data": [ /* items */ ],
+  "cursor": "def456",
   "hasMore": true,
   "total": 10000
 }
 ```
 
-Use `nextCursor` for the next page. When `hasMore` is false, you've reached the end.
+Pass the response's `cursor` value as the next request's `cursor` query parameter. When `hasMore` is `false`, you've reached the end. The `total` count is only included on the first page (when no `cursor` is supplied) — subsequent pages return `total: 0` to keep listing fast.
+
+A few endpoints (e.g. `GET /segments/:id/contacts`) use **page-based** pagination instead, with `page` and `pageSize` parameters. Their responses include `total`, `page`, and `pageSize` fields.
 
 ## Rate limits
 
 Plunk enforces reasonable rate limits to ensure service quality:
 
-- **Email sending** — 14 emails/second (AWS SES default)
-- **API requests** — 1000 requests/minute per project
-- **Bulk operations** — Automatically queued for processing
+- **Email sending** — throttled per project to protect deliverability.
+- **API requests** — 1000 requests/minute per project.
+- **Bulk operations** — automatically queued for asynchronous processing.
 
 If you exceed limits, you'll receive a `429 Too Many Requests` response.
 
@@ -202,75 +196,200 @@ For a complete list of error codes and troubleshooting guidance, see the [Error 
 
 ## API endpoints
 
-### Public API (transactional)
+A complete, grouped reference of every endpoint exposed by the Plunk API.
 
-**POST /v1/send** — Send transactional email(s)
-- Accepts single or multiple recipients
-- Template or inline content
-- Variable substitution
+### Public API
 
-**POST /v1/track** — Track event for contact
-- Creates/updates contact
-- Tracks custom event
-- Can use public key
+The `/v1/*` endpoints are designed for use from your applications and accept simple, denormalised payloads. `POST /v1/track` is the only endpoint callable with a public (`pk_*`) key.
+
+| Method | Path         | Description                                                                                  | Key      |
+| ------ | ------------ | -------------------------------------------------------------------------------------------- | -------- |
+| POST   | `/v1/send`   | Send a transactional email. Single or multiple recipients, template or inline content, attachments, headers, custom data. | `sk_*` |
+| POST   | `/v1/track`  | Track an event for a contact. Auto-creates or upserts the contact. Triggers workflows.       | `pk_*` or `sk_*` |
+| POST   | `/v1/verify` | Validate an email address — format, MX records, disposable domains, typo detection.          | `sk_*`   |
 
 ### Contacts
 
-**GET /contacts** — List all contacts
-**POST /contacts** — Create new contact
-**GET /contacts/:id** — Get contact details
-**PATCH /contacts/:id** — Update contact
-**DELETE /contacts/:id** — Delete contact
+| Method | Path                                  | Description                                                                                  |
+| ------ | ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/contacts`                           | List contacts. Supports `search` (by email substring), `limit`, `cursor`.                    |
+| POST   | `/contacts`                           | Create or upsert a contact by email. Returns `_meta.isNew` and `_meta.isUpdate`.             |
+| GET    | `/contacts/:id`                       | Get a single contact.                                                                        |
+| PATCH  | `/contacts/:id`                       | Update a contact's email, subscription state, or `data` fields.                              |
+| DELETE | `/contacts/:id`                       | Delete a contact.                                                                            |
+| POST   | `/contacts/lookup`                    | Bulk email-existence check (max 500 emails per call).                                        |
+| **Custom fields** |                            |                                                                                              |
+| GET    | `/contacts/fields`                    | List standard and custom fields with inferred types and coverage percentages.                |
+| GET    | `/contacts/fields/:field/values`      | Distinct values for a custom field — used by segment / workflow filter UIs.                  |
+| GET    | `/contacts/fields/:field/usage`       | Where a custom field is referenced (segments, campaigns, workflows).                         |
+| DELETE | `/contacts/fields/:field`             | Delete a custom field across every contact in the project.                                   |
+| **CSV import** |                               |                                                                                              |
+| POST   | `/contacts/import`                    | Upload a CSV file (multipart, ≤ 5 MB). Queued — returns a `jobId`.                           |
+| GET    | `/contacts/import/:jobId`             | Poll the status of a CSV import job.                                                         |
+| **Bulk operations** |                          |                                                                                              |
+| POST   | `/contacts/bulk-subscribe`            | Subscribe up to 1,000 contacts by ID. Queued — returns a `jobId`.                            |
+| POST   | `/contacts/bulk-unsubscribe`          | Unsubscribe up to 1,000 contacts by ID. Queued.                                              |
+| POST   | `/contacts/bulk-delete`               | Delete up to 1,000 contacts by ID. Queued.                                                   |
+| GET    | `/contacts/bulk/:jobId`               | Poll the status of a bulk job.                                                               |
 
 ### Templates
 
-**GET /templates** — List all templates
-**POST /templates** — Create new template
-**GET /templates/:id** — Get template details
-**PATCH /templates/:id** — Update template
-**DELETE /templates/:id** — Delete template
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/templates`                  | List all templates.                                                                          |
+| POST   | `/templates`                  | Create a template. `from` must be on a verified domain.                                      |
+| GET    | `/templates/:id`              | Get a template.                                                                              |
+| PATCH  | `/templates/:id`              | Update a template.                                                                           |
+| DELETE | `/templates/:id`              | Delete a template.                                                                           |
+| POST   | `/templates/:id/duplicate`    | Duplicate a template — returns the new template ID.                                          |
+| GET    | `/templates/:id/usage`        | List campaigns and workflow steps that reference this template.                              |
 
 ### Campaigns
 
-**GET /campaigns** — List all campaigns
-**POST /campaigns** — Create new campaign
-**GET /campaigns/:id** — Get campaign details
-**PATCH /campaigns/:id** — Update campaign
-**POST /campaigns/:id/send** — Send or schedule campaign
-**POST /campaigns/:id/cancel** — Cancel scheduled campaign
-**POST /campaigns/:id/test** — Send test email
-**GET /campaigns/:id/stats** — Get campaign analytics
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/campaigns`                  | List all campaigns.                                                                          |
+| POST   | `/campaigns`                  | Create a campaign in `DRAFT`. `from` must be on a verified domain.                           |
+| GET    | `/campaigns/:id`              | Get a campaign.                                                                              |
+| PUT    | `/campaigns/:id`              | Update a campaign (replace).                                                                 |
+| DELETE | `/campaigns/:id`              | Delete a campaign. Returns 409 if it has active executions.                                  |
+| POST   | `/campaigns/:id/duplicate`    | Duplicate a campaign — returns the new campaign in `DRAFT`.                                  |
+| POST   | `/campaigns/:id/send`         | Send (or schedule) the campaign. Pass `scheduledFor` for delayed sends.                      |
+| POST   | `/campaigns/:id/cancel`       | Cancel a `SCHEDULED` or `SENDING` campaign.                                                  |
+| POST   | `/campaigns/:id/test`         | Send a test email to a single address (`{ email: "you@example.com" }`).                      |
+| GET    | `/campaigns/:id/stats`        | Get current send / open / click / bounce counts.                                             |
 
 ### Segments
 
-**GET /segments** — List all segments
-**POST /segments** — Create new segment (Dynamic or Static)
-**GET /segments/:id** — Get segment details
-**PATCH /segments/:id** — Update segment
-**DELETE /segments/:id** — Delete segment
-**GET /segments/:id/contacts** — List segment members
-**POST /segments/:id/members** — Add contacts to a static segment (by email)
-**DELETE /segments/:id/members** — Remove contacts from a static segment (by email)
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/segments`                   | List all segments (no pagination — small list).                                              |
+| POST   | `/segments`                   | Create a segment. `type: "DYNAMIC"` requires `condition`; `type: "STATIC"` rejects it.       |
+| GET    | `/segments/:id`               | Get a segment, including cached `memberCount`.                                               |
+| PATCH  | `/segments/:id`               | Update name, description, condition (dynamic only), or `trackMembership`.                    |
+| DELETE | `/segments/:id`               | Delete a segment. Returns 409 if used by an active campaign.                                 |
+| GET    | `/segments/:id/contacts`      | Page-based list of segment members. `page`, `pageSize` (max 100). Live for dynamic segments. |
+| POST   | `/segments/:id/members`       | Add emails to a **static** segment. Body: `{ emails, createMissing?, subscribed? }`.         |
+| DELETE | `/segments/:id/members`       | Remove emails from a **static** segment. Body: `{ emails }`.                                 |
+| POST   | `/segments/:id/compute`       | Recompute membership for a tracked dynamic segment — fires entry/exit events.                |
+| POST   | `/segments/:id/refresh`       | Cheap count refresh — no events, no membership writes.                                       |
 
 ### Workflows
 
-**GET /workflows** — List all workflows
-**POST /workflows** — Create new workflow
-**GET /workflows/:id** — Get workflow details
-**PATCH /workflows/:id** — Update workflow
-**DELETE /workflows/:id** — Delete workflow
-**GET /workflows/:id/executions** — List workflow executions
+Each workflow consists of a **workflow** record, a graph of **steps**, **transitions** between them, and per-contact **executions**. The API mirrors that structure.
+
+| Method | Path                                              | Description                                                                              |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| GET    | `/workflows`                                      | List all workflows.                                                                      |
+| GET    | `/workflows/fields`                               | Fields available to use in `CONDITION` step filters (contact + event fields).             |
+| POST   | `/workflows`                                      | Create a workflow. Always starts with `triggerType: EVENT` and `enabled: false`.         |
+| GET    | `/workflows/:id`                                  | Get a workflow with its steps and transitions.                                           |
+| PATCH  | `/workflows/:id`                                  | Update workflow metadata, trigger type / config, `enabled`, `allowReentry`.              |
+| DELETE | `/workflows/:id`                                  | Delete a workflow. Active executions must be cancelled or completed first.               |
+| **Steps** |                                                |                                                                                          |
+| POST   | `/workflows/:id/steps`                            | Add a step (`SEND_EMAIL`, `DELAY`, `WAIT_FOR_EVENT`, `CONDITION`, `WEBHOOK`, `UPDATE_CONTACT`, `EXIT`). |
+| PATCH  | `/workflows/:id/steps/:stepId`                    | Update a step's config.                                                                  |
+| DELETE | `/workflows/:id/steps/:stepId?splice=true`        | Delete a step. Pass `splice=true` to auto-reconnect surrounding transitions.             |
+| **Transitions** |                                          |                                                                                          |
+| POST   | `/workflows/:id/transitions`                      | Add a transition between two steps. For `CONDITION` steps, include `branch: "yes" \| "no"`. |
+| DELETE | `/workflows/:id/transitions/:transitionId`        | Delete a transition.                                                                     |
+| **Executions** |                                           |                                                                                          |
+| POST   | `/workflows/:id/executions`                       | Manually start an execution for a contact. Optional `context` JSON for per-execution variables. |
+| GET    | `/workflows/:id/executions`                       | List executions, filterable by `status`.                                                 |
+| GET    | `/workflows/:id/executions/:executionId`          | Get a single execution.                                                                  |
+| DELETE | `/workflows/:id/executions/:executionId`          | Cancel a running or waiting execution.                                                   |
+| POST   | `/workflows/:id/executions/cancel-all`            | Cancel every active execution at once.                                                   |
 
 ### Events
 
-**GET /events** — List all events
-**GET /events/names** — List unique event names
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| POST   | `/events/track`               | Internal alias for `/v1/track`, for dashboard use. Use `/v1/track` from your apps.           |
+| GET    | `/events`                     | List recent tracked events for a project.                                                    |
+| GET    | `/events/stats`               | Aggregated event statistics.                                                                 |
+| GET    | `/events/contact/:contactId`  | All events for a single contact.                                                             |
+| GET    | `/events/names`               | All distinct event names tracked in this project.                                            |
+| GET    | `/events/:eventName/usage`    | Where an event name is referenced (segment filters, workflow triggers, conditions).          |
+| DELETE | `/events/:eventName`          | Delete every event with the given name from the project.                                     |
 
 ### Domains
 
-**GET /domains** — List verified domains
-**POST /domains** — Add domain for verification
-**DELETE /domains/:id** — Remove domain
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/domains/project/:projectId` | List domains configured for a project (verified and pending).                                |
+| POST   | `/domains`                    | Add a domain for verification. Returns the DNS records you need to add.                      |
+| GET    | `/domains/:id/verify`         | Force a verification check now (otherwise checked every 5 minutes in the background).        |
+| DELETE | `/domains/:id`                | Remove a domain.                                                                             |
+
+### Activity & analytics
+
+| Method | Path                          | Description                                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/activity`                   | Cross-resource activity feed (sends, opens, clicks, bounces, complaints, inbound, etc.).      |
+| GET    | `/activity/stats`             | Aggregated counts for dashboard charts.                                                      |
+| GET    | `/activity/recent-count`      | Recent event count for the dashboard's "live" indicator.                                     |
+| GET    | `/activity/types`             | Distinct activity types in the project.                                                      |
+| GET    | `/activity/upcoming`          | Upcoming scheduled sends and active executions.                                              |
+| GET    | `/analytics/timeseries`       | Email send / open / click time-series.                                                       |
+| GET    | `/analytics/top-campaigns`    | Top-performing campaigns by metric.                                                          |
+| GET    | `/analytics/campaign-stats`   | Campaign-level breakdown.                                                                    |
+| GET    | `/analytics/top-events`       | Most frequent custom event names.                                                            |
+
+### Uploads
+
+| Method | Path             | Description                                                                                          |
+| ------ | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| POST   | `/uploads/image` | Upload an image (multipart) for use inside template bodies. Returns a public URL.                    |
+
+### Authentication & user management
+
+The dashboard authenticates with JWT cookies; these endpoints mostly aren't useful from server-to-server integrations but are documented here for completeness.
+
+| Method | Path                                                       | Description                                                  |
+| ------ | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| POST   | `/auth/login`                                              | Email + password login. Sets a JWT cookie.                   |
+| POST   | `/auth/signup`                                             | Sign up a new user (subject to `DISABLE_SIGNUPS`).           |
+| GET    | `/auth/logout`                                             | Clear the auth cookie.                                       |
+| GET    | `/auth/oauth-config`                                       | Which OAuth providers are configured.                        |
+| POST   | `/auth/verify-email`                                       | Verify an email with a token from an email link.             |
+| POST   | `/auth/request-verification`                               | Resend the verification email.                               |
+| POST   | `/auth/request-password-reset`                             | Send a password reset email.                                 |
+| POST   | `/auth/reset-password`                                     | Reset a password with a token.                               |
+| GET    | `/users/@me`                                               | Get the current user.                                        |
+| GET    | `/users/@me/projects`                                      | List the user's projects.                                    |
+| POST   | `/users/@me/projects`                                      | Create a project.                                            |
+| PATCH  | `/users/@me/projects/:id`                                  | Update project settings.                                     |
+| POST   | `/users/@me/projects/:id/regenerate-keys`                  | Rotate both API keys.                                        |
+| POST   | `/users/@me/projects/:id/checkout`                         | Create a Stripe Checkout session.                            |
+| POST   | `/users/@me/projects/:id/billing-portal`                   | Open the Stripe billing portal.                              |
+| GET    | `/users/@me/projects/:id/billing-limits`                   | Read per-category billing caps.                              |
+| PUT    | `/users/@me/projects/:id/billing-limits`                   | Update per-category billing caps.                            |
+| GET    | `/users/@me/projects/:id/billing-consumption`              | Current period consumption for the project.                  |
+| GET    | `/users/@me/projects/:id/billing-invoices`                 | Stripe invoices for the project.                             |
+| GET    | `/users/@me/projects/:id/security`                         | Security info — bounce/complaint rates, recent suspensions.  |
+| POST   | `/users/@me/projects/:id/reset`                            | Wipe project data (irreversible).                            |
+| DELETE | `/users/@me/projects/:id`                                  | Delete the project entirely.                                 |
+| GET    | `/projects/:id/setup-state`                                | Onboarding setup state.                                      |
+| GET    | `/projects/:id/security`                                   | Security state for a single project.                         |
+| GET    | `/projects/:id/members`                                    | Project team members.                                        |
+| POST   | `/projects/:id/members`                                    | Invite a team member.                                        |
+| PATCH  | `/projects/:id/members/:userId`                            | Change a member's role.                                      |
+| DELETE | `/projects/:id/members/:userId`                            | Remove a member.                                             |
+
+### Configuration
+
+| Method | Path       | Description                                                                                              |
+| ------ | ---------- | -------------------------------------------------------------------------------------------------------- |
+| GET    | `/config`  | Public, no-auth feature flags — which integrations are enabled (OAuth providers, billing, S3, SMTP, …).  |
+
+### Internal webhook endpoints
+
+These endpoints receive events from the underlying email and billing infrastructure. You don't call them from your applications — they're listed for completeness for self-hosters.
+
+| Method | Path                          |
+| ------ | ----------------------------- |
+| POST   | `/webhooks/sns`               |
+| POST   | `/webhooks/incoming/stripe`   |
 
 ## Client libraries
 

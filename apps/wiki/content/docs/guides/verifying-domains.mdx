@@ -40,6 +40,10 @@ You'll need to add **1 TXT record** that lists the authorized sending servers.
 - Reduces the likelihood of your domain being used for spam
 - Works together with DKIM for complete authentication
 
+<Callout title="Already have an SPF record?" type="warn">
+A domain can only have **one** SPF TXT record. If you already use another email provider (Google Workspace, Microsoft 365, another sending platform), you must **merge** Plunk's SPF mechanism into your existing record — don't add a second SPF record. For example, if your existing record is `v=spf1 include:_spf.google.com ~all`, the merged version is `v=spf1 include:_spf.google.com include:&lt;Plunk's include from the dashboard&gt; ~all`. Two separate SPF records will cause both to fail.
+</Callout>
+
 ### Bounce Handling (1 MX record)
 
 This **MX record** allows Plunk to receive bounce notifications and spam complaints from email providers.
@@ -51,36 +55,62 @@ This **MX record** allows Plunk to receive bounce notifications and spam complai
 - Prevents sending to invalid email addresses
 - Required for deliverability monitoring
 
-<Callout title="Receiving inbound emails" variant="idea">
-  The MX record above is for sending emails (handling bounces and complaints). If you want to **receive** emails at your
-  domain and trigger workflows, see the [receiving emails](/guides/receiving-emails) guide for additional MX record
-  setup.
+<Callout title="Bounce MX vs inbound MX" type="info">
+This MX record handles delivery feedback (bounces, complaints) for emails Plunk sends out — it's separate from the [inbound MX record](/guides/receiving-emails) used to **receive** emails sent to your domain. They serve different purposes; you can have either one or both.
 </Callout>
+
+### DMARC (optional, recommended)
+
+**Domain-based Message Authentication, Reporting and Conformance (DMARC)** tells receiving mail servers what to do when an email fails SPF or DKIM checks, and where to send authentication reports.
+
+Plunk doesn't require DMARC, but most major mailbox providers (Gmail, Yahoo, Microsoft) now expect it for bulk senders. Add a TXT record at `_dmarc.yourdomain.com`:
+
+```
+v=DMARC1; p=none; rua=mailto:dmarc-reports@yourdomain.com
+```
+
+Start with `p=none` to monitor without affecting delivery. Once you've reviewed reports for a couple of weeks and confirmed all your legitimate senders are authenticated, tighten to `p=quarantine` and eventually `p=reject`.
+
+### MAIL FROM domain (optional)
+
+You can configure a custom MAIL FROM domain (typically a subdomain like `mail.yourdomain.com`) so the bounce envelope address aligns with your sending domain. This improves DMARC alignment and is required by some inbox providers for full pass-through.
+
+If you set this up, you'll need an additional MX record and TXT record on the subdomain — Plunk's dashboard will show you the exact values to add when you enable it on a verified domain.
 
 ## Verification Status
 
-After adding all DNS records, Plunk will automatically check the verification status. Verification typically completes within a few minutes but can take up to 72 hours depending on DNS propagation.
+After adding all DNS records, Plunk automatically checks verification status in the background. Verification typically completes within a few minutes, but can take up to 72 hours depending on DNS propagation.
 
-You can check the status in the Domains section of your project settings. Each record type will show as verified once detected.
+You can check the status in the Domains section of your project settings. Each record type will show as verified once detected. If you've just added a record and don't want to wait, you can trigger a re-check from the dashboard.
 
 ## Troubleshooting
 
-### Records not verifying
+import {Accordion, Accordions} from 'fumadocs-ui/components/accordion';
+
+<Accordions type="single">
+
+<Accordion title="Records not verifying">
 
 If your DNS records aren't verifying after 24 hours:
 
-1. **Double-check the values**: Ensure you copied the exact values without extra spaces
-2. **Check DNS propagation**: Use tools like `dig` or online DNS checkers to verify the records are published
-3. **TTL settings**: Some DNS providers cache records. Try lowering the TTL (Time To Live) value
-4. **Contact your DNS provider**: Some providers have specific requirements or interfaces for adding these record types
+1. **Double-check the values**: ensure you copied the exact values without extra spaces.
+2. **Check DNS propagation**: use tools like `dig` or online DNS checkers to verify the records are published.
+3. **TTL settings**: some DNS providers cache records. Try lowering the TTL (Time To Live) value.
+4. **Contact your DNS provider**: some providers have specific requirements or interfaces for adding these record types.
 
-### Emails still going to spam
+</Accordion>
+
+<Accordion title="Emails still going to spam">
 
 Even with a verified domain, emails may go to spam if:
 
-- Your content triggers spam filters (excessive links, suspicious keywords)
-- Your sender reputation is new or low
-- Recipients have marked your emails as spam in the past
-- You're sending to invalid or unengaged contacts
+- Your content triggers spam filters (excessive links, suspicious keywords).
+- Your sender reputation is new or low.
+- Recipients have marked your emails as spam in the past.
+- You're sending to invalid or unengaged contacts.
 
 Follow email best practices and maintain good [list hygiene](/guides/list-hygiene) to improve deliverability.
+
+</Accordion>
+
+</Accordions>
