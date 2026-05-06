@@ -1,3 +1,4 @@
+import {CampaignStatus, EmailStatus} from '@plunk/db';
 import {type Job, Queue} from 'bullmq';
 import type {RedisOptions} from 'ioredis';
 import signale from 'signale';
@@ -575,6 +576,39 @@ export class QueueService {
       if (execution?.workflow.projectId === projectId) {
         await job.remove();
         signale.info(`[QUEUE] Removed workflow step job ${job.id}`);
+      }
+    }
+
+    // Mark every still-PENDING email for this project as FAILED. We just stripped
+    // their queue jobs, so without this they'd sit as PENDING forever and any
+    // campaign waiting on them would stay stuck in SENDING.
+    const failed = await prisma.email.updateMany({
+      where: {projectId, status: EmailStatus.PENDING},
+      data: {status: EmailStatus.FAILED, error: 'Project is disabled'},
+    });
+
+    if (failed.count > 0) {
+      signale.info(`[QUEUE] Marked ${failed.count} pending emails as failed for project ${projectId}`);
+    }
+
+    // Finalize any in-flight campaigns. With the orphaned PENDING emails now FAILED
+    // (terminal), the campaign can move to SENT with a partial sentCount instead of
+    // staying stuck in SENDING. Reconcile totalRecipients first since the batch
+    // chain may have been cut short.
+    const sendingCampaigns = await prisma.campaign.findMany({
+      where: {projectId, status: CampaignStatus.SENDING},
+      select: {id: true},
+    });
+
+    if (sendingCampaigns.length > 0) {
+      const {CampaignService} = await import('./CampaignService.js');
+      for (const campaign of sendingCampaigns) {
+        const actualEmailCount = await prisma.email.count({where: {campaignId: campaign.id}});
+        await prisma.campaign.update({
+          where: {id: campaign.id},
+          data: {totalRecipients: actualEmailCount},
+        });
+        await CampaignService.finalizeIfDone(campaign.id);
       }
     }
 

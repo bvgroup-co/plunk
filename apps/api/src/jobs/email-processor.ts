@@ -3,13 +3,14 @@
  * Processes individual emails from the queue (for all sources: transactional, campaign, workflow)
  */
 
-import {CampaignStatus, EmailSourceType, EmailStatus} from '@plunk/db';
+import {EmailSourceType, EmailStatus} from '@plunk/db';
 import type {SendEmailJobData} from '@plunk/types';
 import {type Job, Worker} from 'bullmq';
 import signale from 'signale';
 
 import {DASHBOARD_URI, EMAIL_RATE_LIMIT_PER_SECOND} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
+import {CampaignService} from '../services/CampaignService.js';
 import {EmailService} from '../services/EmailService.js';
 import {EventService} from '../services/EventService.js';
 import {MeterService} from '../services/MeterService.js';
@@ -82,6 +83,12 @@ export async function createEmailWorker() {
             error: 'Project is disabled',
           },
         });
+
+        // Cancelled emails are terminal for the campaign — finalize so it doesn't
+        // stay stuck in SENDING forever waiting on emails that will never be sent.
+        if (email.campaignId) {
+          await CampaignService.finalizeIfDone(email.campaignId);
+        }
         return;
       }
 
@@ -226,56 +233,8 @@ export async function createEmailWorker() {
           sentAt: new Date().toISOString(),
         });
 
-        // If this email belongs to a campaign, check if all campaign emails have been sent
         if (email.campaignId) {
-          const campaign = await prisma.campaign.findUnique({
-            where: {id: email.campaignId},
-            select: {
-              id: true,
-              name: true,
-              status: true,
-              totalRecipients: true,
-              projectId: true,
-              project: {
-                select: {name: true},
-              },
-            },
-          });
-
-          // Only check if campaign is still in SENDING status
-          if (campaign && campaign.status === CampaignStatus.SENDING) {
-            // Count how many emails have been sent for this campaign
-            const sentCount = await prisma.email.count({
-              where: {
-                campaignId: email.campaignId,
-                sentAt: {not: null},
-              },
-            });
-
-            // If all emails have been sent, mark campaign as SENT
-            if (sentCount >= campaign.totalRecipients) {
-              await prisma.campaign.update({
-                where: {id: email.campaignId},
-                data: {
-                  status: CampaignStatus.SENT,
-                  sentCount,
-                },
-              });
-
-              signale.success(
-                `[EMAIL-PROCESSOR] Campaign ${campaign.name} completed: ${sentCount}/${campaign.totalRecipients} emails sent`,
-              );
-
-              // Send notification about campaign send completed
-              const {NtfyService} = await import('../services/NtfyService.js');
-              await NtfyService.notifyCampaignSendCompleted(
-                campaign.name,
-                campaign.project.name,
-                campaign.projectId,
-                campaign.totalRecipients,
-              );
-            }
-          }
+          await CampaignService.finalizeIfDone(email.campaignId);
         }
       } catch (error) {
         signale.error(`[EMAIL-PROCESSOR] Failed to send email ${emailId}:`, error);

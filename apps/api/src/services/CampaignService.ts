@@ -1,5 +1,5 @@
 import type {Campaign, Contact, Prisma} from '@plunk/db';
-import {CampaignAudienceType, CampaignStatus, EmailSourceType, TemplateType} from '@plunk/db';
+import {CampaignAudienceType, CampaignStatus, EmailSourceType, EmailStatus, TemplateType} from '@plunk/db';
 import type {CreateCampaignData, FilterCondition, PaginatedResponse, UpdateCampaignData} from '@plunk/types';
 import {fromPrismaJson, toPrismaJson} from '@plunk/types';
 import signale from 'signale';
@@ -511,43 +511,69 @@ export class CampaignService {
       // segment after totalRecipients was calculated are silently skipped. Without this
       // reconciliation, sentCount can never reach the original totalRecipients and the
       // campaign remains stuck in SENDING forever.
-      const [actualEmailCount, alreadySentCount] = await Promise.all([
-        prisma.email.count({where: {campaignId}}),
-        prisma.email.count({where: {campaignId, sentAt: {not: null}}}),
-      ]);
+      const actualEmailCount = await prisma.email.count({where: {campaignId}});
 
       await prisma.campaign.update({
         where: {id: campaignId},
         data: {totalRecipients: actualEmailCount},
       });
 
-      // If all emails were already processed by the time the last batch finished
-      // (race: worker was faster than the batch chain), finalize the campaign now.
-      if (actualEmailCount === 0 || alreadySentCount >= actualEmailCount) {
-        const finalCampaign = await prisma.campaign.findUnique({
-          where: {id: campaignId},
-          include: {project: {select: {name: true}}},
-        });
-
-        if (finalCampaign && finalCampaign.status === CampaignStatus.SENDING) {
-          await prisma.campaign.update({
-            where: {id: campaignId},
-            data: {status: CampaignStatus.SENT, sentCount: alreadySentCount},
-          });
-
-          signale.success(
-            `[CAMPAIGN] Campaign ${finalCampaign.name} finalized after last batch: ${alreadySentCount}/${actualEmailCount} emails sent`,
-          );
-
-          await NtfyService.notifyCampaignSendCompleted(
-            finalCampaign.name,
-            finalCampaign.project.name,
-            finalCampaign.projectId,
-            alreadySentCount,
-          );
-        }
-      }
+      await this.finalizeIfDone(campaignId);
     }
+  }
+
+  /**
+   * Finalize a SENDING campaign if every email has reached a terminal state.
+   * Terminal = sentAt is set OR status is FAILED. Counting FAILED as terminal
+   * unsticks campaigns where some emails couldn't be delivered (e.g. the project
+   * was disabled mid-send), so the campaign moves to SENT with a partial sentCount.
+   */
+  public static async finalizeIfDone(campaignId: string): Promise<void> {
+    const campaign = await prisma.campaign.findUnique({
+      where: {id: campaignId},
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        totalRecipients: true,
+        projectId: true,
+        project: {select: {name: true}},
+      },
+    });
+
+    if (!campaign || campaign.status !== CampaignStatus.SENDING) {
+      return;
+    }
+
+    const [processedCount, sentCount] = await Promise.all([
+      prisma.email.count({
+        where: {
+          campaignId,
+          OR: [{sentAt: {not: null}}, {status: EmailStatus.FAILED}],
+        },
+      }),
+      prisma.email.count({where: {campaignId, sentAt: {not: null}}}),
+    ]);
+
+    if (campaign.totalRecipients > 0 && processedCount < campaign.totalRecipients) {
+      return;
+    }
+
+    await prisma.campaign.update({
+      where: {id: campaignId},
+      data: {status: CampaignStatus.SENT, sentCount},
+    });
+
+    signale.success(
+      `[CAMPAIGN] Campaign ${campaign.name} finalized: ${sentCount}/${campaign.totalRecipients} emails sent`,
+    );
+
+    await NtfyService.notifyCampaignSendCompleted(
+      campaign.name,
+      campaign.project.name,
+      campaign.projectId,
+      sentCount,
+    );
   }
 
   /**
