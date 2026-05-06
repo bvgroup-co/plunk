@@ -3356,7 +3356,7 @@ __metadata:
     framer-motion: "npm:^12.23.24"
     lucide-react: "npm:^0.553.0"
     next-themes: "npm:^0.4.6"
-    postcss: "npm:^8.4.33"
+    postcss: "npm:^8.5.10"
     react-day-picker: "npm:^8.10.0"
     react-hook-form: "npm:^7.66.0"
     recharts: "npm:^3.5.1"
@@ -13266,7 +13266,7 @@ __metadata:
     next: "npm:^16.2.3"
     next-seo: "npm:^6.6.0"
     next-sitemap: "npm:^4.2.3"
-    postcss: "npm:^8.4.33"
+    postcss: "npm:^8.5.10"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     sonner: "npm:^2.0.6"
@@ -15977,7 +15977,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.3.11":
+"postcss@npm:^8.3.11, postcss@npm:^8.5.10":
   version: 8.5.14
   resolution: "postcss@npm:8.5.14"
   dependencies:
@@ -15988,7 +15988,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.4.23, postcss@npm:^8.4.33, postcss@npm:^8.4.41, postcss@npm:^8.5.6":
+"postcss@npm:^8.4.23, postcss@npm:^8.4.41, postcss@npm:^8.5.6":
   version: 8.5.6
   resolution: "postcss@npm:8.5.6"
   dependencies:
@@ -19543,7 +19543,7 @@ __metadata:
     next-seo: "npm:^6.6.0"
     next-sitemap: "npm:^4.2.3"
     nuqs: "npm:^2.7.3"
-    postcss: "npm:^8.4.33"
+    postcss: "npm:^8.5.10"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-hook-form: "npm:^7.66.0"
@@ -19738,7 +19738,7 @@ __metadata:
     lucide-react: "npm:^0.553.0"
     next: "npm:^16.2.3"
     next-sitemap: "npm:^4.2.3"
-    postcss: "npm:^8.4.33"
+    postcss: "npm:^8.5.10"
     react: "npm:^19.2.3"
     react-dom: "npm:^19.2.3"
     shiki: "npm:^3.15.0"
