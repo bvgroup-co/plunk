@@ -3,6 +3,7 @@ import type {Prisma} from '@plunk/db';
 import {EmailSourceType, EmailStatus} from '@plunk/db';
 import type {Request, Response} from 'express';
 import {simpleParser} from 'mailparser';
+import sanitizeHtml from 'sanitize-html';
 import signale from 'signale';
 import type Stripe from 'stripe';
 
@@ -157,19 +158,31 @@ export class Webhooks {
             // Parse email content if available
             let htmlBody: string | undefined;
 
-            if (body.content) {
+            if (body.content && typeof body.content === 'string') {
               try {
                 const isBase64 = body.receipt?.action?.encoding === 'BASE64';
                 const emailBuffer = isBase64
-                  ? Buffer.from(body.content as string, 'base64')
-                  : Buffer.from(body.content as string);
+                  ? Buffer.from(body.content, 'base64')
+                  : Buffer.from(body.content);
 
                 const parsed = await simpleParser(emailBuffer);
-                htmlBody =
+                const raw =
                   (parsed.html ? String(parsed.html) : undefined) ??
                   parsed.textAsHtml ??
                   parsed.text ??
                   undefined;
+
+                if (raw) {
+                  htmlBody = sanitizeHtml(raw, {
+                    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+                    allowedAttributes: {
+                      ...sanitizeHtml.defaults.allowedAttributes,
+                      img: ['src', 'alt', 'width', 'height'],
+                      '*': ['style'],
+                    },
+                    allowedSchemes: ['http', 'https', 'mailto'],
+                  });
+                }
               } catch (parseError) {
                 signale.error('[WEBHOOK] Failed to parse email content:', parseError);
               }
