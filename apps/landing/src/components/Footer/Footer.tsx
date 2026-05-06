@@ -87,6 +87,25 @@ export default function Footer() {
                     </Link>
                   </li>
                 </ul>
+
+                <h3 style={{fontFamily: 'var(--font-mono)'}} className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">Checkers</h3>
+                <ul role="list" className="mt-6 space-y-4">
+                  <li>
+                    <Link href={'/tools/spf-checker'} className="text-sm text-neutral-600 transition hover:text-neutral-900">
+                      SPF checker
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href={'/tools/dmarc-checker'} className="text-sm text-neutral-600 transition hover:text-neutral-900">
+                      DMARC checker
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href={'/tools/dkim-checker'} className="text-sm text-neutral-600 transition hover:text-neutral-900">
+                      DKIM checker
+                    </Link>
+                  </li>
+                </ul>
               </div>
 
               <div>

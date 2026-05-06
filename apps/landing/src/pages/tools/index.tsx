@@ -4,7 +4,7 @@ import {DASHBOARD_URI} from '../../lib/constants';
 import React from 'react';
 import Link from 'next/link';
 import {NextSeo} from 'next-seo';
-import {ArrowRight, ArrowUpRight, Code2, Search, ShieldAlert} from 'lucide-react';
+import {ArrowRight, ArrowUpRight, Code2, Key, Search, Shield, ShieldAlert, ShieldCheck} from 'lucide-react';
 import {Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono} from 'next/font/google';
 
 const display = Bricolage_Grotesque({
@@ -50,19 +50,40 @@ const tools = [
     icon: ShieldAlert,
     number: '03',
   },
+  {
+    name: 'SPF Checker',
+    slug: 'spf-checker',
+    description: 'Look up and validate your domain\'s SPF record. Catch misconfigurations before they hurt deliverability.',
+    icon: Shield,
+    number: '04',
+  },
+  {
+    name: 'DMARC Checker',
+    slug: 'dmarc-checker',
+    description: 'Check your DMARC policy, reporting configuration, and get step-by-step advice toward full enforcement.',
+    icon: ShieldCheck,
+    number: '05',
+  },
+  {
+    name: 'DKIM Checker',
+    slug: 'dkim-checker',
+    description: 'Look up your DKIM public key by selector. Verify it\'s active and correctly configured.',
+    icon: Key,
+    number: '06',
+  },
 ];
 
 export default function ToolsIndex() {
   return (
     <>
       <NextSeo
-        title="Free Email Tools | Spam Checker, Email Validator & More | Plunk"
-        description="Free email developer tools: spam checker, email address validator, and markdown-to-email converter. No sign-up required."
+        title="Free Email Tools | SPF, DMARC & DKIM Checker, Spam Checker & More | Plunk"
+        description="Free email developer tools: SPF checker, DMARC checker, DKIM checker, spam checker, email address validator, and markdown-to-email converter. No sign-up required."
         canonical="https://www.useplunk.com/tools"
         openGraph={{
-          title: 'Free Email Tools | Spam Checker, Email Validator & More | Plunk',
+          title: 'Free Email Tools | SPF, DMARC & DKIM Checker, Spam Checker & More | Plunk',
           description:
-            'Free email developer tools: spam checker, email address validator, and markdown-to-email converter. No sign-up required.',
+            'Free email developer tools: SPF checker, DMARC checker, DKIM checker, spam checker, email address validator, and markdown-to-email converter. No sign-up required.',
           url: 'https://www.useplunk.com/tools',
           images: [{url: 'https://www.useplunk.com/api/og?title=Free+Email+Developer+Tools&tag=Tool', alt: 'Plunk Email Tools', width: 1200, height: 630}],
         }}
@@ -111,7 +132,7 @@ export default function ToolsIndex() {
                   developer tools
                 </h1>
                 <p className={'mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-600 sm:text-xl'}>
-                  Convert markdown to email-safe HTML, verify addresses, and more. No sign-up required.
+                  Check SPF, DMARC, and DKIM records. Verify addresses, convert markdown to email-safe HTML, test for spam, and more. No sign-up required.
                 </p>
 
                 <div className={'mt-10 flex flex-wrap justify-center gap-3'}>
