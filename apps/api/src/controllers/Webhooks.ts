@@ -109,7 +109,6 @@ export class Webhooks {
       // Check if this is an inbound email notification (SES Receiving)
       if (body.notificationType === 'Received') {
         signale.info('[WEBHOOK] Received inbound email notification from SES');
-        signale.info('[WEBHOOK] Full SES notification:', JSON.stringify(body, null, 2));
 
         try {
           // Extract recipient addresses from the inbound email
@@ -160,15 +159,10 @@ export class Webhooks {
 
             if (body.content) {
               try {
-                // SES may base64-encode the raw email in the SNS notification.
-                // Detect this by checking whether a base64 decode yields valid MIME headers.
-                const raw = body.content as string;
-                const decoded = Buffer.from(raw, 'base64').toString('utf-8');
-                const looksLikeMime =
-                  decoded.includes('Content-Type:') ||
-                  decoded.includes('MIME-Version:') ||
-                  decoded.includes('Received:');
-                const emailBuffer = looksLikeMime ? Buffer.from(raw, 'base64') : Buffer.from(raw);
+                const isBase64 = body.receipt?.action?.encoding === 'BASE64';
+                const emailBuffer = isBase64
+                  ? Buffer.from(body.content as string, 'base64')
+                  : Buffer.from(body.content as string);
 
                 const parsed = await simpleParser(emailBuffer);
                 htmlBody =
@@ -176,9 +170,6 @@ export class Webhooks {
                   parsed.textAsHtml ??
                   parsed.text ??
                   undefined;
-                signale.info(
-                  `[WEBHOOK] Email content parsed — base64: ${looksLikeMime}, html: ${!!parsed.html}, text: ${!!parsed.text}, result length: ${htmlBody?.length ?? 0}`,
-                );
               } catch (parseError) {
                 signale.error('[WEBHOOK] Failed to parse email content:', parseError);
               }
