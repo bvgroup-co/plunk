@@ -468,7 +468,7 @@ export default function Index() {
                   <Link
                     href={`/vs/${c.slug}`}
                     className={
-                      'group flex items-center justify-between gap-6 py-6 transition-colors hover:bg-neutral-50 sm:py-8'
+                      'group flex items-center justify-between gap-6 py-5 transition-colors hover:bg-neutral-50 sm:py-7'
                     }
                   >
                     <div className={'flex items-center gap-6 sm:gap-10'}>
@@ -481,28 +481,25 @@ export default function Index() {
                       <span
                         style={{fontFamily: 'var(--font-display)'}}
                         className={
-                          'text-4xl font-bold tracking-[-0.03em] text-neutral-900 transition-transform duration-300 group-hover:-translate-x-1 sm:text-6xl lg:text-7xl'
+                          'text-3xl font-semibold tracking-[-0.025em] text-neutral-900 transition-transform duration-300 group-hover:-translate-x-1 sm:text-4xl lg:text-5xl'
                         }
                       >
                         {c.name}
                       </span>
                     </div>
-                    <div className={'flex items-center gap-4'}>
+                    <div className={'flex items-center gap-5'}>
                       <span
                         style={{fontFamily: 'var(--font-mono)'}}
                         className={
-                          'hidden text-xs uppercase tracking-[0.18em] text-neutral-500 transition group-hover:text-neutral-900 sm:inline'
+                          'hidden text-[11px] uppercase tracking-[0.18em] text-neutral-400 transition group-hover:text-neutral-900 sm:inline'
                         }
                       >
                         vs Plunk
                       </span>
-                      <span
-                        className={
-                          'flex h-11 w-11 items-center justify-center rounded-full border border-neutral-300 text-neutral-900 transition group-hover:border-neutral-900 group-hover:bg-neutral-900 group-hover:text-white sm:h-14 sm:w-14'
-                        }
-                      >
-                        <ArrowUpRight className={'h-5 w-5'} strokeWidth={2} />
-                      </span>
+                      <ArrowUpRight
+                        className={'h-5 w-5 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-neutral-900 sm:h-6 sm:w-6'}
+                        strokeWidth={1.75}
+                      />
                     </div>
                   </Link>
                 </motion.li>
@@ -516,8 +513,8 @@ export default function Index() {
               <SectionHeader
                 number={'03'}
                 label={'The Problem'}
-                title={"Most email tools weren't built to scale."}
-                subtitle={'Three things Plunk gets right, out of the box.'}
+                title={'Simple to start. Serious at scale.'}
+                subtitle={'Easy enough for a side project. Ready for the business it becomes.'}
               />
 
               <div className={'mt-20 grid gap-10 sm:grid-cols-3 sm:gap-20 lg:gap-28'}>
@@ -580,7 +577,7 @@ export default function Index() {
               subtitle={'Every Plunk install ships with the full platform — no upsell pages, no locked modules.'}
             />
 
-            <div className={'mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'}>
+            <div className={'mt-16 grid gap-5 sm:grid-cols-2 lg:auto-rows-[17rem] lg:grid-cols-3'}>
               {features.map((feature, index) => {
                 const highlighted = feature.feature;
                 return (
@@ -592,12 +589,14 @@ export default function Index() {
                     transition={{duration: 0.5, delay: index * 0.06, ease: [0.22, 1, 0.36, 1]}}
                     className={
                       highlighted
-                        ? 'flex min-h-72 flex-col justify-between overflow-hidden rounded-[28px] border border-neutral-900 bg-neutral-900 p-8 text-white'
+                        ? 'flex min-h-80 flex-col justify-between overflow-hidden rounded-[28px] border border-neutral-900 bg-neutral-900 p-10 text-white sm:col-span-2 lg:row-span-2 lg:p-12'
                         : 'flex min-h-72 flex-col justify-between overflow-hidden rounded-[28px] border border-neutral-200 bg-white p-8 transition hover:border-neutral-900'
                     }
                   >
                     <div className={'flex items-start justify-between'}>
-                      <div className={highlighted ? 'text-white' : 'text-neutral-900'}>{feature.icon}</div>
+                      <div className={highlighted ? 'text-white' : 'text-neutral-900'}>
+                        {highlighted ? <Workflow className="h-10 w-10" strokeWidth={1.25} /> : feature.icon}
+                      </div>
                       <span
                         style={{fontFamily: 'var(--font-mono)'}}
                         className={`text-[11px] uppercase tracking-[0.18em] ${
@@ -610,16 +609,20 @@ export default function Index() {
                     <div>
                       <h3
                         style={{fontFamily: 'var(--font-display)'}}
-                        className={`mt-10 text-2xl font-bold tracking-[-0.025em] ${
-                          highlighted ? 'text-white' : 'text-neutral-900'
-                        }`}
+                        className={
+                          highlighted
+                            ? 'text-4xl font-extrabold leading-[0.95] tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl'
+                            : 'mt-10 text-2xl font-bold tracking-[-0.025em] text-neutral-900'
+                        }
                       >
                         {feature.title}
                       </h3>
                       <p
-                        className={`mt-3 text-sm leading-relaxed ${
-                          highlighted ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}
+                        className={
+                          highlighted
+                            ? 'mt-5 max-w-md text-base leading-relaxed text-neutral-300 sm:text-lg'
+                            : 'mt-3 text-sm leading-relaxed text-neutral-600'
+                        }
                       >
                         {feature.description}
                       </p>
@@ -637,29 +640,34 @@ export default function Index() {
                 number={'05'}
                 label={'Data Model'}
                 title={'One contact,'}
-                titleAccent={'complete history.'}
+                titleAccent={'complete history.'}
                 subtitle={
                   'Every interaction flows into a single contact record. Transactional, campaign and workflow events — one source of truth.'
                 }
               />
 
-              <div className={'mx-auto mt-20 max-w-5xl'}>
-                <div className={'grid gap-6 lg:grid-cols-3'}>
+              <div className={'mx-auto mt-20 max-w-3xl'}>
+                <div className={'grid gap-4 sm:grid-cols-2'}>
                   {[
                     {
-                      icon: <Send className="h-7 w-7" strokeWidth={1.5} />,
+                      icon: <Send className="h-5 w-5" strokeWidth={1.5} />,
                       title: 'Transactional',
                       sub: 'Receipts, resets',
                     },
                     {
-                      icon: <Megaphone className="h-7 w-7" strokeWidth={1.5} />,
+                      icon: <Megaphone className="h-5 w-5" strokeWidth={1.5} />,
                       title: 'Campaigns',
                       sub: 'Newsletters, launches',
                     },
                     {
-                      icon: <Workflow className="h-7 w-7" strokeWidth={1.5} />,
+                      icon: <Workflow className="h-5 w-5" strokeWidth={1.5} />,
                       title: 'Workflows',
                       sub: 'Onboarding, drip sequences',
+                    },
+                    {
+                      icon: <Inbox className="h-5 w-5" strokeWidth={1.5} />,
+                      title: 'Inbound',
+                      sub: 'Replies, support',
                     },
                   ].map((item, i) => (
                     <motion.div
@@ -667,30 +675,38 @@ export default function Index() {
                       initial={{opacity: 0, y: 16}}
                       whileInView={{opacity: 1, y: 0}}
                       viewport={{once: true}}
-                      transition={{duration: 0.5, delay: 0.1 + i * 0.1, ease: [0.22, 1, 0.36, 1]}}
-                      className={'rounded-[24px] border border-neutral-200 bg-white p-8 text-left'}
+                      transition={{duration: 0.5, delay: 0.1 + i * 0.08, ease: [0.22, 1, 0.36, 1]}}
+                      className={'flex items-center gap-4 rounded-2xl border border-neutral-200 bg-white p-5'}
                     >
-                      <div className={'text-neutral-900'}>{item.icon}</div>
-                      <h3
-                        style={{fontFamily: 'var(--font-display)'}}
-                        className={'mt-10 text-2xl font-bold tracking-[-0.02em] text-neutral-900'}
+                      <div
+                        className={
+                          'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-900'
+                        }
                       >
-                        {item.title}
-                      </h3>
-                      <p className={'mt-2 text-sm text-neutral-600'}>{item.sub}</p>
+                        {item.icon}
+                      </div>
+                      <div className={'min-w-0'}>
+                        <h3
+                          style={{fontFamily: 'var(--font-display)'}}
+                          className={'text-base font-semibold tracking-[-0.01em] text-neutral-900'}
+                        >
+                          {item.title}
+                        </h3>
+                        <p className={'mt-0.5 text-xs text-neutral-600'}>{item.sub}</p>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
 
-                <div className={'relative my-12 hidden lg:block'}>
-                  <svg className={'mx-auto h-28 w-full'} viewBox="0 0 600 120" preserveAspectRatio="none">
+                <div className={'relative my-10 hidden justify-center sm:flex'}>
+                  <svg width="40" height="80" viewBox="0 0 40 80" aria-hidden>
                     <defs>
                       <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                         <polygon points="0 0, 10 3, 0 6" fill="#a3a3a3" />
                       </marker>
                     </defs>
                     <motion.path
-                      d="M 100 0 Q 150 60, 250 110"
+                      d="M 20 0 L 20 70"
                       stroke="#d4d4d4"
                       strokeWidth="1.5"
                       fill="none"
@@ -698,29 +714,7 @@ export default function Index() {
                       initial={{pathLength: 0}}
                       whileInView={{pathLength: 1}}
                       viewport={{once: true}}
-                      transition={{duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1]}}
-                    />
-                    <motion.path
-                      d="M 300 0 L 300 110"
-                      stroke="#d4d4d4"
-                      strokeWidth="1.5"
-                      fill="none"
-                      markerEnd="url(#arrowhead)"
-                      initial={{pathLength: 0}}
-                      whileInView={{pathLength: 1}}
-                      viewport={{once: true}}
-                      transition={{duration: 1.2, delay: 0.5, ease: [0.22, 1, 0.36, 1]}}
-                    />
-                    <motion.path
-                      d="M 500 0 Q 450 60, 350 110"
-                      stroke="#d4d4d4"
-                      strokeWidth="1.5"
-                      fill="none"
-                      markerEnd="url(#arrowhead)"
-                      initial={{pathLength: 0}}
-                      whileInView={{pathLength: 1}}
-                      viewport={{once: true}}
-                      transition={{duration: 1.2, delay: 0.6, ease: [0.22, 1, 0.36, 1]}}
+                      transition={{duration: 0.9, delay: 0.3, ease: [0.22, 1, 0.36, 1]}}
                     />
                   </svg>
                 </div>
@@ -845,7 +839,7 @@ export default function Index() {
               ))}
             </div>
 
-            <div className={'mt-12 flex justify-center'}>
+            <div className={'mt-10 flex justify-center'}>
               <motion.a
                 whileHover={{scale: 1.02}}
                 whileTap={{scale: 0.98}}
@@ -962,7 +956,7 @@ export default function Index() {
               subtitle={'No hyperbole. Just the people building products on Plunk.'}
             />
 
-            <div className={'mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'}>
+            <div className={'mt-16 grid gap-5 sm:grid-cols-2 lg:auto-rows-[17rem] lg:grid-cols-3'}>
               {testimonials.map((t, i) => {
                 const highlighted = t.featured;
                 return (
@@ -974,7 +968,7 @@ export default function Index() {
                     transition={{duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1]}}
                     className={
                       highlighted
-                        ? 'flex min-h-72 flex-col justify-between rounded-[28px] border border-neutral-900 bg-neutral-900 p-8 text-white'
+                        ? 'flex min-h-80 flex-col justify-between rounded-[28px] border border-neutral-900 bg-neutral-900 p-10 text-white sm:col-span-2 lg:row-span-2 lg:p-12'
                         : 'flex min-h-72 flex-col justify-between rounded-[28px] border border-neutral-200 bg-white p-8'
                     }
                   >
@@ -982,28 +976,34 @@ export default function Index() {
                       style={highlighted ? {fontFamily: 'var(--font-display)'} : undefined}
                       className={
                         highlighted
-                          ? 'text-xl font-medium leading-[1.2] tracking-[-0.015em] text-white sm:text-2xl'
+                          ? 'text-3xl font-medium leading-[1.1] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl'
                           : 'text-sm leading-relaxed text-neutral-700'
                       }
                     >
                       &ldquo;{t.testimonial}&rdquo;
                     </blockquote>
-                    <figcaption className={'mt-6 flex items-center gap-3'}>
+                    <figcaption className={`mt-6 flex items-center ${highlighted ? 'gap-4' : 'gap-3'}`}>
                       <div
-                        className={`relative h-10 w-10 overflow-hidden rounded-full ${
-                          highlighted ? 'border border-neutral-700' : ''
+                        className={`relative overflow-hidden rounded-full ${
+                          highlighted ? 'h-12 w-12 border border-neutral-700' : 'h-10 w-10'
                         }`}
                       >
                         <Image src={t.image} alt={t.author} placeholder="blur" className={'object-cover'} />
                       </div>
                       <div>
-                        <div className={`text-xs font-semibold ${highlighted ? 'text-white' : 'text-neutral-900'}`}>
+                        <div
+                          className={
+                            highlighted
+                              ? 'text-sm font-semibold text-white'
+                              : 'text-xs font-semibold text-neutral-900'
+                          }
+                        >
                           {t.author}
                         </div>
                         <div
                           style={{fontFamily: 'var(--font-mono)'}}
-                          className={`mt-0.5 text-[10px] uppercase tracking-[0.18em] ${
-                            highlighted ? 'text-neutral-400' : 'text-neutral-500'
+                          className={`mt-0.5 uppercase tracking-[0.18em] ${
+                            highlighted ? 'text-[11px] text-neutral-400' : 'text-[10px] text-neutral-500'
                           }`}
                         >
                           {t.role}
