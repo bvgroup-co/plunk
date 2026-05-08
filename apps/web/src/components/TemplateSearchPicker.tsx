@@ -22,6 +22,7 @@ interface TemplateSearchPickerProps {
 export function TemplateSearchPicker({value, initialName, onChange}: TemplateSearchPickerProps) {
   const [query, setQuery] = useState(initialName ?? '');
   const [prevInitialName, setPrevInitialName] = useState(initialName);
+  const [selectedName, setSelectedName] = useState(initialName ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,6 +30,7 @@ export function TemplateSearchPicker({value, initialName, onChange}: TemplateSea
   if (initialName !== prevInitialName) {
     setPrevInitialName(initialName);
     setQuery(initialName ?? '');
+    if (initialName) setSelectedName(initialName);
   }
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,7 +51,7 @@ export function TemplateSearchPicker({value, initialName, onChange}: TemplateSea
   // When closed, show the selected template's name rather than the raw query
   const displayValue = open
     ? query
-    : (value ? (data?.data.find(t => t.id === value)?.name ?? initialName ?? value) : '');
+    : (value ? (data?.data.find(t => t.id === value)?.name ?? selectedName ?? initialName ?? '') : '');
 
   return (
     <div className="relative">
@@ -85,6 +87,7 @@ export function TemplateSearchPicker({value, initialName, onChange}: TemplateSea
                       onSelect={() => {
                         onChange(t.id);
                         setQuery(t.name);
+                        setSelectedName(t.name);
                         setOpen(false);
                       }}
                     >
