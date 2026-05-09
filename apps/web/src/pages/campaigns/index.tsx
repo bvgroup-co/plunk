@@ -8,11 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Input,
 } from '@plunk/ui';
 import type {Campaign, Template} from '@plunk/db';
 import {CampaignStatus} from '@plunk/db';
@@ -23,11 +19,11 @@ import {TemplateSelectionDialog} from '../../components/TemplateSelectionDialog'
 import {CampaignSelectionDialog} from '../../components/CampaignSelectionDialog';
 import {network} from '../../lib/network';
 import {formatRelativeTime} from '../../lib/dateUtils';
-import {Ban, Calendar, ChevronDown, Copy, Edit, FileText, Mail, Plus, RefreshCw, Trash2} from 'lucide-react';
+import {Ban, Calendar, ChevronDown, Copy, Edit, FileText, Mail, Plus, RefreshCw, Search, Trash2, X} from 'lucide-react';
 import {NextSeo} from 'next-seo';
 import Link from 'next/link';
 import {useRouter} from 'next/router';
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {toast} from 'sonner';
 import useSWR from 'swr';
 import dayjs from 'dayjs';
@@ -35,7 +31,9 @@ import dayjs from 'dayjs';
 export default function CampaignsPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED'>('ALL');
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [campaignToCancel, setCampaignToCancel] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -44,9 +42,17 @@ export default function CampaignsPage() {
   const [showCampaignDialog, setShowCampaignDialog] = useState(false);
 
   const {data, mutate, isLoading} = useSWR<PaginatedResponse<Campaign>>(
-    `/campaigns?page=${page}&pageSize=20${statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''}`,
+    `/campaigns?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}${statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''}`,
     {revalidateOnFocus: false},
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const getStatusBadge = (status: CampaignStatus) => {
     const config: Record<CampaignStatus, {label: string; variant: 'neutral' | 'default' | 'success'}> = {
@@ -245,21 +251,45 @@ export default function CampaignsPage() {
             </DropdownMenu>
           </div>
 
-          {/* Filters */}
-          <div className="w-56">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Statuses</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                <SelectItem value="SENDING">Sending</SelectItem>
-                <SelectItem value="SENT">Sent</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Search & Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <Input
+                type="text"
+                placeholder="Search campaigns..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1.5 shrink-0 flex-wrap">
+              {(['ALL', 'DRAFT', 'SCHEDULED', 'SENDING', 'SENT', 'CANCELLED'] as const).map(status => (
+                <Button
+                  key={status}
+                  type="button"
+                  onClick={() => { setStatusFilter(status); setPage(1); }}
+                  variant={statusFilter === status ? 'default' : 'secondary'}
+                  size="sm"
+                >
+                  {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Campaigns List */}
@@ -275,66 +305,59 @@ export default function CampaignsPage() {
                 <CardContent>
                   <EmptyState
                     icon={Mail}
-                    title={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} campaigns` : 'No campaigns yet'}
+                    title={search ? 'No campaigns match' : statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} campaigns` : 'No campaigns yet'}
                     description={
-                      statusFilter !== 'ALL'
-                        ? 'Adjust your filters or create a new campaign.'
-                        : 'Send one-off emails to groups of contacts.'
+                      search
+                        ? 'Try a different search term.'
+                        : statusFilter !== 'ALL'
+                          ? 'Adjust your filters or create a new campaign.'
+                          : 'Send one-off emails to groups of contacts.'
                     }
                     action={
-                      statusFilter === 'ALL' ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button>
-                              <Plus className="h-4 w-4" />
-                              Create Campaign
-                              <ChevronDown className="h-4 w-4 ml-1" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="center" className="w-80">
-                            <DropdownMenuItem asChild className="py-3 cursor-pointer">
-                              <Link href="/campaigns/create" className="flex items-start gap-3">
-                                <Mail className="h-4 w-4 mt-0.5 text-neutral-700" />
-                                <div className="flex flex-col gap-0.5 flex-1">
-                                  <span className="font-medium text-sm">Empty Campaign</span>
-                                  <span className="text-xs text-neutral-500 leading-snug">
-                                    Start from scratch with a blank canvas
-                                  </span>
-                                </div>
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowTemplateDialog(true)} className="py-3 cursor-pointer">
-                              <div className="flex items-start gap-3">
-                                <FileText className="h-4 w-4 mt-0.5 text-neutral-700" />
-                                <div className="flex flex-col gap-0.5 flex-1">
-                                  <span className="font-medium text-sm">From Template</span>
-                                  <span className="text-xs text-neutral-500 leading-snug">
-                                    Use an existing template as a starting point
-                                  </span>
-                                </div>
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowCampaignDialog(true)} className="py-3 cursor-pointer">
-                              <div className="flex items-start gap-3">
-                                <RefreshCw className="h-4 w-4 mt-0.5 text-neutral-700" />
-                                <div className="flex flex-col gap-0.5 flex-1">
-                                  <span className="font-medium text-sm">From Previous Campaign</span>
-                                  <span className="text-xs text-neutral-500 leading-snug">
-                                    Copy content and settings from an existing campaign
-                                  </span>
-                                </div>
-                              </div>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Button asChild>
-                          <Link href="/campaigns/create">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button>
                             <Plus className="h-4 w-4" />
                             Create Campaign
-                          </Link>
-                        </Button>
-                      )
+                            <ChevronDown className="h-4 w-4 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-80">
+                          <DropdownMenuItem asChild className="py-3 cursor-pointer">
+                            <Link href="/campaigns/create" className="flex items-start gap-3">
+                              <Mail className="h-4 w-4 mt-0.5 text-neutral-700" />
+                              <div className="flex flex-col gap-0.5 flex-1">
+                                <span className="font-medium text-sm">Empty Campaign</span>
+                                <span className="text-xs text-neutral-500 leading-snug">
+                                  Start from scratch with a blank canvas
+                                </span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShowTemplateDialog(true)} className="py-3 cursor-pointer">
+                            <div className="flex items-start gap-3">
+                              <FileText className="h-4 w-4 mt-0.5 text-neutral-700" />
+                              <div className="flex flex-col gap-0.5 flex-1">
+                                <span className="font-medium text-sm">From Template</span>
+                                <span className="text-xs text-neutral-500 leading-snug">
+                                  Use an existing template as a starting point
+                                </span>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShowCampaignDialog(true)} className="py-3 cursor-pointer">
+                            <div className="flex items-start gap-3">
+                              <RefreshCw className="h-4 w-4 mt-0.5 text-neutral-700" />
+                              <div className="flex flex-col gap-0.5 flex-1">
+                                <span className="font-medium text-sm">From Previous Campaign</span>
+                                <span className="text-xs text-neutral-500 leading-snug">
+                                  Copy content and settings from an existing campaign
+                                </span>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     }
                   />
                 </CardContent>

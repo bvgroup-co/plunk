@@ -64,6 +64,7 @@ export class Campaigns {
   private async list(req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
     const status = req.query.status as CampaignStatus | undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() || undefined : undefined;
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
 
@@ -74,6 +75,7 @@ export class Campaigns {
 
     const result = await CampaignService.list(auth.projectId, {
       status,
+      search,
       page,
       pageSize,
     });

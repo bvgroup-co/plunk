@@ -186,16 +186,26 @@ export class CampaignService {
     projectId: string,
     options: {
       status?: CampaignStatus;
+      search?: string;
       page?: number;
       pageSize?: number;
     } = {},
   ): Promise<PaginatedResponse<Campaign>> {
-    const {status, page = 1, pageSize = 20} = options;
+    const {status, search, page = 1, pageSize = 20} = options;
     const skip = (page - 1) * pageSize;
 
     const where: Prisma.CampaignWhereInput = {
       projectId,
       ...(status ? {status} : {}),
+      ...(search
+        ? {
+            OR: [
+              {name: {contains: search, mode: 'insensitive' as const}},
+              {subject: {contains: search, mode: 'insensitive' as const}},
+              {from: {contains: search, mode: 'insensitive' as const}},
+            ],
+          }
+        : {}),
     };
 
     const [campaigns, total] = await Promise.all([
