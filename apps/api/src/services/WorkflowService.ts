@@ -311,6 +311,72 @@ export class WorkflowService {
   }
 
   /**
+   * Duplicate a workflow including all steps and transitions.
+   * The duplicate always starts disabled to prevent accidental triggering.
+   * Runtime execution state is intentionally not copied.
+   */
+  public static async duplicate(projectId: string, workflowId: string): Promise<Workflow> {
+    const source = await this.get(projectId, workflowId);
+
+    const transitions = await prisma.workflowTransition.findMany({
+      where: {fromStep: {workflowId}},
+    });
+
+    return prisma.$transaction(async tx => {
+      const newWorkflow = await tx.workflow.create({
+        data: {
+          projectId,
+          name: `${source.name} (Copy)`,
+          description: source.description,
+          triggerType: source.triggerType,
+          triggerConfig:
+            source.triggerConfig === null
+              ? Prisma.JsonNull
+              : (source.triggerConfig as Prisma.InputJsonValue),
+          enabled: false,
+          allowReentry: source.allowReentry,
+        },
+      });
+
+      const stepIdMap = new Map<string, string>();
+
+      for (const step of source.steps) {
+        const created = await tx.workflowStep.create({
+          data: {
+            workflowId: newWorkflow.id,
+            type: step.type,
+            name: step.name,
+            position: step.position as Prisma.InputJsonValue,
+            config: step.config as Prisma.InputJsonValue,
+            templateId: step.templateId,
+          },
+        });
+        stepIdMap.set(step.id, created.id);
+      }
+
+      for (const transition of transitions) {
+        const fromStepId = stepIdMap.get(transition.fromStepId);
+        const toStepId = stepIdMap.get(transition.toStepId);
+        if (!fromStepId || !toStepId) continue;
+
+        await tx.workflowTransition.create({
+          data: {
+            fromStepId,
+            toStepId,
+            condition:
+              transition.condition === null
+                ? Prisma.JsonNull
+                : (transition.condition as Prisma.InputJsonValue),
+            priority: transition.priority,
+          },
+        });
+      }
+
+      return newWorkflow;
+    });
+  }
+
+  /**
    * Add a step to a workflow
    */
   public static async addStep(

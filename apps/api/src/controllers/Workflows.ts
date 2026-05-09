@@ -150,6 +150,26 @@ export class Workflows {
   }
 
   /**
+   * POST /workflows/:id/duplicate
+   * Duplicate a workflow (always disabled, no execution state)
+   */
+  @Post(':id/duplicate')
+  @Middleware([requireAuth, requireEmailVerified])
+  @CatchAsync
+  public async duplicate(req: Request, res: Response, _next: NextFunction) {
+    const auth = res.locals.auth;
+    const workflowId = req.params.id;
+
+    if (!workflowId) {
+      return res.status(400).json({error: 'Workflow ID is required'});
+    }
+
+    const workflow = await WorkflowService.duplicate(auth.projectId!, workflowId);
+
+    return res.status(201).json(workflow);
+  }
+
+  /**
    * POST /workflows/:id/steps
    * Add a step to a workflow
    */

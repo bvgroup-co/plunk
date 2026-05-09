@@ -23,7 +23,7 @@ import {EmptyState} from '@plunk/ui';
 import {DashboardLayout} from '../../components/DashboardLayout';
 import {network} from '../../lib/network';
 import {formatRelativeTime} from '../../lib/dateUtils';
-import {Calendar, Edit, Plus, Power, PowerOff, Search, Trash2, Workflow as WorkflowIcon, X, Zap} from 'lucide-react';
+import {Calendar, Copy, Edit, Plus, Power, PowerOff, Search, Trash2, Workflow as WorkflowIcon, X, Zap} from 'lucide-react';
 import {NextSeo} from 'next-seo';
 import Link from 'next/link';
 import {useEffect, useState} from 'react';
@@ -63,6 +63,16 @@ export default function WorkflowsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to delete workflow');
     } finally {
       setWorkflowToDelete(null);
+    }
+  };
+
+  const handleDuplicate = async (workflowId: string) => {
+    try {
+      await network.fetch('POST', `/workflows/${workflowId}/duplicate`);
+      toast.success('Workflow duplicated successfully');
+      void mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to duplicate workflow');
     }
   };
 
@@ -218,6 +228,14 @@ export default function WorkflowsPage() {
                           </Button>
                           <Button asChild variant="ghost" size="sm" title="Edit workflow">
                             <Link href={`/workflows/${workflow.id}`} aria-label="Edit workflow"><Edit className="h-4 w-4" /></Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Duplicate workflow"
+                            onClick={() => handleDuplicate(workflow.id)}
+                          >
+                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
