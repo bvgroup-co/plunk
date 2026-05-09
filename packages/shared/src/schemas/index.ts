@@ -334,9 +334,17 @@ export const WorkflowStepConfigSchemas = {
     headers: z.record(z.string()).optional(),
     body: jsonSchema.optional(),
   }),
-  updateContact: z.object({
-    updates: z.record(z.any()),
-  }),
+  updateContact: z
+    .object({
+      updates: z.record(z.any()).optional(),
+      subscriptionAction: z.enum(['none', 'subscribe', 'unsubscribe']).optional(),
+    })
+    .refine(
+      value =>
+        (value.updates && Object.keys(value.updates).length > 0) ||
+        (value.subscriptionAction && value.subscriptionAction !== 'none'),
+      {message: 'Provide at least one field to update or a subscription action'},
+    ),
 };
 
 export const DomainSchemas = {

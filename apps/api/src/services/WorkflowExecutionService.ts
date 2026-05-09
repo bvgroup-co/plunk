@@ -979,7 +979,7 @@ export class WorkflowExecutionService {
     _stepExecution: WorkflowStepExecution,
     config: StepConfig,
   ): Promise<StepResult> {
-    const {updates} = WorkflowStepConfigSchemas.updateContact.parse(config);
+    const {updates, subscriptionAction} = WorkflowStepConfigSchemas.updateContact.parse(config);
 
     const contact = execution.contact;
     const currentData =
@@ -987,24 +987,43 @@ export class WorkflowExecutionService {
         ? (contact.data as Record<string, unknown>)
         : {};
 
-    // Merge updates with current data
-    const newData = {
-      ...currentData,
-      ...updates,
-    };
+    const hasDataUpdates = updates && Object.keys(updates).length > 0;
+    const newData = hasDataUpdates ? {...currentData, ...updates} : currentData;
 
-    // Update contact in database
-    await prisma.contact.update({
-      where: {id: contact.id},
-      data: {
-        data: newData ? toPrismaJson(newData) : undefined,
-      },
-    });
+    const desiredSubscribed =
+      subscriptionAction === 'subscribe' ? true : subscriptionAction === 'unsubscribe' ? false : undefined;
+    const subscriptionChanging = desiredSubscribed !== undefined && desiredSubscribed !== contact.subscribed;
+
+    const updateData: Prisma.ContactUpdateInput = {};
+    if (hasDataUpdates) {
+      updateData.data = toPrismaJson(newData);
+    }
+    if (subscriptionChanging) {
+      updateData.subscribed = desiredSubscribed;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.contact.update({
+        where: {id: contact.id},
+        data: updateData,
+      });
+    }
+
+    if (subscriptionChanging) {
+      const {EventService} = await import('./EventService.js');
+      await EventService.trackEvent(
+        execution.workflow.projectId,
+        desiredSubscribed ? 'contact.subscribed' : 'contact.unsubscribed',
+        contact.id,
+      );
+    }
 
     return {
-      updated: true,
+      updated: hasDataUpdates || subscriptionChanging,
       updates,
       newData,
+      subscriptionAction,
+      subscribed: desiredSubscribed ?? contact.subscribed,
     };
   }
 

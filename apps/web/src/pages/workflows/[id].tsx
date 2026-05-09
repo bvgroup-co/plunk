@@ -206,11 +206,18 @@ export default function WorkflowEditorPage() {
           }
           break;
 
-        case 'UPDATE_CONTACT':
-          if (!config.updates || (typeof config.updates === 'object' && Object.keys(config.updates).length === 0)) {
-            errors.push(`"${step.name}" step is missing contact updates`);
+        case 'UPDATE_CONTACT': {
+          const hasUpdates =
+            config.updates && typeof config.updates === 'object' && Object.keys(config.updates).length > 0;
+          const hasSubscriptionAction =
+            typeof config.subscriptionAction === 'string' &&
+            config.subscriptionAction !== 'none' &&
+            config.subscriptionAction !== '';
+          if (!hasUpdates && !hasSubscriptionAction) {
+            errors.push(`"${step.name}" step is missing contact updates or a subscription action`);
           }
           break;
+        }
       }
     });
 
