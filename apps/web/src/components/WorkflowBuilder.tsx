@@ -17,6 +17,7 @@ import '@xyflow/react/dist/style.css';
 import type {WorkflowStep} from '@plunk/db';
 import {
   Clock,
+  ExternalLink,
   GitBranch,
   Hourglass,
   Lightbulb,
@@ -243,7 +244,7 @@ function CustomNode({
     bgColor?: string;
     onEdit?: () => void;
     onDelete?: () => void;
-    template?: {name: string};
+    template?: {id: string; name: string};
     config?: any;
   };
 }) {
@@ -341,10 +342,19 @@ function CustomNode({
         {/* Details */}
         {data.template && (
           <div className="mt-3 pt-3 border-t border-neutral-100">
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <Mail className="h-3 w-3" />
-              <span className="truncate">{data.template.name}</span>
-            </div>
+            <a
+              href={`/templates/${data.template.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              className="nodrag flex items-center gap-2 text-xs text-neutral-600 hover:text-blue-600 hover:bg-blue-50 -mx-2 px-2 py-1 rounded transition-colors group/template"
+              title="Open template in a new tab"
+            >
+              <Mail className="h-3 w-3 shrink-0" />
+              <span className="truncate flex-1">{data.template.name}</span>
+              <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover/template:opacity-100 transition-opacity" />
+            </a>
           </div>
         )}
         {data.type === 'DELAY' && data.config?.amount && (

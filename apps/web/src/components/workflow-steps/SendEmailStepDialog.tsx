@@ -1,4 +1,5 @@
 import {Label, Select, SelectContent, SelectItemWithDescription, SelectTrigger, SelectValue, Input} from '@plunk/ui';
+import {ExternalLink} from 'lucide-react';
 import {useState} from 'react';
 import {toast} from 'sonner';
 
@@ -68,7 +69,20 @@ export function SendEmailStepDialog({step, workflowId, open, onOpenChange, onSuc
     >
       <div className="space-y-4">
         <div>
-          <Label htmlFor="editTemplate">Email Template</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="editTemplate">Email Template</Label>
+            {templateId && (
+              <a
+                href={`/templates/${templateId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-blue-600 transition-colors"
+              >
+                Edit template
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
           <TemplateSearchPicker value={templateId} initialName={step.template?.name} onChange={setTemplateId} />
         </div>
 
