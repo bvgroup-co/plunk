@@ -583,15 +583,10 @@ export default function Index() {
             </motion.div>
           </div>
 
-          {/* Quick Start + Recent Activity — 50/50 working area.
-              Falls back to full-width Recent Activity when the persistent
-              onboarding banner is suppressing Quick Start.
-              At lg+, Recent Activity is absolutely positioned inside its grid
-              cell so its natural content height does not influence the row
-              height. The row height is dictated by Quick Start, and Recent
-              Activity fills that height with the activity list scrolling
-              inside the card. */}
-          <div className={`grid grid-cols-1 gap-6 ${bannerActive ? '' : 'lg:grid-cols-2'}`}>
+          {/* Quick Start + Recent Activity — 50/50 working area with a fixed
+              row height so the layout doesn't reflow as Quick Start steps are
+              completed. Both cards scroll internally. */}
+          <div className={`grid grid-cols-1 gap-6 ${bannerActive ? '' : 'lg:grid-cols-2 lg:h-[480px]'}`}>
             {!bannerActive && <QuickStart setupState={setupState} isLoading={isLoadingSetupState} />}
 
             <div className={!bannerActive ? 'lg:relative' : ''}>

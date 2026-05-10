@@ -33,7 +33,7 @@ function HelpResources() {
   };
 
   return (
-    <div className="mt-4 pt-4 border-t border-neutral-200">
+    <div className="px-6 pb-6 pt-4 border-t border-neutral-200">
       <p className="text-xs font-medium text-neutral-500 mb-3">Need help?</p>
       <div className="flex flex-col sm:flex-row gap-2">
         <Button asChild variant="outline" size="sm" className="flex-1">
@@ -101,12 +101,12 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
 
   if (isLoading || !setupState) {
     return (
-      <Card>
+      <Card className="flex flex-col h-full">
         <CardHeader>
           <CardTitle>Quick Start</CardTitle>
           <CardDescription>Get started with Plunk in minutes</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
               <div
@@ -122,8 +122,8 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
               </div>
             ))}
           </div>
-          <HelpResources />
         </CardContent>
+        <HelpResources />
       </Card>
     );
   }
@@ -217,12 +217,12 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
   // If core setup is complete and they're actively sending, show success message
   if (setupState.hasVerifiedDomain && hasContacts && hasSentCampaign && hasRecentCampaign) {
     return (
-      <Card>
+      <Card className="flex flex-col h-full">
         <CardHeader>
           <CardTitle>Quick Start</CardTitle>
           <CardDescription>Your project is fully set up</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 min-h-0 overflow-y-auto">
           <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg border border-green-200">
             <div className="h-10 w-10 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center flex-shrink-0">
               <CheckCircle2 className="h-5 w-5 text-green-700" />
@@ -234,8 +234,8 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
               </p>
             </div>
           </div>
-          <HelpResources />
         </CardContent>
+        <HelpResources />
       </Card>
     );
   }
@@ -244,14 +244,14 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
   const visibleSteps = allSteps.slice(0, 3);
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle>Quick Start</CardTitle>
         <CardDescription>
           {visibleSteps.length === 0 ? 'Your project is set up' : 'Get started with Plunk in minutes'}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0 overflow-y-auto">
         <div className="space-y-3">
           {visibleSteps.map(step => {
             const Icon = step.icon;
@@ -281,8 +281,8 @@ export function QuickStart({setupState, isLoading}: QuickStartProps) {
             );
           })}
         </div>
-        <HelpResources />
       </CardContent>
+      <HelpResources />
     </Card>
   );
 }
