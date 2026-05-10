@@ -5,6 +5,7 @@ import signale from 'signale';
 import type {
   ApiRequestCleanupJobData,
   BulkContactActionJobData,
+  BulkContactActionSelector,
   CampaignBatchJobData,
   ContactImportJobData,
   DomainVerificationJobData,
@@ -350,12 +351,12 @@ export class QueueService {
    */
   public static async queueBulkContactAction(
     projectId: string,
-    contactIds: string[],
+    selector: BulkContactActionSelector,
     operation: 'subscribe' | 'unsubscribe' | 'delete',
   ): Promise<Job<BulkContactActionJobData>> {
     return bulkContactQueue.add(
       'bulk-contact-action',
-      {projectId, contactIds, operation},
+      {projectId, operation, selector},
       {
         jobId: `bulk-${operation}-${projectId}-${Date.now()}`,
       },

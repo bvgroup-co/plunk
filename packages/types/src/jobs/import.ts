@@ -13,11 +13,22 @@ export interface ContactImportJobData {
 }
 
 /**
+ * Selector describing which contacts a bulk action should target.
+ * - `ids`: explicit list, hard-capped at 1000.
+ * - `query`: every contact matching the filter, optionally excluding specific ids.
+ *   Snapshot semantics: the worker iterates current matches at execution time, so
+ *   contacts created after the job is queued may or may not be included.
+ */
+export type BulkContactActionSelector =
+  | {mode: 'ids'; contactIds: string[]}
+  | {mode: 'query'; filter: {search?: string}; excludeIds?: string[]};
+
+/**
  * Job data for bulk contact actions (subscribe, unsubscribe, delete)
  * Used by: bulkContactQueue worker
  */
 export interface BulkContactActionJobData {
   projectId: string;
-  contactIds: string[];
   operation: 'subscribe' | 'unsubscribe' | 'delete';
+  selector: BulkContactActionSelector;
 }

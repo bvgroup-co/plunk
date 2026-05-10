@@ -721,99 +721,81 @@ export class ContactService {
 
   /**
    * Bulk subscribe contacts
-   * Updates multiple contacts to subscribed=true in batches
+   * Updates multiple contacts to subscribed=true in batches.
+   * `updated` = contacts flipped from unsubscribed to subscribed.
+   * `unchanged` = contacts that were already subscribed (no-op, not a failure).
    */
-  public static async bulkSubscribe(projectId: string, contactIds: string[]): Promise<{updated: number}> {
-    // Verify all contacts belong to this project
+  public static async bulkSubscribe(
+    projectId: string,
+    contactIds: string[],
+  ): Promise<{updated: number; unchanged: number}> {
     const contacts = await prisma.contact.findMany({
-      where: {
-        id: {in: contactIds},
-        projectId,
-      },
+      where: {id: {in: contactIds}, projectId},
       select: {id: true, subscribed: true},
     });
 
-    const validIds = contacts.map(c => c.id);
-
-    if (validIds.length === 0) {
-      return {updated: 0};
+    if (contacts.length === 0) {
+      return {updated: 0, unchanged: 0};
     }
 
-    // Only update contacts that are currently unsubscribed
     const unsubscribedIds = contacts.filter(c => !c.subscribed).map(c => c.id);
+    const unchanged = contacts.length - unsubscribedIds.length;
 
     if (unsubscribedIds.length === 0) {
-      return {updated: 0};
+      return {updated: 0, unchanged};
     }
 
-    // Update in a single query for performance
     const result = await prisma.contact.updateMany({
-      where: {
-        id: {in: unsubscribedIds},
-        projectId,
-      },
-      data: {
-        subscribed: true,
-      },
+      where: {id: {in: unsubscribedIds}, projectId},
+      data: {subscribed: true},
     });
 
-    // Track events for changed contacts sequentially to avoid database deadlocks
-    // Process in background to avoid blocking the API response
     this.trackEventsSequentially(projectId, 'contact.subscribed', unsubscribedIds).catch(error => {
-      // Silently ignore errors in tests due to cleanup race conditions
       if (process.env.NODE_ENV !== 'test') {
         console.error('[ContactService] Failed to track bulk subscribe events:', error);
       }
     });
 
-    return {updated: result.count};
+    return {updated: result.count, unchanged};
   }
 
   /**
-   * Bulk unsubscribe contacts
+   * Bulk unsubscribe contacts.
+   * `updated` = contacts flipped from subscribed to unsubscribed.
+   * `unchanged` = contacts that were already unsubscribed (no-op, not a failure).
    */
-  public static async bulkUnsubscribe(projectId: string, contactIds: string[]): Promise<{updated: number}> {
+  public static async bulkUnsubscribe(
+    projectId: string,
+    contactIds: string[],
+  ): Promise<{updated: number; unchanged: number}> {
     const contacts = await prisma.contact.findMany({
-      where: {
-        id: {in: contactIds},
-        projectId,
-      },
+      where: {id: {in: contactIds}, projectId},
       select: {id: true, subscribed: true},
     });
 
-    const validIds = contacts.map(c => c.id);
-
-    if (validIds.length === 0) {
-      return {updated: 0};
+    if (contacts.length === 0) {
+      return {updated: 0, unchanged: 0};
     }
 
-    // Only update contacts that are currently subscribed
     const subscribedIds = contacts.filter(c => c.subscribed).map(c => c.id);
+    const unchanged = contacts.length - subscribedIds.length;
 
     if (subscribedIds.length === 0) {
-      return {updated: 0};
+      return {updated: 0, unchanged};
     }
 
     const result = await prisma.contact.updateMany({
-      where: {
-        id: {in: subscribedIds},
-        projectId,
-      },
-      data: {
-        subscribed: false,
-      },
+      where: {id: {in: subscribedIds}, projectId},
+      data: {subscribed: false},
     });
 
-    // Track events for changed contacts sequentially to avoid database deadlocks
-    // Process in background to avoid blocking the API response
     this.trackEventsSequentially(projectId, 'contact.unsubscribed', subscribedIds).catch(error => {
-      // Silently ignore errors in tests due to cleanup race conditions
       if (process.env.NODE_ENV !== 'test') {
         console.error('[ContactService] Failed to track bulk unsubscribe events:', error);
       }
     });
 
-    return {updated: result.count};
+    return {updated: result.count, unchanged};
   }
 
   /**

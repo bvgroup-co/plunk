@@ -1,6 +1,8 @@
 import {Controller, Delete, Get, Middleware, Patch, Post} from '@overnightjs/core';
 import type {NextFunction, Request, Response} from 'express';
 import multer from 'multer';
+import {ContactSchemas} from '@plunk/shared';
+import type {BulkContactActionSelector} from '@plunk/types';
 import signale from 'signale';
 import {requireAuth, requireEmailVerified} from '../middleware/auth.js';
 import {ContactService} from '../services/ContactService.js';
@@ -424,31 +426,7 @@ export class Contacts {
   @Middleware([requireAuth, requireEmailVerified])
   @CatchAsync
   public async bulkSubscribe(req: Request, res: Response, _next: NextFunction) {
-    const auth = res.locals.auth;
-    const {contactIds} = req.body;
-
-    if (!Array.isArray(contactIds) || contactIds.length === 0) {
-      return res.status(400).json({error: 'contactIds array is required'});
-    }
-
-    // Validate limit
-    if (contactIds.length > 1000) {
-      return res.status(400).json({error: 'Maximum 1000 contacts can be processed at once'});
-    }
-
-    try {
-      const job = await QueueService.queueBulkContactAction(auth.projectId!, contactIds, 'subscribe');
-
-      return res.status(202).json({
-        message: 'Bulk subscribe queued successfully',
-        jobId: job.id,
-      });
-    } catch (error) {
-      signale.error('[CONTACTS] Failed to queue bulk subscribe:', error);
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Failed to queue bulk subscribe',
-      });
-    }
+    return queueBulkAction(req, res, 'subscribe');
   }
 
   /**
@@ -459,30 +437,7 @@ export class Contacts {
   @Middleware([requireAuth, requireEmailVerified])
   @CatchAsync
   public async bulkUnsubscribe(req: Request, res: Response, _next: NextFunction) {
-    const auth = res.locals.auth;
-    const {contactIds} = req.body;
-
-    if (!Array.isArray(contactIds) || contactIds.length === 0) {
-      return res.status(400).json({error: 'contactIds array is required'});
-    }
-
-    if (contactIds.length > 1000) {
-      return res.status(400).json({error: 'Maximum 1000 contacts can be processed at once'});
-    }
-
-    try {
-      const job = await QueueService.queueBulkContactAction(auth.projectId!, contactIds, 'unsubscribe');
-
-      return res.status(202).json({
-        message: 'Bulk unsubscribe queued successfully',
-        jobId: job.id,
-      });
-    } catch (error) {
-      signale.error('[CONTACTS] Failed to queue bulk unsubscribe:', error);
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Failed to queue bulk unsubscribe',
-      });
-    }
+    return queueBulkAction(req, res, 'unsubscribe');
   }
 
   /**
@@ -493,30 +448,7 @@ export class Contacts {
   @Middleware([requireAuth, requireEmailVerified])
   @CatchAsync
   public async bulkDelete(req: Request, res: Response, _next: NextFunction) {
-    const auth = res.locals.auth;
-    const {contactIds} = req.body;
-
-    if (!Array.isArray(contactIds) || contactIds.length === 0) {
-      return res.status(400).json({error: 'contactIds array is required'});
-    }
-
-    if (contactIds.length > 1000) {
-      return res.status(400).json({error: 'Maximum 1000 contacts can be processed at once'});
-    }
-
-    try {
-      const job = await QueueService.queueBulkContactAction(auth.projectId!, contactIds, 'delete');
-
-      return res.status(202).json({
-        message: 'Bulk delete queued successfully',
-        jobId: job.id,
-      });
-    } catch (error) {
-      signale.error('[CONTACTS] Failed to queue bulk delete:', error);
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Failed to queue bulk delete',
-      });
-    }
+    return queueBulkAction(req, res, 'delete');
   }
 
   /**
@@ -548,5 +480,38 @@ export class Contacts {
         error: error instanceof Error ? error.message : 'Failed to get bulk action status',
       });
     }
+  }
+}
+
+async function queueBulkAction(
+  req: Request,
+  res: Response,
+  operation: 'subscribe' | 'unsubscribe' | 'delete',
+) {
+  const auth = res.locals.auth;
+
+  const parsed = ContactSchemas.bulkAction.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: parsed.error.errors[0]?.message ?? 'Invalid bulk action payload',
+    });
+  }
+
+  const selector: BulkContactActionSelector =
+    parsed.data.mode === 'ids'
+      ? {mode: 'ids', contactIds: parsed.data.contactIds}
+      : {mode: 'query', filter: parsed.data.filter, excludeIds: parsed.data.excludeIds};
+
+  try {
+    const job = await QueueService.queueBulkContactAction(auth.projectId!, selector, operation);
+    return res.status(202).json({
+      message: `Bulk ${operation} queued successfully`,
+      jobId: job.id,
+    });
+  } catch (error) {
+    signale.error(`[CONTACTS] Failed to queue bulk ${operation}:`, error);
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : `Failed to queue bulk ${operation}`,
+    });
   }
 }
