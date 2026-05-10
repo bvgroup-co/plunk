@@ -24,7 +24,6 @@ import {
   MousePointerClick,
   Send,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   Users,
   Workflow,
@@ -48,18 +47,6 @@ import {useProjectSecurity} from '../lib/hooks/useProjectSecurity';
 import {useConfig} from '../lib/hooks/useConfig';
 import {useUser} from '../lib/hooks/useUser';
 import {network} from '../lib/network';
-
-const MILESTONES = [100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
-
-function nextMilestone(value: number): number {
-  return MILESTONES.find(m => m > value) ?? value;
-}
-
-function formatCompact(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)}K`;
-  return value.toLocaleString();
-}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -386,14 +373,6 @@ export default function Index() {
   const healthText =
     !hasDelivData ? 'text-neutral-500' : worstLevel === 'healthy' ? 'text-emerald-700' : worstLevel === 'warning' ? 'text-amber-700' : 'text-red-700';
 
-  const emailsTarget = nextMilestone(totalEmailsSent);
-  const prevMilestone = MILESTONES.filter(m => m <= totalEmailsSent).pop() ?? 0;
-  const milestoneProgress =
-    emailsTarget > prevMilestone
-      ? Math.min(100, ((totalEmailsSent - prevMilestone) / (emailsTarget - prevMilestone)) * 100)
-      : 0;
-  const showMilestone = !isLoading && totalEmailsSent > 0 && emailsTarget > totalEmailsSent;
-
   async function handleResendVerification() {
     setIsResending(true);
     setResendMessage('');
@@ -545,27 +524,6 @@ export default function Index() {
                       {isEmails && !isLoading && previousStats && <TrendChip trend={emailsTrend} />}
                       {isOpenRate && !isLoading && previousStats && <TrendChip trend={openRateTrend} />}
                     </CardHeader>
-                    {isEmails && showMilestone && (
-                      <div className="px-6 pb-4 -mt-1">
-                        <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-1.5">
-                          <span className="inline-flex items-center gap-1">
-                            <Sparkles className="h-3 w-3 text-neutral-400" />
-                            Next milestone
-                          </span>
-                          <span className="tabular-nums font-medium text-neutral-700">
-                            {formatCompact(totalEmailsSent)} / {formatCompact(emailsTarget)}
-                          </span>
-                        </div>
-                        <div className="h-1 w-full overflow-hidden rounded-full bg-neutral-100">
-                          <motion.div
-                            className="h-full rounded-full bg-neutral-900"
-                            initial={{width: 0}}
-                            animate={{width: `${milestoneProgress}%`}}
-                            transition={{duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.4}}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </Card>
                 </motion.div>
               );
