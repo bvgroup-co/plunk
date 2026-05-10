@@ -223,10 +223,33 @@ export class ActivityService {
   }
 
   /**
+   * Short Redis TTL for recent-count results. Short enough to feel live on the
+   * dashboard live-pulse, long enough to absorb the polling load when many
+   * tabs are open across the user base.
+   */
+  private static readonly RECENT_COUNT_CACHE_TTL = 10; // seconds
+
+  /**
    * Get recent activity count (for real-time updates)
    * Returns count of activities in the last N minutes
+   *
+   * Backed by a short Redis cache because the dashboard polls this endpoint
+   * every 30 seconds per open tab; without the cache, every poll would run
+   * three COUNT queries against the events, emails, and workflow_executions
+   * tables.
    */
   public static async getRecentActivityCount(projectId: string, minutes = 5): Promise<number> {
+    const cacheKey = Keys.Activity.recentCount(projectId, minutes);
+
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached !== null) {
+        return parseInt(cached, 10);
+      }
+    } catch (error) {
+      signale.warn('[ACTIVITY] Failed to read recent-count cache:', error);
+    }
+
     const since = new Date(Date.now() - minutes * 60 * 1000);
     const dateFilter: Prisma.DateTimeFilter = {gte: since};
 
@@ -245,7 +268,15 @@ export class ActivityService {
       }),
     ]);
 
-    return eventCount + emailCount + workflowCount;
+    const total = eventCount + emailCount + workflowCount;
+
+    try {
+      await redis.setex(cacheKey, this.RECENT_COUNT_CACHE_TTL, total.toString());
+    } catch (error) {
+      signale.warn('[ACTIVITY] Failed to cache recent-count:', error);
+    }
+
+    return total;
   }
 
   /**

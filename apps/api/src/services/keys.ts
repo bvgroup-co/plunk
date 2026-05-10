@@ -53,6 +53,9 @@ export const Keys = {
     stats(projectId: string, startTime: number | string, endTime: number | string): string {
       return `activity:stats:${projectId}:${startTime}:${endTime}`;
     },
+    recentCount(projectId: string, minutes: number): string {
+      return `activity:recent-count:${projectId}:${minutes}`;
+    },
   },
   Analytics: {
     timeseries(projectId: string, startDate: string, endDate: string): string {
