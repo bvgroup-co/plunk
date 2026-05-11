@@ -21,6 +21,7 @@ export interface ConfigResponse {
   };
   aws: {
     sesRegion: string;
+    mailFromSubdomain: string;
   };
 }
 

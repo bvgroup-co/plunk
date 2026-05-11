@@ -45,6 +45,12 @@ export const AWS_SES_REGION = validateEnv('AWS_SES_REGION');
 export const AWS_SES_ACCESS_KEY_ID = validateEnv('AWS_SES_ACCESS_KEY_ID');
 export const AWS_SES_SECRET_ACCESS_KEY = validateEnv('AWS_SES_SECRET_ACCESS_KEY');
 
+// Custom MAIL FROM subdomain used to construct `<subdomain>.<your-domain>`
+// when a domain is added. Defaults to `plunk`. Override when `plunk.<your-domain>`
+// is already used for something else (e.g. a CDN), since the MAIL FROM hostname
+// needs MX + TXT records that can't coexist with a CNAME.
+export const MAIL_FROM_SUBDOMAIN = validateEnv('MAIL_FROM_SUBDOMAIN', '').trim() || 'plunk';
+
 // Email Processing Rate Limit (optional override)
 // If not set, will automatically fetch from AWS SES account quota
 // Set this to override AWS quota (useful for setting lower limits or testing)

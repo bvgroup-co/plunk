@@ -8,6 +8,7 @@ import {
   GITHUB_OAUTH_ENABLED,
   GOOGLE_OAUTH_ENABLED,
   LANDING_URI,
+  MAIL_FROM_SUBDOMAIN,
   NODE_ENV,
   S3_ENABLED,
   SMTP_DOMAIN,
@@ -62,6 +63,7 @@ export class Config {
       },
       aws: {
         sesRegion: AWS_SES_REGION,
+        mailFromSubdomain: MAIL_FROM_SUBDOMAIN,
       },
     });
   }
