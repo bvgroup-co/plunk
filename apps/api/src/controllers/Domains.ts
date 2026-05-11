@@ -19,19 +19,10 @@ export class Domains {
   @Get('project/:projectId')
   @Middleware([requireAuth, requireEmailVerified])
   @CatchAsync
-  public async getProjectDomains(req: Request, res: Response, _next: NextFunction) {
+  public async getProjectDomains(_req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
-    const {projectId} = DomainSchemas.projectId.parse(req.params);
 
-    if (auth.type === 'apiKey') {
-      if (auth.projectId !== projectId) {
-        throw new NotAllowed('You do not have access to this project');
-      }
-    } else {
-      await MembershipService.requireAccess(auth.userId!, projectId);
-    }
-
-    const domains = await DomainService.getProjectDomains(projectId);
+    const domains = await DomainService.getProjectDomains(auth.projectId!);
 
     return res.status(200).json(domains);
   }
@@ -44,17 +35,12 @@ export class Domains {
   @CatchAsync
   public async addDomain(req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
-    const {projectId: requestedProjectId, domain} = DomainSchemas.create.parse(req.body);
-    const projectId = auth.type === 'apiKey' ? auth.projectId : requestedProjectId;
+    const {domain} = DomainSchemas.create.parse(req.body);
+    const projectId = auth.projectId!;
 
-    if (auth.type === 'apiKey') {
-      if (requestedProjectId !== auth.projectId) {
-        throw new NotAllowed('You do not have access to this project');
-      }
-    } else if (!auth.userId) {
-      throw new NotFound('User authentication required');
-    } else {
-      await MembershipService.requireAdminAccess(auth.userId, projectId);
+    // Require admin role for JWT users (API keys bypass — project-scoped by design)
+    if (auth.type === 'jwt') {
+      await MembershipService.requireAdminAccess(auth.userId!, projectId);
     }
 
     // Block domain changes on disabled projects
@@ -122,16 +108,8 @@ export class Domains {
 
     const domain = await DomainService.id(id);
 
-    if (!domain) {
+    if (!domain || domain.projectId !== auth.projectId) {
       throw new NotFound('Domain not found');
-    }
-
-    if (auth.type === 'apiKey') {
-      if (auth.projectId !== domain.projectId) {
-        throw new NotAllowed('You do not have access to this project');
-      }
-    } else {
-      await MembershipService.requireAccess(auth.userId!, domain.projectId);
     }
 
     const verificationStatus = await DomainService.checkVerification(id);
@@ -155,15 +133,12 @@ export class Domains {
 
     const domain = await DomainService.id(id);
 
-    if (!domain) {
+    if (!domain || domain.projectId !== auth.projectId) {
       throw new NotFound('Domain not found');
     }
 
-    if (auth.type === 'apiKey') {
-      if (auth.projectId !== domain.projectId) {
-        throw new NotAllowed('You do not have access to this project');
-      }
-    } else {
+    // Require admin role for JWT users (API keys bypass — project-scoped by design)
+    if (auth.type === 'jwt') {
       await MembershipService.requireAdminAccess(auth.userId!, domain.projectId);
     }
 
