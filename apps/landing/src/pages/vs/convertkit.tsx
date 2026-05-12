@@ -1,4 +1,4 @@
-import {ComparisonTable, FAQSection, Footer, Navbar} from '../../components';
+import {ComparisonTable, FAQSection, Footer, Navbar, SwitchOffer} from '../../components';
 import {motion} from 'framer-motion';
 import {DASHBOARD_URI, WIKI_URI} from '../../lib/constants';
 import React from 'react';
@@ -192,6 +192,8 @@ export default function ConvertkitComparison() {
 
         {/* FAQ */}
         <FAQSection faqs={faqs} schemaId="faq-schema-convertkit" />
+
+        <SwitchOffer competitorName="ConvertKit" />
 
         {/* CTA */}
         <section className={'relative overflow-hidden border-t border-neutral-900 bg-neutral-900 text-white'}>

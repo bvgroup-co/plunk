@@ -4,3 +4,4 @@ export * from './ComparisonTable';
 export * from './FAQSection';
 export * from './CodeBlock';
 export * from './SectionHeader';
+export * from './SwitchOffer';

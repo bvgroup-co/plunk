@@ -230,6 +230,14 @@ export class Users {
       client_reference_id: project.id, // Store project ID for webhook
       line_items: lineItems,
       ...(checkoutCurrency && {currency: checkoutCurrency}),
+      custom_fields: [
+        {
+          key: 'promo_code',
+          label: {type: 'custom', custom: 'Promo code'},
+          type: 'text',
+          optional: true,
+        },
+      ],
       subscription_data: {
         billing_cycle_anchor: billingCycleAnchor,
       },

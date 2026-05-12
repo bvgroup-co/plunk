@@ -530,10 +530,24 @@ export class Webhooks {
             },
           });
 
+          // Base onboarding credit: refund the 1-unit card-verification charge
+          let creditBalance = -100;
+
+          // Switching-offer promo: 2 extra units of credit if the customer typed SWITCH
+          // into the Promo code custom field on Stripe Checkout.
+          const promoField = session.custom_fields?.find((f) => f.key === 'promo_code');
+          const promoCode = promoField?.text?.value?.trim().toUpperCase();
+          if (promoCode === 'SWITCH') {
+            creditBalance -= 200;
+            signale.success(`[WEBHOOK] SWITCH promo applied for project ${projectId}`);
+          } else if (promoCode) {
+            signale.info(`[WEBHOOK] Unknown promo code "${promoCode}" entered for project ${projectId}`);
+          }
+
           // Update Stripe customer name to match project name and add credit for onboarding fee
           await stripe.customers.update(customerId, {
             name: updatedProject.name,
-            balance: -100,
+            balance: creditBalance,
           });
 
           signale.success(`[WEBHOOK] Checkout completed for project ${projectId}`);
