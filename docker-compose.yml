@@ -190,6 +190,14 @@ services:
       # Security
       AUTO_PROJECT_DISABLE: ${AUTO_PROJECT_DISABLE:-false}
 
+      # Self-hosting user management (documented in .env.self-host.example
+      # and read by apps/api/src/app/constants.ts at import time)
+      DISABLE_SIGNUPS: ${DISABLE_SIGNUPS:-false}
+
+      # Explicit SES sending rate (avoid silent fallback to 14/sec when
+      # ses:GetSendQuota is denied or transiently fails at worker startup)
+      EMAIL_RATE_LIMIT_PER_SECOND: ${EMAIL_RATE_LIMIT_PER_SECOND:-}
+
     volumes:
       # Persistent storage for application data
       - plunk_data:/app/data
