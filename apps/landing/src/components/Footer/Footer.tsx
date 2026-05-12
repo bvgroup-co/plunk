@@ -9,7 +9,7 @@ import logo from '../../../public/assets/logo.svg';
  */
 export default function Footer() {
   const router = useRouter();
-  const path = (router.asPath || '/').split(/[?#]/)[0];
+  const path = (router.asPath || '/').split(/[?#]/)[0] ?? '/';
   const trimmed = path === '/' ? '/' : path.replace(/\/$/, '');
   const mdHref = `${trimmed}.md`;
   return (
