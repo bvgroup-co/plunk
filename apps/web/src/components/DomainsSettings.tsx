@@ -335,6 +335,8 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
             <div className="space-y-4">
               {domains.map(domain => {
                 const status = getDomainStatus(domain);
+                const mailFromSubdomain = config?.aws?.mailFromSubdomain ?? 'plunk';
+                const mailFromHost = `${mailFromSubdomain}.${domain.domain}`;
                 return (
                   <div key={domain.id} className="border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -494,8 +496,8 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                   </Badge>
                                 </div>
                                 <p className="text-xs text-neutral-600 mb-2">
-                                  Set up a custom MAIL FROM domain (plunk.{domain.domain}) to improve deliverability and
-                                  handle bounces/complaints.
+                                  Set up a custom MAIL FROM domain ({mailFromHost}) to improve deliverability and handle
+                                  bounces/complaints.
                                 </p>
 
                                 <div className="overflow-x-auto">
@@ -522,16 +524,16 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                         <td className="py-3 px-3">
                                           <div className="flex items-center gap-2">
                                             <code className="text-xs font-mono text-neutral-700 break-all flex-1">
-                                              plunk.{domain.domain}
+                                              {mailFromHost}
                                             </code>
                                             <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => handleCopyToken(`plunk.${domain.domain}`, 3000)}
+                                              onClick={() => handleCopyToken(mailFromHost, 3000)}
                                               className="shrink-0 h-6 w-6 p-0 overflow-hidden"
                                             >
                                               <AnimatedCopyIcon
-                                                isCopied={copiedToken === `plunk.${domain.domain}-3000`}
+                                                isCopied={copiedToken === `${mailFromHost}-3000`}
                                               />
                                             </Button>
                                           </div>
@@ -571,16 +573,16 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                         <td className="py-3 px-3">
                                           <div className="flex items-center gap-2">
                                             <code className="text-xs font-mono text-neutral-700 break-all flex-1">
-                                              plunk.{domain.domain}
+                                              {mailFromHost}
                                             </code>
                                             <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => handleCopyToken(`plunk.${domain.domain}`, 3001)}
+                                              onClick={() => handleCopyToken(mailFromHost, 3001)}
                                               className="shrink-0 h-6 w-6 p-0 overflow-hidden"
                                             >
                                               <AnimatedCopyIcon
-                                                isCopied={copiedToken === `plunk.${domain.domain}-3001`}
+                                                isCopied={copiedToken === `${mailFromHost}-3001`}
                                               />
                                             </Button>
                                           </div>

@@ -154,6 +154,10 @@ services:
       SES_CONFIGURATION_SET: ${SES_CONFIGURATION_SET}
       SES_CONFIGURATION_SET_NO_TRACKING: ${SES_CONFIGURATION_SET_NO_TRACKING:-}
 
+      # Custom MAIL FROM subdomain (defaults to 'plunk'; override when
+      # plunk.<your-domain> is already used for something else, e.g. a CDN)
+      MAIL_FROM_SUBDOMAIN: ${MAIL_FROM_SUBDOMAIN:-}
+
       # Optional: OAuth
       GITHUB_OAUTH_CLIENT: ${GITHUB_OAUTH_CLIENT:-}
       GITHUB_OAUTH_SECRET: ${GITHUB_OAUTH_SECRET:-}
