@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.11.0](https://github.com/useplunk/plunk/compare/v0.10.0...v0.11.0) (2026-05-13)
+
+
+### Features
+
+* Ability to change subscription status in workflows ([fadc19d](https://github.com/useplunk/plunk/commit/fadc19d139084550eb442a8b8368edcd6075cad0))
+* add 'notTriggeredWithin' operator to segment filters for enhanced event tracking ([0f00ca1](https://github.com/useplunk/plunk/commit/0f00ca1b8c9bd95f2158af845218ef432ab0d498))
+* add external link to edit email templates in SendEmailStepDialog and WorkflowBuilder ([4ba43dd](https://github.com/useplunk/plunk/commit/4ba43dd3b64776413f813e091f527aa3e56bfc84))
+* add Markdown cut link to footer and page for improved accessibility ([ccd516e](https://github.com/useplunk/plunk/commit/ccd516e4e882921fb1a8a3e87c47710e51e35311))
+* add project switching functionality to command palette ([5724ab9](https://github.com/useplunk/plunk/commit/5724ab9536ea4e3bb4e916e963b1f39ba51bb7f3))
+* add sanitize-html for improved email content sanitization ([735acff](https://github.com/useplunk/plunk/commit/735acff45423cb537f7aa636b9a9d31830775f93))
+* add search functionality to campaigns list with debounce effect ([d114950](https://github.com/useplunk/plunk/commit/d11495061d907bcee699d56987784fa7ebe31bf6))
+* add segment membership operators and enhance segment filter functionality ([a3cc622](https://github.com/useplunk/plunk/commit/a3cc62213f40f6a9341113b73b52852292fb9a10))
+* add SwitchOffer component to promote switching from competitors for enhanced user engagement ([6195b39](https://github.com/useplunk/plunk/commit/6195b39f3dbdd9fe783b79f9ae7f7942509a49a0))
+* add workflow duplication functionality with API endpoint and UI button ([c6340a1](https://github.com/useplunk/plunk/commit/c6340a1dc7385723d4ec30779340218935d814e6))
+* enhance campaign scheduling and audience settings UI for better clarity and usability ([7658a59](https://github.com/useplunk/plunk/commit/7658a59b5df4e325ad9eca37356cad3cbb70e942))
+* implement bulk contact action selector for improved flexibility in bulk operations ([de6335e](https://github.com/useplunk/plunk/commit/de6335e99999242f81e9eda9a20aeccab80a2de4))
+* implement caching for recent activity count to optimize performance and reduce database load ([f22da4a](https://github.com/useplunk/plunk/commit/f22da4add1e455678f380aba8c2fd02012ef6457))
+* implement early fraud warning handling in webhooks ([48425d1](https://github.com/useplunk/plunk/commit/48425d1df160a3fd5edb4cbdcc9e6725628db319))
+* make MAIL FROM subdomain configurable via MAIL_FROM_SUBDOMAIN env ([463301b](https://github.com/useplunk/plunk/commit/463301b5db27b08b483db3c56a992ac62d6653b8))
+* make MAIL FROM subdomain configurable via MAIL_FROM_SUBDOMAIN env var ([e0bf0f6](https://github.com/useplunk/plunk/commit/e0bf0f628af2a155ca3bbc38ef5c2f4ecc0455e6))
+* refactor template editing layout for improved usability and clarity ([aaf5ac6](https://github.com/useplunk/plunk/commit/aaf5ac65307266a4d9deb02986b610757e929b49))
+
+
+### Bug Fixes
+
+* enhance campaign finalization process to handle pending emails and ensure accurate status updates ([2529c9b](https://github.com/useplunk/plunk/commit/2529c9b4282b003a94013259119e98654ae22b46))
+* enhance email content parsing and logging for better debugging ([4587e9d](https://github.com/useplunk/plunk/commit/4587e9d670fa3a27fbc1ca7669c8fc75d804e85e))
+* enhance project name validation to exclude invisible and decorative characters ([29883ff](https://github.com/useplunk/plunk/commit/29883ffc7104d4beb13965bfa65ea609367ede69))
+* enhance Quick Start card layout for improved responsiveness and usability ([649bbf6](https://github.com/useplunk/plunk/commit/649bbf6d6b9db5139295a455c69425a5565d4323))
+* handle undefined path in footer component for improved stability ([715961c](https://github.com/useplunk/plunk/commit/715961c007e450731434e5f343acff0debd6a851))
+* implement mergeContactData method for efficient contact data updates ([a27d564](https://github.com/useplunk/plunk/commit/a27d564e1af6e5cf72c9ef405650f2475bfd0c86))
+* improve iframe height adjustment logic in EmailEditor component ([9e4aa94](https://github.com/useplunk/plunk/commit/9e4aa9443b53ef38a3af1b269f4a949dd57e758f))
+* pass DISABLE_SIGNUPS and EMAIL_RATE_LIMIT_PER_SECOND through compose; trim .env.self-host.example ([8a26d60](https://github.com/useplunk/plunk/commit/8a26d605b4aa5fdea0e02a17159c1cae478a7e47))
+* pass missing env variables from .env.self-host.example to plunk service ([f178c59](https://github.com/useplunk/plunk/commit/f178c59b5bc461f9ba57dc6f0bac9617feaab4a3))
+* replace font loading method with utility function for improved performance ([ba23a1c](https://github.com/useplunk/plunk/commit/ba23a1c6fa70ca6fa0343391fa8d642155ad45c2))
+* update activity item colors and backgrounds for improved visual distinction ([e43f70d](https://github.com/useplunk/plunk/commit/e43f70d8a135b048d4e9ed013ffa25f1b2f89687))
+* update middleware matcher to exclude webmanifest files ([cbb3bff](https://github.com/useplunk/plunk/commit/cbb3bffcf4f789e9c36912c9b0ce0ba9f6a1d4dd))
+* update not found handling in GET route to return 404 response ([7615b62](https://github.com/useplunk/plunk/commit/7615b62945aa1939bf6a5b3638c232509090de60))
+* update segment filter logic to retain value and unit, enhance activity name mapping ([d1f357c](https://github.com/useplunk/plunk/commit/d1f357c300c7798d5c8d521e1219e39e7da821dd))
+* update segment filter logic to retain value and unit, enhance activity name mapping ([a126563](https://github.com/useplunk/plunk/commit/a1265635420e66b7cdef02a7136fdf9c3aec4418))
+* update TemplateSearchPicker to maintain selected template name on change ([2ea1802](https://github.com/useplunk/plunk/commit/2ea1802290a4378d68e3878a44e502ea8541b301))
+
+
+### Code Refactoring
+
+* convert forwardRef components to function components for consistency ([361ec0b](https://github.com/useplunk/plunk/commit/361ec0b1eb17647696656c6a6d4cddd5b9348b45))
+* implement step dialog components for workflow editing ([ed9027b](https://github.com/useplunk/plunk/commit/ed9027b4ef9c37e91c69ed5a90d5b74c08c7a054))
+* remove unused .png files ([2d05c3f](https://github.com/useplunk/plunk/commit/2d05c3fbc1ded87880a307943bb93106b18cd406))
+
+
+### Documentation
+
+* expand documentation with new sections on importing contacts, unsubscribe pages, and API key management ([4ddafdc](https://github.com/useplunk/plunk/commit/4ddafdc0419389818de7e45eb4a0c82c2e9382eb))
+* update README to clarify self-hosted alternative and add inbound emails feature ([80ef65e](https://github.com/useplunk/plunk/commit/80ef65e04b8c362f05ae5b7d5710b398a150cce5))
+
 ## [0.10.0](https://github.com/useplunk/plunk/compare/v0.9.0...v0.10.0) (2026-05-01)
 
 
