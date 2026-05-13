@@ -1,13 +1,22 @@
 # Dependencies
 node_modules
+**/node_modules
 .pnp
 .pnp.js
 
 # Build outputs
-dist
-.next
-.turbo
-out
+# Patterns without a leading `**/` only match the build-context root, NOT
+# nested directories. In this monorepo the actual outputs live under
+# apps/*/{dist,.next,.turbo} and packages/*/{dist,.turbo}; without `**/`
+# any stale local builds (from running `yarn dev` or `yarn build` on the
+# host) get copied into the image and override the freshly-built outputs,
+# producing silently broken builds (MODULE_NOT_FOUND for whatever the stale
+# bundle still references).
+**/dist
+**/.next
+**/.turbo
+**/build
+**/out
 
 # Development
 .env
