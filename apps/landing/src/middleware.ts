@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { hasMarkdownVariant } from './content/markdown-slugs';
+
 type Negotiated = 'markdown' | 'html' | 'none';
 
 function parseAccept(accept: string): Array<{ type: string; q: number }> {
@@ -59,6 +61,9 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   response.headers.set('Vary', 'Accept');
+  if (hasMarkdownVariant(pathname)) {
+    response.headers.append('Link', `<${pathname}.md>; rel="alternate"; type="text/markdown"`);
+  }
   return response;
 }
 

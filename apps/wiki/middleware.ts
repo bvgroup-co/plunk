@@ -57,9 +57,10 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   response.headers.set('Vary', 'Accept');
+  response.headers.append('Link', `<${pathname}.md>; rel="alternate"; type="text/markdown"`);
   return response;
 }
 
 export const config = {
-  matcher: ['/((?!llms\\.mdx|api/search|_next|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|xml|txt|webmanifest)).*)',],
+  matcher: ['/((?!llms\\.mdx|api/search|openapi\\.json|_next|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|css|js|json|xml|txt|webmanifest)).*)',],
 };

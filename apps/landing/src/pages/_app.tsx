@@ -2,9 +2,11 @@ import '../styles/globals.css';
 import React, {useEffect} from 'react';
 import Head from 'next/head';
 import {AppProps} from 'next/app';
+import {useRouter} from 'next/router';
 import {toast, Toaster} from 'sonner';
 import {SWRConfig} from 'swr';
 import {network} from '../lib/network';
+import {hasMarkdownVariant} from '../content/markdown-slugs';
 import {DefaultSeo} from 'next-seo';
 import Script from 'next/script';
 import {Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono} from 'next/font/google';
@@ -37,6 +39,10 @@ const mono = JetBrains_Mono({
  * @param props.pageProps
  */
 function App({Component, pageProps}: AppProps) {
+  const router = useRouter();
+  const pathname = (router.asPath.split('?')[0] ?? '').split('#')[0] ?? '/';
+  const markdownHref = hasMarkdownVariant(pathname) ? `${pathname === '/' ? '/index' : pathname}.md` : null;
+
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const message = searchParams.get('message');
@@ -51,6 +57,7 @@ function App({Component, pageProps}: AppProps) {
       <Head>
         <title>Plunk | The Open-Source Email Platform</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" key={'viewport'} />
+        {markdownHref && <link rel="alternate" type="text/markdown" href={markdownHref} />}
       </Head>
       <Toaster position={'top-right'} />
 

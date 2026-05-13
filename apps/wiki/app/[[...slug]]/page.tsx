@@ -64,6 +64,11 @@ export async function generateMetadata(props: {params: Promise<{slug?: string[]}
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      types: {
+        'text/markdown': `${page.url}.md`,
+      },
+    },
     openGraph: {
       images: [{url: ogUrl.toString(), width: 1200, height: 630}],
     },

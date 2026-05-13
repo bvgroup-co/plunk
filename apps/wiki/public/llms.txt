@@ -1,0 +1,83 @@
+# Plunk Documentation
+
+> Documentation for Plunk, an open-source email platform for developers. Covers core concepts, integration guides, the REST API, and self-hosting.
+
+Every documentation page is available as Markdown by appending `.md` to the path (for example, `https://docs.useplunk.com/concepts/contacts.md`), or by requesting the page URL with `Accept: text/markdown`. API reference endpoints render the OpenAPI operation — including parameters, request/response schemas, and a sample curl — directly into the Markdown response.
+
+The full OpenAPI specification is available at [https://docs.useplunk.com/openapi.json](https://docs.useplunk.com/openapi.json).
+
+## Getting Started
+
+- [Welcome to Plunk](https://docs.useplunk.com/index.md): What Plunk is and how to get started
+
+## Concepts
+
+- [Contacts](https://docs.useplunk.com/concepts/contacts.md): Manage and organize your contacts
+- [Segments](https://docs.useplunk.com/concepts/segments.md): Group and target contacts with dynamic or static segments
+- [Templates](https://docs.useplunk.com/concepts/templates.md): Reusable email templates for campaigns, workflows, and transactional emails
+- [Campaigns](https://docs.useplunk.com/concepts/campaigns.md): One-off broadcast emails sent to a defined audience
+- [Workflows](https://docs.useplunk.com/concepts/workflows.md): Automated, multi-step journeys triggered by events, segments, schedules, or manual entry
+- [Transactional emails](https://docs.useplunk.com/concepts/transactional-emails.md): Send emails via API
+- [Billing](https://docs.useplunk.com/concepts/billing.md): How Plunk's pricing, limits, and consumption work
+
+## Guides
+
+- [API keys](https://docs.useplunk.com/guides/api-keys.md): Plunk's two-key model and how to rotate or revoke keys safely
+- [Verifying domains](https://docs.useplunk.com/guides/verifying-domains.md): Verify sending domains so emails reach the inbox
+- [Tracking](https://docs.useplunk.com/guides/tracking.md): Track opens and clicks on emails sent through Plunk
+- [Webhooks](https://docs.useplunk.com/guides/webhooks.md): Send real-time event data from Plunk to your own application
+- [Receiving emails](https://docs.useplunk.com/guides/receiving-emails.md): Receive inbound email at your verified domain and turn it into events
+- [Custom fields](https://docs.useplunk.com/guides/custom-fields.md): Store arbitrary data on contacts and use it for personalization and segmentation
+- [Segment filter reference](https://docs.useplunk.com/guides/segment-filters.md): How to write filters for dynamic segments, campaign audiences, and workflow conditions
+- [Importing contacts from CSV](https://docs.useplunk.com/guides/importing-contacts.md): Bulk-load contacts and their custom fields
+- [Unsubscribe & preferences pages](https://docs.useplunk.com/guides/unsubscribe-pages.md): Hosted pages for unsubscribe, resubscribe, and preference management
+- [Localization](https://docs.useplunk.com/guides/localization.md): Translate the unsubscribe footer and contact-facing pages
+- [List hygiene](https://docs.useplunk.com/guides/list-hygiene.md): Maintain a healthy email list
+
+## API Reference
+
+- [API overview](https://docs.useplunk.com/api-reference/overview.md): Complete Plunk API documentation
+- [Error codes](https://docs.useplunk.com/api-reference/errors.md): API error codes and troubleshooting
+
+### Public API
+
+- [Send transactional email](https://docs.useplunk.com/api-reference/public-api/sendEmail.md): POST — send a transactional email; auto-creates/updates contacts
+- [Track event](https://docs.useplunk.com/api-reference/public-api/trackEvent.md): POST — track an event for a contact
+- [Verify email address](https://docs.useplunk.com/api-reference/public-api/verifyEmail.md): POST — validate an address, check disposable/MX/typos
+
+### Contacts
+
+- [Create or update contact](https://docs.useplunk.com/api-reference/contacts/createContact.md): POST — upsert by email
+- [Get contact](https://docs.useplunk.com/api-reference/contacts/getContact.md): GET — single contact by ID
+- [List contacts](https://docs.useplunk.com/api-reference/contacts/listContacts.md): GET — paginated, cursor-based
+- [Update contact](https://docs.useplunk.com/api-reference/contacts/updateContact.md): PATCH
+- [Delete contact](https://docs.useplunk.com/api-reference/contacts/deleteContact.md): DELETE
+
+### Campaigns
+
+- [Create campaign](https://docs.useplunk.com/api-reference/campaigns/createCampaign.md): POST
+- [List campaigns](https://docs.useplunk.com/api-reference/campaigns/listCampaigns.md): GET — paginated
+- [Send or schedule campaign](https://docs.useplunk.com/api-reference/campaigns/sendCampaign.md): POST — send immediately or schedule
+
+### Templates
+
+- [Create template](https://docs.useplunk.com/api-reference/templates/createTemplate.md): POST
+- [List templates](https://docs.useplunk.com/api-reference/templates/listTemplates.md): GET — paginated
+
+### Segments
+
+- [Create segment](https://docs.useplunk.com/api-reference/segments/createSegment.md): POST
+- [List segments](https://docs.useplunk.com/api-reference/segments/listSegments.md): GET
+
+## Self-Hosting
+
+- [Self-hosting introduction](https://docs.useplunk.com/self-hosting/introduction.md): Deploy Plunk on your own infrastructure
+- [Docker deployment](https://docs.useplunk.com/self-hosting/docker.md): Deploy with Docker Compose
+- [Environment variables](https://docs.useplunk.com/self-hosting/environment-variables.md): Configuration reference
+- [AWS SES setup](https://docs.useplunk.com/self-hosting/email-setup.md): Configure email delivery
+
+## Optional
+
+- [Marketing site](https://www.useplunk.com)
+- [GitHub repository](https://github.com/useplunk/plunk)
+- [Discord community](https://www.useplunk.com/discord)

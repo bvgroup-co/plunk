@@ -1,0 +1,78 @@
+# Plunk
+
+> Plunk is an open-source, all-in-one email platform for developers. It unifies marketing, transactional, and broadcast email behind a single API — built to handle millions of contacts with workflows, segments, templates, and deliverability tooling out of the box.
+
+Plunk can be used as a hosted service at useplunk.com or self-hosted via Docker. Source code lives at https://github.com/useplunk/plunk.
+
+Pages listed below with a `.md` suffix serve a Markdown version (also available by requesting the same URL with `Accept: text/markdown`). Other pages are HTML only.
+
+For full product documentation, see the docs site: https://docs.useplunk.com/llms.txt
+
+## Product
+
+- [Plunk home](https://www.useplunk.com/index.md): Product overview, features, and positioning
+- [Pricing](https://www.useplunk.com/pricing.md): Plans, included volume, and overage pricing
+- [Made by humans](https://www.useplunk.com/made-by-humans): The team and story behind Plunk
+
+## Features
+
+- [Email editor](https://www.useplunk.com/features/email-editor.md): Drag-and-drop and code-based template editor
+- [Workflows](https://www.useplunk.com/features/workflows.md): Event- and segment-triggered automation flows
+- [Segments](https://www.useplunk.com/features/segments.md): Dynamic and static contact segments
+- [SMTP](https://www.useplunk.com/features/smtp.md): Send through Plunk over standard SMTP
+- [Inbound email](https://www.useplunk.com/features/inbound-email.md): Receive email at your verified domain and turn it into events
+
+## Comparisons
+
+- [Plunk vs Resend](https://www.useplunk.com/vs/resend)
+- [Plunk vs SendGrid](https://www.useplunk.com/vs/sendgrid)
+- [Plunk vs Mailchimp](https://www.useplunk.com/vs/mailchimp)
+- [Plunk vs Mailgun](https://www.useplunk.com/vs/mailgun)
+- [Plunk vs Postmark](https://www.useplunk.com/vs/postmark)
+- [Plunk vs Customer.io](https://www.useplunk.com/vs/customerio)
+- [Plunk vs Loops](https://www.useplunk.com/vs/loops)
+- [Plunk vs Brevo](https://www.useplunk.com/vs/brevo)
+- [Plunk vs ActiveCampaign](https://www.useplunk.com/vs/activecampaign)
+- [Plunk vs Klaviyo](https://www.useplunk.com/vs/klaviyo)
+- [Plunk vs ConvertKit](https://www.useplunk.com/vs/convertkit)
+- [Plunk vs Bento](https://www.useplunk.com/vs/bento)
+- [Plunk vs MailerLite](https://www.useplunk.com/vs/mailerlite)
+- [Plunk vs Amazon SES](https://www.useplunk.com/vs/amazon-ses)
+- [Plunk vs Mailjet](https://www.useplunk.com/vs/mailjet)
+- [Plunk vs Buttondown](https://www.useplunk.com/vs/buttondown)
+- [All comparisons](https://www.useplunk.com/vs)
+
+## Guides
+
+- [Email API guide](https://www.useplunk.com/guides/email-api-guide): Choosing and integrating with an email API
+- [Email deliverability](https://www.useplunk.com/guides/email-deliverability): Reaching the inbox reliably
+- [Email bounce rate](https://www.useplunk.com/guides/email-bounce-rate): What it is and how to reduce it
+- [Email open rate](https://www.useplunk.com/guides/email-open-rate): Benchmarks and improvement tactics
+- [Email click-through rate](https://www.useplunk.com/guides/email-click-through-rate): Measuring and improving CTR
+- [Email sender reputation](https://www.useplunk.com/guides/email-sender-reputation): Protecting your sending reputation
+- [Email marketing best practices](https://www.useplunk.com/guides/email-marketing-best-practices)
+- [Transactional vs marketing email](https://www.useplunk.com/guides/transactional-vs-marketing-email)
+- [What is SPF](https://www.useplunk.com/guides/what-is-spf)
+- [What is DKIM](https://www.useplunk.com/guides/what-is-dkim)
+- [What is DMARC](https://www.useplunk.com/guides/what-is-dmarc)
+- [All guides](https://www.useplunk.com/guides)
+
+## Tools
+
+- [Verify email](https://www.useplunk.com/tools/verify-email): Check a single email address for validity
+- [Spam checker](https://www.useplunk.com/tools/spam-checker): Score an email for spam triggers
+- [Markdown to email](https://www.useplunk.com/tools/markdown-to-email): Convert Markdown into HTML email
+- [SPF checker](https://www.useplunk.com/tools/spf-checker)
+- [DKIM checker](https://www.useplunk.com/tools/dkim-checker)
+- [DMARC checker](https://www.useplunk.com/tools/dmarc-checker)
+- [MX checker](https://www.useplunk.com/tools/mx-checker)
+- [Email headers analyzer](https://www.useplunk.com/tools/email-headers)
+- [All tools](https://www.useplunk.com/tools)
+
+## Optional
+
+- [Documentation](https://docs.useplunk.com): Product, API, and self-hosting docs
+- [Discord community](https://www.useplunk.com/discord)
+- [Privacy policy](https://www.useplunk.com/privacy)
+- [Terms of service](https://www.useplunk.com/terms)
+- [Data processing agreement](https://www.useplunk.com/dpa)

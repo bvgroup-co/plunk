@@ -341,3 +341,5 @@ Plunk provides SMTP credentials so you can send emails from any application or f
 [Back to features](/features) | [Pricing](/pricing) | [Documentation](https://docs.useplunk.com)
 `,
 };
+
+export {MARKDOWN_SLUGS, hasMarkdownVariant} from './markdown-slugs';
