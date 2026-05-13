@@ -135,6 +135,47 @@ export class ContactService {
    * Update a contact
    * Uses unique constraint violation to check for duplicates (more efficient)
    */
+  /**
+   * Merge an incoming partial data object into existing contact data.
+   * - `null` value on a key deletes that key
+   * - empty strings are ignored
+   * - reserved/system-generated keys are silently filtered
+   * - `{value, persistent: false}` entries are skipped (non-persistent)
+   */
+  private static mergeContactData(
+    existing: Prisma.JsonValue | null,
+    incoming: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const merged: Record<string, unknown> =
+      existing && typeof existing === 'object' && !Array.isArray(existing) ? {...(existing as Record<string, unknown>)} : {};
+
+    const reservedFields = ['plunk_id', 'plunk_email', 'id', 'email', 'unsubscribeUrl', 'subscribeUrl', 'manageUrl'];
+
+    for (const [key, value] of Object.entries(incoming)) {
+      if (reservedFields.includes(key)) continue;
+      if (value === '') continue;
+      if (value === null) {
+        delete merged[key];
+        continue;
+      }
+      if (key === 'locale' && typeof value !== 'string') {
+        throw new HttpException(400, 'Locale must be a string');
+      }
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        'value' in value &&
+        'persistent' in value &&
+        (value as {persistent: unknown}).persistent === false
+      ) {
+        continue;
+      }
+      merged[key] = value;
+    }
+
+    return merged;
+  }
+
   public static async update(
     projectId: string,
     contactId: string,
@@ -149,7 +190,14 @@ export class ContactService {
       updateData.email = data.email;
     }
     if (data.data !== undefined) {
-      updateData.data = data.data === null ? Prisma.JsonNull : data.data;
+      if (data.data === null) {
+        updateData.data = Prisma.JsonNull;
+      } else if (typeof data.data === 'object' && !Array.isArray(data.data)) {
+        const merged = ContactService.mergeContactData(existing.data, data.data as Record<string, unknown>);
+        updateData.data = Object.keys(merged).length > 0 ? toPrismaJson(merged) : Prisma.JsonNull;
+      } else {
+        throw new HttpException(400, 'data must be an object');
+      }
     }
     if (data.subscribed !== undefined) {
       updateData.subscribed = data.subscribed;
@@ -225,69 +273,7 @@ export class ContactService {
       },
     });
 
-    // Process data to merge with existing data
-    let mergedData: Record<string, unknown> = {};
-
-    if (existing?.data && typeof existing.data === 'object' && !Array.isArray(existing.data)) {
-      // Start with existing data
-      mergedData = {...existing.data};
-    }
-
-    // Merge new data (if provided)
-    if (data) {
-      for (const [key, value] of Object.entries(data)) {
-        // Skip reserved system-generated fields
-        // These fields are dynamically added during template rendering and cannot be overridden
-        const reservedFields = [
-          'plunk_id',
-          'plunk_email',
-          'id',
-          'email',
-          'unsubscribeUrl',
-          'subscribeUrl',
-          'manageUrl',
-        ];
-        if (reservedFields.includes(key)) {
-          continue;
-        }
-
-        // Skip empty string values - they don't provide meaningful data
-        // and can cause issues with template rendering and data integrity
-        if (value === '') {
-          continue;
-        }
-
-        // Delete field if null is passed (allows removing fields from contact data)
-        if (value === null) {
-          delete mergedData[key];
-          continue;
-        }
-
-        // Validate locale field (special user-settable field)
-        // Only validate type - any locale string is accepted since we default to English if unsupported
-        if (key === 'locale') {
-          if (value !== undefined && typeof value !== 'string') {
-            throw new HttpException(400, 'Locale must be a string');
-          }
-        }
-
-        // Handle non-persistent data format: { value: "...", persistent: false }
-        if (
-          typeof value === 'object' &&
-          value !== null &&
-          'value' in value &&
-          'persistent' in value &&
-          value.persistent === false
-        ) {
-          // Non-persistent fields are not stored in contact data
-          // They would be used only for the current operation (like email template rendering)
-          continue;
-        }
-
-        // Store the value
-        mergedData[key] = value;
-      }
-    }
+    const mergedData = ContactService.mergeContactData(existing?.data ?? null, data ?? {});
 
     if (existing) {
       // Track subscription status change
