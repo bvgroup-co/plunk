@@ -123,7 +123,11 @@ export function createImportWorker() {
 
               // Extract custom data (all fields except email and subscribed)
               const {email: _, subscribed: __, ...customData} = record;
-              const data = Object.keys(customData).length > 0 ? customData : undefined;
+              const customEntries = Object.entries(customData);
+              const data =
+                customEntries.length > 0
+                  ? Object.fromEntries(customEntries.map(([k, v]) => [k, coerceCustomValue(v)]))
+                  : undefined;
 
               // Check if contact exists before upserting
               const existingContact = await ContactService.findByEmail(projectId, email);
@@ -215,4 +219,20 @@ export function createImportWorker() {
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+const BOOLEAN_TRUE = new Set(['true', '1', 'yes']);
+const BOOLEAN_FALSE = new Set(['false', '0', 'no']);
+
+/**
+ * Coerce a raw CSV cell to its natural JSON primitive so post-import type
+ * inference (ContactService.getAvailableFields) can detect booleans on custom
+ * fields the same way it already does for the reserved `subscribed` column.
+ * Values outside the recognised keyword set are returned unchanged.
+ */
+export function coerceCustomValue(value: string): string | boolean {
+  const lower = value.trim().toLowerCase();
+  if (BOOLEAN_TRUE.has(lower)) return true;
+  if (BOOLEAN_FALSE.has(lower)) return false;
+  return value;
 }

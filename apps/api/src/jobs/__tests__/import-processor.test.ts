@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 import {ContactService} from '../../services/ContactService.js';
+import {coerceCustomValue} from '../import-processor.js';
 
 /**
  * Tests for Contact Import Processor - Subscription Status Preservation
@@ -276,6 +277,28 @@ describe('Contact Import - Subscription Status Preservation', () => {
       expect(data?.plan).toBe('pro'); // Preserved
       expect(data?.lastName).toBe('Doe'); // New
       expect(data?.company).toBe('Acme Inc'); // New
+    });
+  });
+});
+
+describe('coerceCustomValue', () => {
+  describe('boolean coercion', () => {
+    it.each(['true', 'TRUE', 'True', ' true ', '1', 'yes', 'YES', 'Yes'])('coerces %j to true', value => {
+      expect(coerceCustomValue(value)).toBe(true);
+    });
+
+    it.each(['false', 'FALSE', 'False', ' false ', '0', 'no', 'NO', 'No'])('coerces %j to false', value => {
+      expect(coerceCustomValue(value)).toBe(false);
+    });
+  });
+
+  describe('passthrough', () => {
+    it.each(['Alice', 'true!', 'yesno', 'maybe', '42', '3.14', '01234'])('leaves %j as a string', value => {
+      expect(coerceCustomValue(value)).toBe(value);
+    });
+
+    it('leaves empty string as empty string', () => {
+      expect(coerceCustomValue('')).toBe('');
     });
   });
 });
