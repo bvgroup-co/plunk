@@ -223,16 +223,22 @@ function isValidEmail(email: string): boolean {
 
 const BOOLEAN_TRUE = new Set(['true', '1', 'yes']);
 const BOOLEAN_FALSE = new Set(['false', '0', 'no']);
+// Strict integer-or-decimal pattern. Rejects leading zeros (preserves IDs,
+// zips, phone numbers), scientific notation, `+` prefix, and `.5` / `42.`.
+const NUMERIC_RE = /^-?(0|[1-9]\d*)(\.\d+)?$/;
 
 /**
  * Coerce a raw CSV cell to its natural JSON primitive so post-import type
- * inference (ContactService.getAvailableFields) can detect booleans on custom
- * fields the same way it already does for the reserved `subscribed` column.
- * Values outside the recognised keyword set are returned unchanged.
+ * inference (ContactService.getAvailableFields) can detect booleans and
+ * numbers on custom fields the same way it already does for the reserved
+ * `subscribed` column. Values that match neither recogniser are returned
+ * unchanged.
  */
-export function coerceCustomValue(value: string): string | boolean {
-  const lower = value.trim().toLowerCase();
+export function coerceCustomValue(value: string): string | boolean | number {
+  const trimmed = value.trim();
+  const lower = trimmed.toLowerCase();
   if (BOOLEAN_TRUE.has(lower)) return true;
   if (BOOLEAN_FALSE.has(lower)) return false;
+  if (NUMERIC_RE.test(trimmed)) return Number(trimmed);
   return value;
 }
