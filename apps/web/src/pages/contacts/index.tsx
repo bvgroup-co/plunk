@@ -405,7 +405,12 @@ export default function ContactsPage() {
                                 ) : (
                                   <MailX className="h-4 w-4 text-red-600" />
                                 )}
-                                <span className="text-sm font-medium text-neutral-900">{contact.email}</span>
+                                <Link
+                                  href={`/contacts/${contact.id}`}
+                                  className="text-sm font-medium text-neutral-900 hover:text-neutral-700 focus-visible:outline-none focus-visible:underline"
+                                >
+                                  {contact.email}
+                                </Link>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -455,7 +460,12 @@ export default function ContactsPage() {
                             ) : (
                               <MailX className="h-4 w-4 text-red-600 flex-shrink-0" />
                             )}
-                            <span className="text-sm font-medium text-neutral-900 truncate">{contact.email}</span>
+                            <Link
+                              href={`/contacts/${contact.id}`}
+                              className="text-sm font-medium text-neutral-900 truncate hover:text-neutral-700 focus-visible:outline-none focus-visible:underline"
+                            >
+                              {contact.email}
+                            </Link>
                           </div>
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
