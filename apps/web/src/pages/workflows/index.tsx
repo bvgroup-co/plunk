@@ -117,7 +117,7 @@ export default function WorkflowsPage() {
               placeholder="Search workflows..."
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              className="pl-10 pr-10"
+              className="pl-10 pr-10 h-8 text-xs"
             />
             {searchInput && (
               <button
