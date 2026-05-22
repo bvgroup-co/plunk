@@ -16,18 +16,21 @@ class TestDatabase {
       throw new Error('DATABASE_URL or TEST_DATABASE_URL must be set for testing');
     }
 
-    // Create Prisma client with connection pool limits
+    // Raise Prisma's connection pool above its default (num_cpus * 2 + 1, ~5 on CI).
+    // Bulk inserts in some tests (e.g. SecurityService) saturate the default pool
+    // and time out. Test Postgres has max_connections=100, so 20 is well under budget.
+    const url = new URL(databaseUrl);
+    if (!url.searchParams.has('connection_limit')) {
+      url.searchParams.set('connection_limit', '20');
+    }
+    if (!url.searchParams.has('pool_timeout')) {
+      url.searchParams.set('pool_timeout', '20');
+    }
+
     this.prisma = new PrismaClient({
       datasources: {
         db: {
-          url: databaseUrl,
-        },
-      },
-      // Limit connection pool to prevent memory issues in tests
-      // @ts-ignore - These options exist but may not be in types
-      __internal: {
-        engine: {
-          connection_limit: 5,
+          url: url.toString(),
         },
       },
     });

@@ -50,27 +50,20 @@ describe('SecurityService', () => {
     const complainedCount = opts?.complainedCount ?? 0;
     const createdAt = opts?.createdAt ?? new Date();
 
-    const emails = [];
-    for (let i = 0; i < count; i++) {
-      emails.push(
-        prisma.email.create({
-          data: {
-            projectId,
-            contactId,
-            subject: `Test ${i}`,
-            body: '<p>test</p>',
-            from: 'test@example.com',
-            status: EmailStatus.SENT,
-            sourceType: EmailSourceType.TRANSACTIONAL,
-            sentAt: createdAt,
-            createdAt,
-            bouncedAt: i < bouncedCount ? createdAt : null,
-            complainedAt: i >= bouncedCount && i < bouncedCount + complainedCount ? createdAt : null,
-          },
-        }),
-      );
-    }
-    await Promise.all(emails);
+    const data = Array.from({length: count}, (_, i) => ({
+      projectId,
+      contactId,
+      subject: `Test ${i}`,
+      body: '<p>test</p>',
+      from: 'test@example.com',
+      status: EmailStatus.SENT,
+      sourceType: EmailSourceType.TRANSACTIONAL,
+      sentAt: createdAt,
+      createdAt,
+      bouncedAt: i < bouncedCount ? createdAt : null,
+      complainedAt: i >= bouncedCount && i < bouncedCount + complainedCount ? createdAt : null,
+    }));
+    await prisma.email.createMany({data});
   }
 
   describe('Rate-based checks (existing behavior)', () => {
