@@ -713,7 +713,7 @@ export class SecurityService {
       // Disable the project
       await prisma.project.update({
         where: {id: projectId},
-        data: {disabled: true},
+        data: {disabled: true, disabledReason: 'EMAIL_REPUTATION'},
       });
 
       // Log critical security event
@@ -971,7 +971,7 @@ ${strippedBody.substring(0, 2000)}`,
       // Disable the project
       await prisma.project.update({
         where: {id: projectId},
-        data: {disabled: true},
+        data: {disabled: true, disabledReason: 'PHISHING_DETECTED'},
       });
 
       const violation = `A policy violation was detected. Please contact support for more details.`;
