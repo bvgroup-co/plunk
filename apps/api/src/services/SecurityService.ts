@@ -50,22 +50,13 @@ const SECURITY_THRESHOLDS = {
   MIN_COMPLAINTS_FOR_CRITICAL: 5,
   MIN_COMPLAINTS_FOR_WARNING: 3,
 
-  // === Absolute count ceilings ===
-  // These trigger regardless of rate — catches high-volume spammers who dilute their bounce rate
-  // 24-hour absolute ceilings
-  BOUNCE_24H_CEILING_WARNING: 50,
-  BOUNCE_24H_CEILING_CRITICAL: 100,
-  COMPLAINT_24H_CEILING_WARNING: 10,
-  COMPLAINT_24H_CEILING_CRITICAL: 25,
-
-  // 7-day absolute ceilings
-  BOUNCE_7DAY_CEILING_WARNING: 200,
-  BOUNCE_7DAY_CEILING_CRITICAL: 500,
-  COMPLAINT_7DAY_CEILING_WARNING: 30,
-  COMPLAINT_7DAY_CEILING_CRITICAL: 75,
-
-  // === New project thresholds (projects < 30 days old) ===
-  // Legitimate senders ramp up gradually; spammers blast immediately
+  // === Absolute count ceilings (new projects only) ===
+  // These trigger regardless of rate — catches new accounts blasting emails
+  // before their bounce rate has caught up. Established projects rely on
+  // rate-based checks only, since high absolute counts at high volume
+  // (e.g. 100 bounces out of 10K) don't indicate abuse.
+  //
+  // Legitimate senders ramp up gradually; spammers blast immediately.
   NEW_PROJECT_AGE_DAYS: 30,
   NEW_PROJECT_BOUNCE_24H_CEILING_WARNING: 10,
   NEW_PROJECT_BOUNCE_24H_CEILING_CRITICAL: 25,
@@ -516,82 +507,54 @@ export class SecurityService {
     const violations: string[] = [];
     const warnings: string[] = [];
 
-    // Pick absolute count ceilings based on project age
-    const bounceCeilings = isNewProject
-      ? {
-          ceiling24hWarning: SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_WARNING,
-          ceiling24hCritical: SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_CRITICAL,
-          ceiling7dWarning: SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_WARNING,
-          ceiling7dCritical: SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_CRITICAL,
-        }
-      : {
-          ceiling24hWarning: SECURITY_THRESHOLDS.BOUNCE_24H_CEILING_WARNING,
-          ceiling24hCritical: SECURITY_THRESHOLDS.BOUNCE_24H_CEILING_CRITICAL,
-          ceiling7dWarning: SECURITY_THRESHOLDS.BOUNCE_7DAY_CEILING_WARNING,
-          ceiling7dCritical: SECURITY_THRESHOLDS.BOUNCE_7DAY_CEILING_CRITICAL,
-        };
+    // === Absolute count ceiling checks (new projects only, rate-independent) ===
+    // Catches new accounts blasting emails before their bounce rate catches up.
+    // Established projects skip these — high absolute counts at high volume
+    // (e.g. 100 bounces out of 10K) don't indicate abuse; rate checks handle them.
+    if (isNewProject) {
+      // 24-hour bounce ceilings
+      if (twentyFourHour.bounces >= SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_CRITICAL) {
+        violations.push(
+          `24-hour bounce count (new project) (${twentyFourHour.bounces} bounces) exceeds critical ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_CRITICAL})`,
+        );
+      } else if (twentyFourHour.bounces >= SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_WARNING) {
+        warnings.push(
+          `24-hour bounce count (new project) (${twentyFourHour.bounces} bounces) exceeds warning ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_24H_CEILING_WARNING})`,
+        );
+      }
 
-    const complaintCeilings = isNewProject
-      ? {
-          ceiling24hWarning: SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_WARNING,
-          ceiling24hCritical: SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_CRITICAL,
-          ceiling7dWarning: SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_WARNING,
-          ceiling7dCritical: SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_CRITICAL,
-        }
-      : {
-          ceiling24hWarning: SECURITY_THRESHOLDS.COMPLAINT_24H_CEILING_WARNING,
-          ceiling24hCritical: SECURITY_THRESHOLDS.COMPLAINT_24H_CEILING_CRITICAL,
-          ceiling7dWarning: SECURITY_THRESHOLDS.COMPLAINT_7DAY_CEILING_WARNING,
-          ceiling7dCritical: SECURITY_THRESHOLDS.COMPLAINT_7DAY_CEILING_CRITICAL,
-        };
+      // 7-day bounce ceilings
+      if (sevenDay.bounces >= SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_CRITICAL) {
+        violations.push(
+          `7-day bounce count (new project) (${sevenDay.bounces} bounces) exceeds critical ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_CRITICAL})`,
+        );
+      } else if (sevenDay.bounces >= SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_WARNING) {
+        warnings.push(
+          `7-day bounce count (new project) (${sevenDay.bounces} bounces) exceeds warning ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_BOUNCE_7DAY_CEILING_WARNING})`,
+        );
+      }
 
-    const projectLabel = isNewProject ? ' (new project)' : '';
+      // 24-hour complaint ceilings
+      if (twentyFourHour.complaints >= SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_CRITICAL) {
+        violations.push(
+          `24-hour complaint count (new project) (${twentyFourHour.complaints} complaints) exceeds critical ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_CRITICAL})`,
+        );
+      } else if (twentyFourHour.complaints >= SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_WARNING) {
+        warnings.push(
+          `24-hour complaint count (new project) (${twentyFourHour.complaints} complaints) exceeds warning ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_24H_CEILING_WARNING})`,
+        );
+      }
 
-    // === Absolute count ceiling checks (rate-independent) ===
-    // These catch high-volume spammers who dilute their bounce rate by blasting emails
-
-    // 24-hour bounce ceilings
-    if (twentyFourHour.bounces >= bounceCeilings.ceiling24hCritical) {
-      violations.push(
-        `24-hour bounce count${projectLabel} (${twentyFourHour.bounces} bounces) exceeds critical ceiling (${bounceCeilings.ceiling24hCritical})`,
-      );
-    } else if (twentyFourHour.bounces >= bounceCeilings.ceiling24hWarning) {
-      warnings.push(
-        `24-hour bounce count${projectLabel} (${twentyFourHour.bounces} bounces) exceeds warning ceiling (${bounceCeilings.ceiling24hWarning})`,
-      );
-    }
-
-    // 7-day bounce ceilings
-    if (sevenDay.bounces >= bounceCeilings.ceiling7dCritical) {
-      violations.push(
-        `7-day bounce count${projectLabel} (${sevenDay.bounces} bounces) exceeds critical ceiling (${bounceCeilings.ceiling7dCritical})`,
-      );
-    } else if (sevenDay.bounces >= bounceCeilings.ceiling7dWarning) {
-      warnings.push(
-        `7-day bounce count${projectLabel} (${sevenDay.bounces} bounces) exceeds warning ceiling (${bounceCeilings.ceiling7dWarning})`,
-      );
-    }
-
-    // 24-hour complaint ceilings
-    if (twentyFourHour.complaints >= complaintCeilings.ceiling24hCritical) {
-      violations.push(
-        `24-hour complaint count${projectLabel} (${twentyFourHour.complaints} complaints) exceeds critical ceiling (${complaintCeilings.ceiling24hCritical})`,
-      );
-    } else if (twentyFourHour.complaints >= complaintCeilings.ceiling24hWarning) {
-      warnings.push(
-        `24-hour complaint count${projectLabel} (${twentyFourHour.complaints} complaints) exceeds warning ceiling (${complaintCeilings.ceiling24hWarning})`,
-      );
-    }
-
-    // 7-day complaint ceilings
-    if (sevenDay.complaints >= complaintCeilings.ceiling7dCritical) {
-      violations.push(
-        `7-day complaint count${projectLabel} (${sevenDay.complaints} complaints) exceeds critical ceiling (${complaintCeilings.ceiling7dCritical})`,
-      );
-    } else if (sevenDay.complaints >= complaintCeilings.ceiling7dWarning) {
-      warnings.push(
-        `7-day complaint count${projectLabel} (${sevenDay.complaints} complaints) exceeds warning ceiling (${complaintCeilings.ceiling7dWarning})`,
-      );
+      // 7-day complaint ceilings
+      if (sevenDay.complaints >= SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_CRITICAL) {
+        violations.push(
+          `7-day complaint count (new project) (${sevenDay.complaints} complaints) exceeds critical ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_CRITICAL})`,
+        );
+      } else if (sevenDay.complaints >= SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_WARNING) {
+        warnings.push(
+          `7-day complaint count (new project) (${sevenDay.complaints} complaints) exceeds warning ceiling (${SECURITY_THRESHOLDS.NEW_PROJECT_COMPLAINT_7DAY_CEILING_WARNING})`,
+        );
+      }
     }
 
     // === Rate-based checks (existing logic) ===
