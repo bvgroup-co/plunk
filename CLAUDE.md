@@ -161,7 +161,7 @@ Required for builds and deployment (see turbo.json and .env.example):
   - `OPENROUTER_API_KEY` - API key for OpenRouter (enables phishing detection)
   - `OPENROUTER_MODEL` (default: anthropic/claude-3-haiku) - LLM model to use for content analysis
   - `PHISHING_DETECTION_SAMPLE_RATE` (default: 0.1) - Percentage of emails to check (0.0-1.0, e.g., 0.1 = 10%)
-  - `PHISHING_CONFIDENCE_THRESHOLD` (default: 85) - Minimum confidence percentage (0-100) to auto-disable project for single detection
+  - `PHISHING_CONFIDENCE_THRESHOLD` (default: 95) - Minimum confidence percentage (0-100) to auto-disable project for single detection
   - `PHISHING_CUMULATIVE_THRESHOLD` (default: 3) - Number of phishing detections within time window to trigger auto-disable
   - `PHISHING_CUMULATIVE_WINDOW_MS` (default: 3600000) - Time window in milliseconds for cumulative tracking (default 1 hour)
 
