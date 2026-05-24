@@ -174,6 +174,21 @@ Required for builds and deployment (see turbo.json and .env.example):
 - **Frontend Variables**: Next.js apps use `NEXT_PUBLIC_*` prefixed variables that are embedded at build time for
   client-side access
 
+## Environment Variable Changes
+
+When you add, rename, remove, or change the default/behaviour of any environment variable, you MUST update all THREE of the following in the same change:
+
+1. `apps/api/.env.example` — local development defaults
+2. `.env.self-host.example` — self-hosting / production template
+3. `apps/wiki/content/docs/self-hosting/environment-variables.mdx` — user-facing reference
+
+Rules:
+
+- If the variable already exists in any file, **modify** its line/row/description — do not duplicate or leave a stale entry.
+- Keep section/category names consistent across all three files (e.g. "AWS SES", "Phishing Detection").
+- For dev-only or self-host-only variables, still mention them in the wiki and note the scope; only skip the example file where the variable is genuinely never applicable.
+- When in doubt about whether a variable belongs in `apps/api/.env.example` (development), include it commented out with a short note.
+
 ## Plugins
 
 There are two plugins installed for you to use.
