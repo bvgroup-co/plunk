@@ -221,21 +221,23 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
-// `0` and `1` are intentionally absent: in custom columns they are far more
-// often counts/ids/quantities than boolean flags, so they fall through to
-// numeric coercion below. The reserved `subscribed` column has its own
-// parser above that still accepts `1`/`0` as booleans.
+// Values considered as boolean during import.
+// Numbers (0, 1) are intentionally absent.
 const BOOLEAN_TRUE = new Set(['true', 'yes']);
 const BOOLEAN_FALSE = new Set(['false', 'no']);
-// Strict integer-or-decimal pattern. Rejects leading zeros (preserves IDs,
-// zips, phone numbers), scientific notation, `+` prefix, and `.5` / `42.`.
+
+// Strict integer-or-decimal number detection pattern.
+// Valid: 0, 42, -42, 3.14
+// Rejected: 007, +42, 1.2.3, 1e5
 const NUMERIC_RE = /^-?(0|[1-9]\d*)(\.\d+)?$/;
 
 /**
- * Coerce a raw CSV cell to its natural JSON primitive so post-import type
- * inference (ContactService.getAvailableFields) can detect booleans and
- * numbers on custom fields. Values that match neither recogniser are
+ * Coerces a raw string into its most natural primitive type: `boolean`,
+ * `number`, or `string`. Values that match neither are
  * returned unchanged.
+ *
+ * @param value The raw string to coerce.
+ * @returns The coerced value as `boolean`, `number`, or `string`.
  */
 export function coerceCustomValue(value: string): string | boolean | number {
   const trimmed = value.trim();
