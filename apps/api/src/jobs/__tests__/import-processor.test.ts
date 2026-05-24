@@ -283,11 +283,11 @@ describe('Contact Import - Subscription Status Preservation', () => {
 
 describe('coerceCustomValue', () => {
   describe('boolean coercion', () => {
-    it.each(['true', 'TRUE', 'True', ' true ', '1', 'yes', 'YES', 'Yes'])('coerces %j to true', value => {
+    it.each(['true', 'TRUE', 'True', ' true ', 'yes', 'YES', 'Yes'])('coerces %j to true', value => {
       expect(coerceCustomValue(value)).toBe(true);
     });
 
-    it.each(['false', 'FALSE', 'False', ' false ', '0', 'no', 'NO', 'No'])('coerces %j to false', value => {
+    it.each(['false', 'FALSE', 'False', ' false ', 'no', 'NO', 'No'])('coerces %j to false', value => {
       expect(coerceCustomValue(value)).toBe(false);
     });
   });
@@ -300,6 +300,8 @@ describe('coerceCustomValue', () => {
       [' 42 ', 42],
       ['0.5', 0.5],
       ['-0.25', -0.25],
+      ['0', 0],
+      ['1', 1],
     ])('coerces %j to %j', (value, expected) => {
       expect(coerceCustomValue(value)).toBe(expected);
     });
@@ -310,14 +312,6 @@ describe('coerceCustomValue', () => {
         expect(coerceCustomValue(value)).toBe(value);
       },
     );
-
-    it('keeps boolean precedence: "1" stays boolean true, not number 1', () => {
-      expect(coerceCustomValue('1')).toBe(true);
-    });
-
-    it('keeps boolean precedence: "0" stays boolean false, not number 0', () => {
-      expect(coerceCustomValue('0')).toBe(false);
-    });
 
     it('"1.0" is a number (does not match the boolean truthy set)', () => {
       expect(coerceCustomValue('1.0')).toBe(1);
