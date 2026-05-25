@@ -765,7 +765,7 @@ export class SecurityService {
       const uniqueUrls = [...new Set(urlMatches.map(u => u.replace(/[.,;)]+$/, '')))].slice(0, 20);
 
       // Extract sender domain for context
-      const senderDomain = fromEmail.includes('@') ? fromEmail.split('@')[1].toLowerCase() : fromEmail.toLowerCase();
+      const senderDomain = (fromEmail.split('@')[1] ?? fromEmail).toLowerCase();
 
       // Check whether this domain is verified by the project. A verified
       // domain means the sender proved DNS/DKIM control — strong evidence of
