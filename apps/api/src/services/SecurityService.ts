@@ -765,7 +765,36 @@ export class SecurityService {
       const uniqueUrls = [...new Set(urlMatches.map(u => u.replace(/[.,;)]+$/, '')))].slice(0, 20);
 
       // Extract sender domain for context
-      const senderDomain = fromEmail.includes('@') ? fromEmail.split('@')[1] : fromEmail;
+      const senderDomain = fromEmail.includes('@') ? fromEmail.split('@')[1].toLowerCase() : fromEmail.toLowerCase();
+
+      // Check whether this domain is verified by the project. A verified
+      // domain means the sender proved DNS/DKIM control — strong evidence of
+      // legitimacy, especially for institutional TLDs like .gov, .edu, .mil.
+      const verifiedDomain = await prisma.domain.findFirst({
+        where: {projectId, domain: senderDomain, verified: true},
+        select: {domain: true},
+      });
+      const isDomainVerified = verifiedDomain !== null;
+
+      // Institutional TLDs that imply a vetted, real-world entity behind the
+      // domain (government, military, accredited education). When combined
+      // with DKIM verification these effectively cannot be phishing senders.
+      const institutionalTldPattern =
+        /\.(gov|mil|edu)(\.[a-z]{2,})?$|\.gc\.ca$|\.gouv\.fr$|\.gov\.uk$|\.ac\.[a-z]{2,}$/i;
+      const isInstitutionalDomain = institutionalTldPattern.test(senderDomain);
+
+      // Skip the LLM check entirely when the sender is a verified institutional
+      // domain (e.g. a .gov customer). These TLDs are gated by registries that
+      // verify the real-world entity, and DKIM verification proves the project
+      // controls the domain — together they make phishing effectively
+      // impossible from this sender. Avoids paying for an LLM call that
+      // sometimes false-positives on official government communications.
+      if (isDomainVerified && isInstitutionalDomain) {
+        signale.info(
+          `[PHISHING] Skipping check for project ${projectId} — verified institutional domain (${senderDomain})`,
+        );
+        return safeResponse;
+      }
 
       // Call OpenRouter API
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -798,7 +827,11 @@ Criteria for phishing/dangerous content:
 - Requests for sensitive personal information
 
 IMPORTANT - Use sender and project context when evaluating:
-- The sender project name and domain are provided. Links to the sender's own domain(s) are expected and NOT suspicious.
+- The sender project name and domain are provided, along with whether the domain has been verified (DKIM/DNS) by this project.
+- A VERIFIED sender domain means the sender proved ownership of the domain via DNS records. This is strong evidence of legitimacy.
+- If the verified sender domain is an institutional domain (e.g. .gov, .gov.uk, .gouv.fr, .gc.ca, .mil, .edu, .ac.*), treat the email as legitimate institutional communication. Government, military, and accredited education domains cannot be obtained by phishers — do NOT flag these as impersonation of government/banks/etc. just because the content mentions official topics, taxes, benefits, court notices, etc.
+- Impersonation rules only apply when the sender domain does NOT match the brand being referenced. A verified bank domain sending a banking email is not impersonating itself.
+- Links to the sender's own domain(s) are expected and NOT suspicious.
 - URLs that match or are clearly related to the project name or sender domain add credibility.
 - Only flag a URL as suspicious if it is unrelated to or impersonates a different known brand.
 - Lack of recognizable brand does NOT make an email phishing — many legitimate businesses are not famous.
@@ -811,6 +844,8 @@ Set confidence to 100 only if you are absolutely certain it's phishing.`,
               role: 'user',
               content: `Sender project name: ${projectName}
 Sender domain: ${senderDomain}
+Sender domain verified (DKIM/DNS confirmed by project): ${isDomainVerified ? 'yes' : 'no'}
+Sender domain is an institutional TLD (gov/mil/edu/ac/etc.): ${isInstitutionalDomain ? 'yes' : 'no'}
 ${uniqueUrls.length > 0 ? `URLs found in email: ${uniqueUrls.join(', ')}` : ''}
 
 Subject: ${subject}
