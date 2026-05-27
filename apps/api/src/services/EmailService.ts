@@ -108,7 +108,7 @@ export class EmailService {
     await BillingLimitService.incrementUsage(params.projectId, EmailSourceType.TRANSACTIONAL);
 
     // Queue email for sending
-    await this.queueEmail(email.id);
+    await this.queueEmail(email.id, EmailSourceType.TRANSACTIONAL);
 
     return email;
   }
@@ -172,7 +172,7 @@ export class EmailService {
     await BillingLimitService.incrementUsage(params.projectId, sourceType);
 
     // Queue email for sending
-    await this.queueEmail(email.id);
+    await this.queueEmail(email.id, sourceType);
 
     return email;
   }
@@ -278,7 +278,7 @@ export class EmailService {
     await BillingLimitService.incrementUsage(params.projectId, sourceType);
 
     // Queue email for sending
-    await this.queueEmail(email.id);
+    await this.queueEmail(email.id, sourceType);
 
     return email;
   }
@@ -1137,7 +1137,7 @@ export class EmailService {
    * Queue an email for sending
    * Adds email to the BullMQ queue for processing by workers
    */
-  private static async queueEmail(emailId: string, delay?: number): Promise<void> {
-    await QueueService.queueEmail(emailId, delay);
+  private static async queueEmail(emailId: string, sourceType: EmailSourceType, delay?: number): Promise<void> {
+    await QueueService.queueEmail(emailId, sourceType, delay);
   }
 }

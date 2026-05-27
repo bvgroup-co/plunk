@@ -130,6 +130,8 @@ Plunk bundles a self-hosted [ntfy](https://ntfy.sh) server for internal system n
 | ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | `AUTO_PROJECT_DISABLE`        | No       | When `true`, projects are automatically suspended when bounce or complaint rate thresholds are exceeded. Set to `false` to manage project status manually. | `true`  |
 | `EMAIL_RATE_LIMIT_PER_SECOND` | No       | Override the email sending rate limit. If not set, Plunk automatically fetches the quota from your AWS SES account.                                        | —       |
+| `EMAIL_WORKER_CONCURRENCY`    | No       | Number of emails the worker processes in parallel. When unset, derived from the effective rate limit so a higher SES quota scales throughput automatically. | —       |
+| `EMAIL_WORKER_MAX_CONCURRENCY`| No       | Upper bound applied to the auto-derived worker concurrency. Raise this only after sizing the Prisma connection pool accordingly.                            | `50`    |
 
 ## Advanced
 
