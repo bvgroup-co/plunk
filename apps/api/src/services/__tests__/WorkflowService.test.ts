@@ -761,7 +761,9 @@ describe('WorkflowService', () => {
       // Insert a RUNNING execution directly to avoid racing with the background
       // step processor that startExecution kicks off (a trigger-only workflow can
       // transition to COMPLETED before the second call observes it as RUNNING).
-      const triggerStep = workflow.steps.find(step => step.type === WorkflowStepType.TRIGGER);
+      const triggerStep = await prisma.workflowStep.findFirst({
+        where: {workflowId: workflow.id, type: WorkflowStepType.TRIGGER},
+      });
       await prisma.workflowExecution.create({
         data: {
           workflowId: workflow.id,
