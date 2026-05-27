@@ -629,6 +629,22 @@ model Event {
   @@map("events")
 }
 
+model SesNotification {
+  id String @id @default(uuid())
+
+  snsMessageId String                @unique
+  status       SesNotificationStatus @default(PROCESSING)
+  error        String?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  @@index([status])
+  @@map("ses_notifications")
+}
+
 // ============================================
 // ENUMS
 // ============================================
@@ -785,4 +801,10 @@ enum EmailStatus {
   BOUNCED // Bounced (hard or soft)
   COMPLAINED // Marked as spam
   FAILED // Failed to send
+}
+
+enum SesNotificationStatus {
+  PROCESSING
+  PROCESSED
+  FAILED
 }

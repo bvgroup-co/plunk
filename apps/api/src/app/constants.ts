@@ -45,6 +45,15 @@ export const AWS_SES_REGION = validateEnv('AWS_SES_REGION');
 export const AWS_SES_ACCESS_KEY_ID = validateEnv('AWS_SES_ACCESS_KEY_ID');
 export const AWS_SES_SECRET_ACCESS_KEY = validateEnv('AWS_SES_SECRET_ACCESS_KEY');
 
+// Optional SES event SQS polling (SNS -> SQS -> worker)
+export const SES_EVENTS_SQS_QUEUE_URL = validateEnv('SES_EVENTS_SQS_QUEUE_URL', '').trim();
+export const SES_EVENTS_SQS_ENABLED = SES_EVENTS_SQS_QUEUE_URL !== '';
+export const SES_EVENTS_SQS_WAIT_TIME_SECONDS = Number(validateEnv('SES_EVENTS_SQS_WAIT_TIME_SECONDS', '20'));
+export const SES_EVENTS_SQS_MAX_MESSAGES = Number(validateEnv('SES_EVENTS_SQS_MAX_MESSAGES', '10'));
+export const SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS = Number(
+  validateEnv('SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS', '120'),
+);
+
 // Custom MAIL FROM subdomain used to construct `<subdomain>.<your-domain>`
 // when a domain is added. Defaults to `plunk`. Override when `plunk.<your-domain>`
 // is already used for something else (e.g. a CDN), since the MAIL FROM hostname

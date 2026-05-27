@@ -13,10 +13,6 @@ async function waitForLog(prisma: ReturnType<typeof getPrismaClient>, id: string
   return prisma.apiRequest.findUnique({where: {id}});
 }
 
-async function waitForNoLog(ms = 200) {
-  await new Promise(resolve => setTimeout(resolve, ms));
-}
-
 describe('Request Logger Middleware', () => {
   const prisma = getPrismaClient();
   let req: Partial<Request>;

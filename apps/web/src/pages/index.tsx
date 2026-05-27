@@ -316,7 +316,6 @@ export default function Index() {
     const w = window as unknown as {__plunkHi?: boolean};
     if (w.__plunkHi) return;
     w.__plunkHi = true;
-    // eslint-disable-next-line no-console
     console.log(
       '%cPlunk%c  Built for developers who care about email.\nFound a rough edge? support@useplunk.com',
       'font: 600 14px ui-sans-serif, system-ui; color: #0a0a0a; background: #f5f5f5; padding: 2px 8px; border-radius: 4px;',

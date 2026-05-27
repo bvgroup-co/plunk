@@ -18,9 +18,11 @@ import {createImportWorker} from './import-processor.js';
 import {createMeterWorker} from './meter-processor.js';
 import {createScheduledCampaignWorker} from './scheduled-processor.js';
 import {createSegmentCountWorker} from './segment-count-processor.js';
+import {createSesEventSqsPoller, type SesEventSqsPoller} from './ses-event-sqs-poller.js';
 import {createWorkflowWorker} from './workflow-processor-queue.js';
 
 const workers: {name: string; worker: Worker}[] = [];
+let sesEventSqsPoller: SesEventSqsPoller | null = null;
 
 async function startWorkers() {
   signale.info('[WORKER] Starting queue workers...');
@@ -76,6 +78,10 @@ async function startWorkers() {
     workers.push({name: 'meter', worker: meterWorker});
     signale.success('[WORKER] Meter worker started');
 
+    // Start optional SES event SQS poller
+    sesEventSqsPoller = createSesEventSqsPoller();
+    sesEventSqsPoller?.start();
+
     signale.success('[WORKER] All workers started successfully');
   } catch (error) {
     signale.error('[WORKER] Failed to start workers:', error);
@@ -92,6 +98,14 @@ async function stopWorkers() {
       signale.info(`[WORKER] ${name} worker stopped`);
     } catch (error) {
       signale.error(`[WORKER] Error stopping ${name} worker:`, error);
+    }
+  }
+
+  if (sesEventSqsPoller) {
+    try {
+      await sesEventSqsPoller.stop();
+    } catch (error) {
+      signale.error('[WORKER] Error stopping SES event SQS poller:', error);
     }
   }
 
