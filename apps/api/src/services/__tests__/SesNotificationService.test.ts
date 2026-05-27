@@ -2,7 +2,7 @@ import {EmailStatus, SesNotificationStatus} from '@plunk/db';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {factories, getPrismaClient} from '../../../../../test/helpers';
-import {SesNotificationService} from '../SesNotificationService';
+import {SesNotificationProcessingError, SesNotificationService} from '../SesNotificationService';
 
 vi.mock('../../database/redis', () => ({
   redis: {
@@ -118,6 +118,65 @@ describe('SesNotificationService', () => {
     });
     expect(notification.status).toBe(SesNotificationStatus.PROCESSED);
     expect(notification.error).toBeNull();
+  });
+
+  it('can retry stale PROCESSING SNS message IDs after the lease expires', async () => {
+    await prisma.sesNotification.create({
+      data: {
+        snsMessageId: 'stale-processing-sns-message-id',
+        status: SesNotificationStatus.PROCESSING,
+        error: 'worker crashed before marking a terminal status',
+      },
+    });
+    await prisma.sesNotification.update({
+      where: {snsMessageId: 'stale-processing-sns-message-id'},
+      data: {updatedAt: new Date(Date.now() - 121_000)},
+    });
+
+    const result = await SesNotificationService.processSnsNotification({
+      MessageId: 'stale-processing-sns-message-id',
+      Message: JSON.stringify({
+        eventType: 'Open',
+        mail: {
+          messageId: 'ses-message-id',
+        },
+      }),
+    });
+
+    expect(result).toEqual({success: true});
+
+    const email = await prisma.email.findUniqueOrThrow({where: {id: emailId}});
+    expect(email.opens).toBe(1);
+
+    const notification = await prisma.sesNotification.findUniqueOrThrow({
+      where: {snsMessageId: 'stale-processing-sns-message-id'},
+    });
+    expect(notification.status).toBe(SesNotificationStatus.PROCESSED);
+    expect(notification.error).toBeNull();
+  });
+
+  it('does not retry fresh PROCESSING SNS message IDs', async () => {
+    await prisma.sesNotification.create({
+      data: {
+        snsMessageId: 'fresh-processing-sns-message-id',
+        status: SesNotificationStatus.PROCESSING,
+      },
+    });
+
+    await expect(
+      SesNotificationService.processSnsNotification({
+        MessageId: 'fresh-processing-sns-message-id',
+        Message: JSON.stringify({
+          eventType: 'Open',
+          mail: {
+            messageId: 'ses-message-id',
+          },
+        }),
+      }),
+    ).rejects.toThrow(SesNotificationProcessingError);
+
+    const email = await prisma.email.findUniqueOrThrow({where: {id: emailId}});
+    expect(email.opens).toBe(0);
   });
 
   it('marks failed notifications for retry without double-processing', async () => {

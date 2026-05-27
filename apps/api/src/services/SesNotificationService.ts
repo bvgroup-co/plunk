@@ -5,6 +5,7 @@ import {simpleParser} from 'mailparser';
 import sanitizeHtml from 'sanitize-html';
 import signale from 'signale';
 
+import {SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
 import {BillingLimitService} from './BillingLimitService.js';
 import {ContactService} from './ContactService.js';
@@ -57,6 +58,8 @@ export type SesNotificationProcessResult =
 
 export class SesNotificationProcessingError extends Error {}
 
+const PROCESSING_LEASE_SECONDS = SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS;
+
 export class SesNotificationService {
   public static async processSnsNotification(snsNotification: SnsNotification): Promise<SesNotificationProcessResult> {
     const snsMessageId = snsNotification.MessageId;
@@ -108,6 +111,8 @@ export class SesNotificationService {
   }
 
   private static async reserveNotification(snsMessageId: string): Promise<'reserved' | 'processed' | 'processing'> {
+    const processingLeaseExpiredBefore = new Date(Date.now() - PROCESSING_LEASE_SECONDS * 1000);
+
     try {
       await prisma.sesNotification.create({
         data: {
@@ -122,24 +127,48 @@ export class SesNotificationService {
       }
     }
 
+    const failedRetry = await prisma.sesNotification.updateMany({
+      where: {
+        snsMessageId,
+        status: SesNotificationStatus.FAILED,
+      },
+      data: {
+        status: SesNotificationStatus.PROCESSING,
+        error: null,
+        processedAt: null,
+      },
+    });
+
+    if (failedRetry.count === 1) {
+      return 'reserved';
+    }
+
+    const staleProcessingRetry = await prisma.sesNotification.updateMany({
+      where: {
+        snsMessageId,
+        status: SesNotificationStatus.PROCESSING,
+        updatedAt: {
+          lte: processingLeaseExpiredBefore,
+        },
+      },
+      data: {
+        error: null,
+        processedAt: null,
+      },
+    });
+
+    if (staleProcessingRetry.count === 1) {
+      signale.warn(`[SES] Reclaiming stale SNS notification processing lease: ${snsMessageId}`);
+      return 'reserved';
+    }
+
     const notification = await prisma.sesNotification.findUniqueOrThrow({where: {snsMessageId}});
 
     if (notification.status === SesNotificationStatus.PROCESSED) {
       return 'processed';
     }
 
-    if (notification.status === SesNotificationStatus.PROCESSING) {
-      return 'processing';
-    }
-
-    await prisma.sesNotification.update({
-      where: {snsMessageId},
-      data: {
-        status: SesNotificationStatus.PROCESSING,
-        error: null,
-      },
-    });
-    return 'reserved';
+    return 'processing';
   }
 
   private static parseSesMessage(snsNotification: SnsNotification): SesNotificationBody {
