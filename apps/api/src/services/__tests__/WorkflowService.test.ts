@@ -758,8 +758,18 @@ describe('WorkflowService', () => {
       });
       const contact = await factories.createContact({projectId});
 
-      // Start first execution (still running)
-      await WorkflowService.startExecution(projectId, workflow.id, contact.id);
+      // Insert a RUNNING execution directly to avoid racing with the background
+      // step processor that startExecution kicks off (a trigger-only workflow can
+      // transition to COMPLETED before the second call observes it as RUNNING).
+      const triggerStep = workflow.steps.find(step => step.type === WorkflowStepType.TRIGGER);
+      await prisma.workflowExecution.create({
+        data: {
+          workflowId: workflow.id,
+          contactId: contact.id,
+          status: WorkflowExecutionStatus.RUNNING,
+          currentStepId: triggerStep?.id,
+        },
+      });
 
       // Second execution should fail (first still running)
       await expect(WorkflowService.startExecution(projectId, workflow.id, contact.id)).rejects.toThrow(
