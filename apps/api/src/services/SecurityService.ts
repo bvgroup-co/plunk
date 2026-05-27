@@ -945,9 +945,9 @@ ${strippedBody.substring(0, 2000)}`,
    */
   public static async disableProjectForPhishing(
     projectId: string,
-    subject: string,
-    confidence: number,
-    reason?: string,
+    _subject: string,
+    _confidence: number,
+    _reason?: string,
   ): Promise<void> {
     try {
       // Check if already disabled to avoid duplicate logs

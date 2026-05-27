@@ -64,7 +64,7 @@ export class Users {
     }
 
     // Check if user is a member of any disabled project
-    const {hasDisabledProject, disabledProjectNames} = await SecurityService.userHasDisabledProject(auth.userId);
+    const {hasDisabledProject} = await SecurityService.userHasDisabledProject(auth.userId);
     if (hasDisabledProject) {
       throw new HttpException(
         403,
@@ -431,7 +431,7 @@ export class Users {
       upcomingInvoice = (await stripe.invoices.createPreview({
         customer: project.customer,
         subscription: project.subscription,
-      })) as any;
+      })) as Awaited<ReturnType<typeof stripe.invoices.createPreview>>;
 
       // Extract metered usage from invoice line items
       if (upcomingInvoice && upcomingInvoice.lines && upcomingInvoice.lines.data) {

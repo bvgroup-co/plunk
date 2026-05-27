@@ -25,7 +25,11 @@ description: Configure email delivery
         "ses:GetIdentityVerificationAttributes",
         "ses:VerifyDomainDkim",
         "ses:ListIdentities",
-        "ses:SetIdentityFeedbackForwardingEnabled"
+        "ses:SetIdentityFeedbackForwardingEnabled",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:GetQueueAttributes"
       ],
       "Resource": "*"
     }
@@ -43,6 +47,22 @@ description: Configure email delivery
    - Protocol: HTTPS
    - Endpoint: `https://api.yourdomain.com/webhooks/sns`
 6. Plunk automatically confirms the subscription. If it fails, check your logs for the confirmation URL.
+
+### Optional: Use SQS polling instead of HTTPS webhooks
+
+If you do not want to expose `POST /webhooks/sns` publicly, subscribe an SQS queue to the SNS topic instead:
+
+1. SQS Console → Queues → Create queue
+2. Type: Standard
+3. Name: `plunk-ses-events`
+4. Add a queue policy that allows your SNS topic to call `sqs:SendMessage`
+5. SNS Console → `plunk-ses-events` topic → Create subscription:
+   - Protocol: Amazon SQS
+   - Endpoint: your SQS queue ARN
+   - Raw message delivery: **disabled**
+6. Copy the SQS queue URL into `SES_EVENTS_SQS_QUEUE_URL`
+
+When `SES_EVENTS_SQS_QUEUE_URL` is set, the Plunk worker long-polls SQS, processes the SNS envelope from each SQS message body, and deletes messages only after successful processing. The existing HTTPS webhook remains available for compatibility.
 
 ## 3. Create Configuration Sets
 
@@ -68,6 +88,12 @@ AWS_SES_ACCESS_KEY_ID="your-access-key"
 AWS_SES_SECRET_ACCESS_KEY="your-secret-key"
 SES_CONFIGURATION_SET="plunk-tracking"
 SES_CONFIGURATION_SET_NO_TRACKING="plunk-no-tracking"
+
+# Optional SNS -> SQS polling for SES events
+# SES_EVENTS_SQS_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/123456789012/plunk-ses-events"
+# SES_EVENTS_SQS_WAIT_TIME_SECONDS="20"
+# SES_EVENTS_SQS_MAX_MESSAGES="10"
+# SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS="120"
 ```
 
 ## 5. Add Your Domain in Plunk
@@ -119,4 +145,3 @@ After approval, your sending quota will reflect a much higher daily and per-seco
 ## 8. (Optional) Configure a MAIL FROM Domain
 
 For better DMARC alignment, you can configure a custom MAIL FROM subdomain (e.g. `mail.yourdomain.com`). In the SES console under **Verified identities** → your domain → **MAIL FROM domain**, set a subdomain and add the additional MX and TXT records SES displays. Plunk's IAM policy already includes `ses:SetIdentityMailFromDomain` to support this.
-
