@@ -19,6 +19,11 @@ export const Keys = {
       return `auth:password_reset_rate:${email}`;
     },
   },
+  Oidc: {
+    state(state: string): string {
+      return `auth:oidc:state:${state}`;
+    },
+  },
   Domain: {
     id(id: string): string {
       return `domain:id:${id}`;

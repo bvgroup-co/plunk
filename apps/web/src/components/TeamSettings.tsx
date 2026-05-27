@@ -316,7 +316,7 @@ export function TeamSettings({projectId, currentUserRole, currentUserId}: TeamSe
           <DialogHeader>
             <DialogTitle>Add Team Member</DialogTitle>
             <DialogDescription>
-              Add a user to this project by their email address. They must have an existing account.
+              Add a user to this project by their email address. They must sign in once before you can add them.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
