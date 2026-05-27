@@ -971,7 +971,7 @@ describe('SegmentService - Comprehensive Operator Tests', () => {
                       operator: 'within',
                       value: 3,
                       // unit intentionally omitted
-                    } as any,
+                    } as unknown as import('@plunk/types').SegmentFilter,
                   ],
                 },
               ],

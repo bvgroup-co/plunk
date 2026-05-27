@@ -44,6 +44,21 @@ export const S3_ENABLED = S3_ACCESS_KEY_ID !== '' && S3_ACCESS_KEY_SECRET !== ''
 export const AWS_SES_REGION = validateEnv('AWS_SES_REGION');
 export const AWS_SES_ACCESS_KEY_ID = validateEnv('AWS_SES_ACCESS_KEY_ID');
 export const AWS_SES_SECRET_ACCESS_KEY = validateEnv('AWS_SES_SECRET_ACCESS_KEY');
+export const SES_EVENTS_SQS_ENABLED = process.env.SES_EVENTS_SQS_ENABLED === 'true';
+export const SES_EVENTS_SQS_QUEUE_URL = validateEnv('SES_EVENTS_SQS_QUEUE_URL', '');
+export const SES_EVENTS_SQS_REGION = validateEnv('SES_EVENTS_SQS_REGION', AWS_SES_REGION);
+export const SES_EVENTS_SQS_ACCESS_KEY_ID = validateEnv('SES_EVENTS_SQS_ACCESS_KEY_ID', AWS_SES_ACCESS_KEY_ID);
+export const SES_EVENTS_SQS_SECRET_ACCESS_KEY = validateEnv(
+  'SES_EVENTS_SQS_SECRET_ACCESS_KEY',
+  AWS_SES_SECRET_ACCESS_KEY,
+);
+export const SES_EVENTS_SQS_WAIT_TIME_SECONDS = Number(validateEnv('SES_EVENTS_SQS_WAIT_TIME_SECONDS', '20'));
+export const SES_EVENTS_SQS_MAX_MESSAGES = Number(validateEnv('SES_EVENTS_SQS_MAX_MESSAGES', '10'));
+export const SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS = Number(
+  validateEnv('SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS', '60'),
+);
+export const SES_EVENTS_SQS_IDLE_DELAY_MS = Number(validateEnv('SES_EVENTS_SQS_IDLE_DELAY_MS', '1000'));
+export const SES_EVENTS_SQS_RAW_MESSAGE_DELIVERY = process.env.SES_EVENTS_SQS_RAW_MESSAGE_DELIVERY === 'true';
 
 // Custom MAIL FROM subdomain used to construct `<subdomain>.<your-domain>`
 // when a domain is added. Defaults to `plunk`. Override when `plunk.<your-domain>`

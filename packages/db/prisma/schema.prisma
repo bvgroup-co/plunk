@@ -629,6 +629,16 @@ model Event {
   @@map("events")
 }
 
+model SesEventMessage {
+  id String @id @default(uuid())
+
+  messageId String @unique
+
+  createdAt DateTime @default(now())
+
+  @@map("ses_event_messages")
+}
+
 // ============================================
 // ENUMS
 // ============================================

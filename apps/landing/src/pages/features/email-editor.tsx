@@ -3,7 +3,7 @@ import {motion} from 'framer-motion';
 import {DASHBOARD_URI, WIKI_URI} from '../../lib/constants';
 import React from 'react';
 import Link from 'next/link';
-import {ArrowRight, Code2, Eye, Mail, Palette, Sparkles, Type, Zap} from 'lucide-react';
+import {ArrowRight, Code2, Eye, Palette, Sparkles, Type, Zap} from 'lucide-react';
 import Head from 'next/head';
 
 const features = [
