@@ -5,15 +5,15 @@ description: Configuration reference
 
 ## Security & Database
 
-| Variable       | Required | Description                                                                  | Example                                           |
-| -------------- | -------- | ---------------------------------------------------------------------------- | ------------------------------------------------- |
-| `JWT_SECRET`          | Yes      | Secret key used to sign JWT tokens. Generate with `openssl rand -base64 32`. | `s3cr3t...`                                       |
-| `DB_PASSWORD`         | Yes      | PostgreSQL database password. Used by the Docker Compose setup.              | `changeme123`                                     |
+| Variable              | Required | Description                                                                                                                    | Example                                           |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| `JWT_SECRET`          | Yes      | Secret key used to sign JWT tokens. Generate with `openssl rand -base64 32`.                                                   | `s3cr3t...`                                       |
+| `DB_PASSWORD`         | Yes      | PostgreSQL database password. Used by the Docker Compose setup.                                                                | `changeme123`                                     |
 | `DATABASE_URL`        | Yes      | Full PostgreSQL connection string used by the application at runtime (typically through PgBouncer). Auto-configured in Docker. | `postgresql://plunk:password@postgres:5432/plunk` |
 | `DIRECT_DATABASE_URL` | Yes      | Direct PostgreSQL connection string used by Prisma migrations. Must bypass any connection pooler. Auto-configured in Docker.   | `postgresql://plunk:password@postgres:5432/plunk` |
-| `REDIS_URL`           | Yes      | Redis connection string.                                                     | `redis://redis:6379`                              |
-| `NODE_ENV`            | No       | Application environment. Set to `production` for production deployments.     | `production`                                      |
-| `PORT`                | No       | Port the API server listens on.                                              | `8080` (default)                                  |
+| `REDIS_URL`           | Yes      | Redis connection string.                                                                                                       | `redis://redis:6379`                              |
+| `NODE_ENV`            | No       | Application environment. Set to `production` for production deployments.                                                       | `production`                                      |
+| `PORT`                | No       | Port the API server listens on.                                                                                                | `8080` (default)                                  |
 
 ## URLs & Domains
 
@@ -29,14 +29,24 @@ Set your subdomains here. The application automatically derives all internal and
 
 ## AWS SES
 
-| Variable                            | Required | Description                                                                                                                                      | Example                                         |
-| ----------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
-| `AWS_SES_REGION`                    | Yes      | AWS region where SES is configured.                                                                                                              | `us-east-1`                                     |
-| `AWS_SES_ACCESS_KEY_ID`             | Yes      | AWS access key ID with SES send permissions.                                                                                                     | `AKIA...`                                       |
-| `AWS_SES_SECRET_ACCESS_KEY`         | Yes      | AWS secret access key for SES.                                                                                                                   | `wJalr...`                                      |
-| `SES_CONFIGURATION_SET`             | No       | SES configuration set name used for open/click tracking.                                                                                         | `plunk-configuration-set` (default)             |
-| `SES_CONFIGURATION_SET_NO_TRACKING` | No       | A second SES configuration set without tracking. When set, projects can toggle email tracking on/off. If omitted, the tracking toggle is hidden. | `plunk-no-tracking-configuration-set` (default) |
-| `MAIL_FROM_SUBDOMAIN`               | No       | Subdomain prefix used when constructing the MAIL FROM hostname for a verified domain (e.g. with default `plunk` and domain `yourdomain.com`, the MAIL FROM is `plunk.yourdomain.com`). Override when the default subdomain is already in use (e.g. by an R2/CDN custom domain), since the MAIL FROM hostname needs MX + TXT records that can't coexist with a CNAME. | `plunk`                                         |
+| Variable                                    | Required              | Description                                                                                                                                                                                                                                                                                                                                                          | Example                                         |
+| ------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `AWS_SES_REGION`                            | Yes                   | AWS region where SES is configured.                                                                                                                                                                                                                                                                                                                                  | `us-east-1`                                     |
+| `AWS_SES_ACCESS_KEY_ID`                     | Yes                   | AWS access key ID with SES send permissions.                                                                                                                                                                                                                                                                                                                         | `AKIA...`                                       |
+| `AWS_SES_SECRET_ACCESS_KEY`                 | Yes                   | AWS secret access key for SES.                                                                                                                                                                                                                                                                                                                                       | `wJalr...`                                      |
+| `SES_CONFIGURATION_SET`                     | No                    | SES configuration set name used for open/click tracking.                                                                                                                                                                                                                                                                                                             | `plunk-configuration-set` (default)             |
+| `SES_CONFIGURATION_SET_NO_TRACKING`         | No                    | A second SES configuration set without tracking. When set, projects can toggle email tracking on/off. If omitted, the tracking toggle is hidden.                                                                                                                                                                                                                     | `plunk-no-tracking-configuration-set` (default) |
+| `MAIL_FROM_SUBDOMAIN`                       | No                    | Subdomain prefix used when constructing the MAIL FROM hostname for a verified domain (e.g. with default `plunk` and domain `yourdomain.com`, the MAIL FROM is `plunk.yourdomain.com`). Override when the default subdomain is already in use (e.g. by an R2/CDN custom domain), since the MAIL FROM hostname needs MX + TXT records that can't coexist with a CNAME. | `plunk`                                         |
+| `SES_EVENTS_SQS_ENABLED`                    | No                    | Enables worker pull-mode ingestion for SES events delivered by SNS to SQS. Keep `false` to use only the existing `POST /webhooks/sns` endpoint.                                                                                                                                                                                                                      | `false`                                         |
+| `SES_EVENTS_SQS_QUEUE_URL`                  | Required when enabled | SQS queue URL subscribed to the SES SNS topic.                                                                                                                                                                                                                                                                                                                       | `https://sqs.us-east-1.amazonaws.com/123/queue` |
+| `SES_EVENTS_SQS_REGION`                     | No                    | AWS region for the SQS queue. Defaults to `AWS_SES_REGION`.                                                                                                                                                                                                                                                                                                          | `us-east-1`                                     |
+| `SES_EVENTS_SQS_ACCESS_KEY_ID`              | No                    | AWS access key ID for SQS polling. Defaults to `AWS_SES_ACCESS_KEY_ID`.                                                                                                                                                                                                                                                                                              | `AKIA...`                                       |
+| `SES_EVENTS_SQS_SECRET_ACCESS_KEY`          | No                    | AWS secret access key for SQS polling. Defaults to `AWS_SES_SECRET_ACCESS_KEY`.                                                                                                                                                                                                                                                                                      | `wJalr...`                                      |
+| `SES_EVENTS_SQS_WAIT_TIME_SECONDS`          | No                    | SQS long-poll wait time.                                                                                                                                                                                                                                                                                                                                             | `20`                                            |
+| `SES_EVENTS_SQS_MAX_MESSAGES`               | No                    | Maximum SQS messages fetched per poll.                                                                                                                                                                                                                                                                                                                               | `10`                                            |
+| `SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS` | No                    | SQS visibility timeout used while processing a batch.                                                                                                                                                                                                                                                                                                                | `60`                                            |
+| `SES_EVENTS_SQS_IDLE_DELAY_MS`              | No                    | Delay after an empty poll before polling again.                                                                                                                                                                                                                                                                                                                      | `1000`                                          |
+| `SES_EVENTS_SQS_RAW_MESSAGE_DELIVERY`       | No                    | Set to `true` only when the SNS subscription uses raw message delivery. The SQS MessageId is then used for idempotency.                                                                                                                                                                                                                                              | `false`                                         |
 
 ## Storage (Minio)
 
@@ -59,10 +69,10 @@ The bundled Docker setup includes Minio with defaults that work out of the box. 
 
 Plunk supports attachments on transactional emails. AWS SES caps total message size at 40 MB; the defaults below leave headroom but can be tuned for your use case.
 
-| Variable                 | Required | Description                                                                                                              | Default |
-| ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------ | ------- |
-| `MAX_ATTACHMENT_SIZE_MB` | No       | Maximum total attachment size in megabytes per email. Hard upper bound enforced by AWS SES is 40 MB.                     | `10`    |
-| `MAX_ATTACHMENTS_COUNT`  | No       | Maximum number of attachments per email.                                                                                 | `10`    |
+| Variable                 | Required | Description                                                                                          | Default |
+| ------------------------ | -------- | ---------------------------------------------------------------------------------------------------- | ------- |
+| `MAX_ATTACHMENT_SIZE_MB` | No       | Maximum total attachment size in megabytes per email. Hard upper bound enforced by AWS SES is 40 MB. | `10`    |
+| `MAX_ATTACHMENTS_COUNT`  | No       | Maximum number of attachments per email.                                                             | `10`    |
 
 ## SMTP Server
 
@@ -126,19 +136,19 @@ Plunk bundles a self-hosted [ntfy](https://ntfy.sh) server for internal system n
 
 ## Security
 
-| Variable                      | Required | Description                                                                                                                                                | Default |
-| ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `AUTO_PROJECT_DISABLE`        | No       | When `true`, projects are automatically suspended when bounce or complaint rate thresholds are exceeded. Set to `false` to manage project status manually. | `true`  |
-| `EMAIL_RATE_LIMIT_PER_SECOND` | No       | Override the email sending rate limit. If not set, Plunk automatically fetches the quota from your AWS SES account.                                        | —       |
-| `EMAIL_WORKER_CONCURRENCY`    | No       | Number of emails the worker processes in parallel. When unset, derived from the effective rate limit so a higher SES quota scales throughput automatically. | —       |
-| `EMAIL_WORKER_MAX_CONCURRENCY`| No       | Upper bound applied to the auto-derived worker concurrency. Raise this only after sizing the Prisma connection pool accordingly.                            | `50`    |
+| Variable                       | Required | Description                                                                                                                                                 | Default |
+| ------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `AUTO_PROJECT_DISABLE`         | No       | When `true`, projects are automatically suspended when bounce or complaint rate thresholds are exceeded. Set to `false` to manage project status manually.  | `true`  |
+| `EMAIL_RATE_LIMIT_PER_SECOND`  | No       | Override the email sending rate limit. If not set, Plunk automatically fetches the quota from your AWS SES account.                                         | —       |
+| `EMAIL_WORKER_CONCURRENCY`     | No       | Number of emails the worker processes in parallel. When unset, derived from the effective rate limit so a higher SES quota scales throughput automatically. | —       |
+| `EMAIL_WORKER_MAX_CONCURRENCY` | No       | Upper bound applied to the auto-derived worker concurrency. Raise this only after sizing the Prisma connection pool accordingly.                            | `50`    |
 
 ## Advanced
 
 Variables for unusual deployments. The defaults work for the standard Docker Compose setup — only change these if you know you need to.
 
-| Variable     | Required | Description                                                                                                              | Default |
-| ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------ | ------- |
+| Variable     | Required | Description                                                                                                                                                                                | Default |
+| ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
 | `NGINX_PORT` | No       | Host port the bundled Nginx reverse proxy binds to. Override when port 80/443 is already in use on the host (e.g. running behind another reverse proxy that forwards to a different port). | `80`    |
 
 ## Phishing Detection

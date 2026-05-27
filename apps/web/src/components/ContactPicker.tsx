@@ -139,6 +139,7 @@ export function ContactPicker({
               <button
                 type="button"
                 role="combobox"
+                aria-controls="contact-picker-listbox"
                 aria-expanded={open}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-500 hover:border-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors"
               >
@@ -161,7 +162,7 @@ export function ContactPicker({
                   autoFocus
                 />
               </div>
-              <div className="max-h-[240px] overflow-y-auto p-1">
+              <div id="contact-picker-listbox" className="max-h-[240px] overflow-y-auto p-1">
                 {debouncedSearch.length === 0 ? (
                   <p className="py-6 text-center text-sm text-neutral-400">Type to search contacts</p>
                 ) : isLoading ? (

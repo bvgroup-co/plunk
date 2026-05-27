@@ -13,7 +13,7 @@ async function waitForLog(prisma: ReturnType<typeof getPrismaClient>, id: string
   return prisma.apiRequest.findUnique({where: {id}});
 }
 
-async function waitForNoLog(ms = 200) {
+async function _waitForNoLog(ms = 200) {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -318,7 +318,6 @@ describe('Request Logger Middleware', () => {
       await res.json!({success: true});
       await new Promise(resolve => setTimeout(resolve, 100));
 
- 
       // Restore original value
       if (originalEnv !== undefined) {
         process.env.REQUEST_LOGGING = originalEnv;

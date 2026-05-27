@@ -393,6 +393,7 @@ export default function Index() {
                       className={'group flex flex-col items-center gap-1.5'}
                       aria-label={c.name}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={c.logo}
                         alt={c.name}

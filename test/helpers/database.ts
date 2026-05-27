@@ -4,6 +4,7 @@ import {execSync} from 'child_process';
 // Snake-cased table names from prisma schema (see @@map directives).
 // Order doesn't matter — TRUNCATE with CASCADE handles FK dependencies in one statement.
 const TRUNCATE_TABLES = [
+  'ses_event_messages',
   'events',
   'workflow_step_executions',
   'emails',
