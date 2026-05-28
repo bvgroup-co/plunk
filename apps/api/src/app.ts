@@ -9,6 +9,7 @@ import signale from 'signale';
 import {ZodError} from 'zod';
 
 import {
+  AUTH_MODE,
   DASHBOARD_URI,
   LANDING_URI,
   NODE_ENV,
@@ -412,7 +413,8 @@ void prisma.$connect().then(async () => {
       details: S3_ENABLED ? 'S3 storage enabled' : 'S3 credentials missing',
     },
     {name: 'SMTP relay', enabled: SMTP_ENABLED, details: SMTP_ENABLED ? 'SMTP server enabled' : 'SMTP disabled'},
-    {name: 'OIDC login', enabled: OIDC_ENABLED, details: OIDC_ENABLED ? 'OIDC login enabled' : 'OIDC not configured'},
+    {name: 'Auth mode', enabled: true, details: `AUTH_MODE=${AUTH_MODE}`},
+    {name: 'OIDC login', enabled: OIDC_ENABLED, details: OIDC_ENABLED ? 'OIDC login enabled' : 'OIDC disabled'},
     {
       name: 'Tracking toggle',
       enabled: TRACKING_TOGGLE_ENABLED,
