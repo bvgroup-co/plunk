@@ -10,10 +10,9 @@ import {ZodError} from 'zod';
 
 import {
   DASHBOARD_URI,
-  GITHUB_OAUTH_ENABLED,
-  GOOGLE_OAUTH_ENABLED,
   LANDING_URI,
   NODE_ENV,
+  OIDC_ENABLED,
   PLUNK_ENABLED,
   PORT,
   S3_ENABLED,
@@ -413,16 +412,7 @@ void prisma.$connect().then(async () => {
       details: S3_ENABLED ? 'S3 storage enabled' : 'S3 credentials missing',
     },
     {name: 'SMTP relay', enabled: SMTP_ENABLED, details: SMTP_ENABLED ? 'SMTP server enabled' : 'SMTP disabled'},
-    {
-      name: 'OAuth - GitHub',
-      enabled: GITHUB_OAUTH_ENABLED,
-      details: GITHUB_OAUTH_ENABLED ? 'GitHub login enabled' : 'GitHub OAuth not configured',
-    },
-    {
-      name: 'OAuth - Google',
-      enabled: GOOGLE_OAUTH_ENABLED,
-      details: GOOGLE_OAUTH_ENABLED ? 'Google login enabled' : 'Google OAuth not configured',
-    },
+    {name: 'OIDC login', enabled: OIDC_ENABLED, details: OIDC_ENABLED ? 'OIDC login enabled' : 'OIDC not configured'},
     {
       name: 'Tracking toggle',
       enabled: TRACKING_TOGGLE_ENABLED,

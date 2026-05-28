@@ -164,11 +164,16 @@ services:
       # plunk.<your-domain> is already used for something else, e.g. a CDN)
       MAIL_FROM_SUBDOMAIN: ${MAIL_FROM_SUBDOMAIN:-}
 
-      # Optional: OAuth
-      GITHUB_OAUTH_CLIENT: ${GITHUB_OAUTH_CLIENT:-}
-      GITHUB_OAUTH_SECRET: ${GITHUB_OAUTH_SECRET:-}
-      GOOGLE_OAUTH_CLIENT: ${GOOGLE_OAUTH_CLIENT:-}
-      GOOGLE_OAUTH_SECRET: ${GOOGLE_OAUTH_SECRET:-}
+      # OIDC login
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile}
+      OIDC_DISPLAY_NAME: ${OIDC_DISPLAY_NAME:-Single Sign-On}
+      OIDC_EMAIL_CLAIM: ${OIDC_EMAIL_CLAIM:-email}
+      OIDC_EMAIL_VERIFIED_CLAIM: ${OIDC_EMAIL_VERIFIED_CLAIM:-email_verified}
+      OIDC_REQUIRE_EMAIL_VERIFIED: ${OIDC_REQUIRE_EMAIL_VERIFIED:-true}
+      OIDC_ALLOW_SIGNUPS: ${OIDC_ALLOW_SIGNUPS:-true}
 
       # Optional: Stripe
       STRIPE_SK: ${STRIPE_SK:-}

@@ -348,7 +348,7 @@ export class NtfyService {
   public static async notifyUserOAuthSignup(
     userEmail: string,
     userId: string,
-    provider: 'GitHub' | 'Google',
+    provider: 'GitHub' | 'Google' | string,
   ): Promise<void> {
     await this.send({
       title: `New User - ${provider} OAuth`,

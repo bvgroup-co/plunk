@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import {NextSeo} from 'next-seo';
 import Link from 'next/link';
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo} from 'react';
 import useSWR from 'swr';
 import {ApiKeyDisplay} from '../components/ApiKeyDisplay';
 import {DashboardLayout} from '../components/DashboardLayout';
@@ -45,8 +45,6 @@ import {useOnboardingStatus} from '../lib/hooks/useOnboardingStatus';
 import {useProjectSetupState} from '../lib/hooks/useProjectSetupState';
 import {useProjectSecurity} from '../lib/hooks/useProjectSecurity';
 import {useConfig} from '../lib/hooks/useConfig';
-import {useUser} from '../lib/hooks/useUser';
-import {network} from '../lib/network';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -243,12 +241,9 @@ export default function Index() {
   const {setupState, isLoading: isLoadingSetupState} = useProjectSetupState(activeProject?.id);
   const {securityMetrics} = useProjectSecurity(activeProject?.id);
   const {data: config} = useConfig();
-  const {data: user} = useUser();
   const onboardingStatus = useOnboardingStatus();
   const {path: onboardingPath} = useOnboardingPath(activeProject?.id);
   const bannerActive = onboardingStatus === 'show' && Boolean(onboardingPath);
-  const [isResending, setIsResending] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string>('');
 
   // Previous-period stats (60d ago to 30d ago) for trend comparison.
   // Round to UTC day boundary so the URL — and therefore the Redis cache key —
@@ -295,20 +290,21 @@ export default function Index() {
     dedupingInterval: 30_000,
   });
 
+  const activeProjectName = activeProject?.name;
   const greeting = useMemo(() => getGreeting(), []);
 
   const subtitle = useMemo(() => {
     if (isLoading) return 'Catching up on the last 30 days.';
     if (totalEmailsSent === 0) {
-      if (totalContacts === 0) return `${activeProject?.name ?? 'Your project'} is fresh. Time to send the first email.`;
+      if (totalContacts === 0) return `${activeProjectName ?? 'Your project'} is fresh. Time to send the first email.`;
       return `${totalContacts.toLocaleString()} ${totalContacts === 1 ? 'contact' : 'contacts'} ready. Time to send something.`;
     }
-    const projectLabel = activeProject?.name ? `${activeProject.name} sent` : 'You sent';
+    const projectLabel = activeProjectName ? `${activeProjectName} sent` : 'You sent';
     const base = `${projectLabel} ${totalEmailsSent.toLocaleString()} ${totalEmailsSent === 1 ? 'email' : 'emails'} in the last 30 days.`;
     if (openRate >= 40) return `${base} Open rate is well above average.`;
     if (openRate >= 25) return `${base} Open rate is healthy.`;
     return base;
-  }, [isLoading, totalEmailsSent, totalContacts, openRate, activeProject?.name]);
+  }, [isLoading, totalEmailsSent, totalContacts, openRate, activeProjectName]);
 
   // Friendly console message for the developer audience. Once per session.
   useEffect(() => {
@@ -372,24 +368,6 @@ export default function Index() {
   const healthText =
     !hasDelivData ? 'text-neutral-500' : worstLevel === 'healthy' ? 'text-emerald-700' : worstLevel === 'warning' ? 'text-amber-700' : 'text-red-700';
 
-  async function handleResendVerification() {
-    setIsResending(true);
-    setResendMessage('');
-    try {
-      const response = await network.fetch<{success: boolean}>('POST', '/auth/request-verification');
-
-      if (response.success) {
-        setResendMessage('Verification email sent! Please check your inbox.');
-      } else {
-        setResendMessage('Failed to send verification email. Please try again.');
-      }
-    } catch {
-      setResendMessage('Failed to send verification email. Please try again.');
-    } finally {
-      setIsResending(false);
-    }
-  }
-
   const recentItems = recentActivity?.data ?? [];
   const liveCount = recentCount?.count ?? 0;
 
@@ -416,34 +394,6 @@ export default function Index() {
                 <Button asChild size="sm" variant="outline" className="w-full sm:w-auto flex-shrink-0">
                   <Link href="/settings?tab=security">View Details</Link>
                 </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Email Verification Banner */}
-          {user && user.type === 'PASSWORD' && !user.emailVerified && (
-            <Alert variant="warning">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Verify your email address</AlertTitle>
-              <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <span className="text-sm">
-                  Please verify your email address to unlock all features. Check your inbox for the verification link.
-                </span>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    onClick={handleResendVerification}
-                    disabled={isResending}
-                  >
-                    {isResending ? 'Sending...' : 'Resend verification email'}
-                  </Button>
-                  {resendMessage && (
-                    <p className={`text-xs ${resendMessage.includes('sent') ? 'text-green-600' : 'text-red-500'}`}>
-                      {resendMessage}
-                    </p>
-                  )}
-                </div>
               </AlertDescription>
             </Alert>
           )}

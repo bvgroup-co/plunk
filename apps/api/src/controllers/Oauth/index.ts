@@ -1,8 +1,7 @@
 import {ChildControllers, Controller} from '@overnightjs/core';
 
-import {Github} from './Github.js';
-import {Google} from './Google.js';
+import {Oidc} from './Oidc.js';
 
 @Controller('oauth')
-@ChildControllers([new Google(), new Github()])
+@ChildControllers([new Oidc()])
 export class Oauth {}

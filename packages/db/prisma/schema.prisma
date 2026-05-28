@@ -21,6 +21,8 @@ model User {
   password      String?
   type          AuthMethod
   emailVerified Boolean    @default(false)
+  oidcIssuer    String?
+  oidcSubject   String?
 
   // Relations
   memberships Membership[]
@@ -29,6 +31,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([oidcIssuer, oidcSubject])
   @@map("users")
 }
 
@@ -660,6 +663,7 @@ enum AuthMethod {
   PASSWORD
   GOOGLE_OAUTH
   GITHUB_OAUTH
+  OIDC
 }
 
 enum Role {

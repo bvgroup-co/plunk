@@ -76,16 +76,21 @@ The optional SMTP relay lets you send emails through Plunk via the SMTP protocol
 | `PORT_SUBMISSION` | No       | SMTP submission port (STARTTLS).                                                                                                   | `587`       |
 | `MAX_RECIPIENTS`  | No       | Maximum number of recipients per email.                                                                                            | `5`         |
 
-## OAuth
+## OIDC Login
 
-Enables social login. Register an OAuth app with each provider and add the credentials here.
+Dashboard authentication uses OIDC only. Register the redirect URI `${API_URI}/oauth/oidc/callback` with your identity provider.
 
-| Variable              | Required | Description                     |
-| --------------------- | -------- | ------------------------------- |
-| `GITHUB_OAUTH_CLIENT` | No       | GitHub OAuth app client ID.     |
-| `GITHUB_OAUTH_SECRET` | No       | GitHub OAuth app client secret. |
-| `GOOGLE_OAUTH_CLIENT` | No       | Google OAuth app client ID.     |
-| `GOOGLE_OAUTH_SECRET` | No       | Google OAuth app client secret. |
+| Variable                      | Required | Description                                                             | Default                 |
+| ----------------------------- | -------- | ----------------------------------------------------------------------- | ----------------------- |
+| `OIDC_ISSUER`                 | Yes      | OIDC issuer URL. Must match the issuer in discovery and ID tokens.      | -                       |
+| `OIDC_CLIENT_ID`              | Yes      | OIDC client ID.                                                         | -                       |
+| `OIDC_CLIENT_SECRET`          | Yes      | OIDC client secret.                                                     | -                       |
+| `OIDC_SCOPES`                 | No       | Space-separated scopes requested from the identity provider.            | `openid email profile`  |
+| `OIDC_DISPLAY_NAME`           | No       | Label shown on the login button.                                        | `Single Sign-On`        |
+| `OIDC_EMAIL_CLAIM`            | No       | Claim used as the Plunk user email.                                     | `email`                 |
+| `OIDC_EMAIL_VERIFIED_CLAIM`   | No       | Claim used to determine whether the email is verified.                  | `email_verified`        |
+| `OIDC_REQUIRE_EMAIL_VERIFIED` | No       | Require the verified-email claim before creating or signing in a user.  | `true`                  |
+| `OIDC_ALLOW_SIGNUPS`          | No       | Create a local user on first successful OIDC sign-in.                   | `true`                  |
 
 ## Stripe
 

@@ -21,7 +21,7 @@ export function validateEnv<T extends string = string>(key: keyof NodeJS.Process
 }
 
 // Environment
-export const NODE_ENV = validateEnv('NODE_ENV', 'development');
+export const NODE_ENV = validateEnv<string>('NODE_ENV', 'development');
 export const JWT_SECRET = validateEnv('JWT_SECRET');
 export const PORT = Number(validateEnv('PORT', '8080'));
 
@@ -86,14 +86,34 @@ export const REDIS_URL = validateEnv('REDIS_URL');
 export const DATABASE_URL = validateEnv('DATABASE_URL');
 export const DIRECT_DATABASE_URL = validateEnv('DIRECT_DATABASE_URL');
 
-// OAuth (optional - for social login)
+function validateOidcEnv(key: keyof NodeJS.ProcessEnv): string {
+  if (NODE_ENV === 'test') {
+    return validateEnv(key, '');
+  }
+
+  return validateEnv(key);
+}
+
+// OIDC (required for dashboard login in this fork)
+export const OIDC_ISSUER = validateOidcEnv('OIDC_ISSUER').replace(/\/$/, '');
+export const OIDC_CLIENT_ID = validateOidcEnv('OIDC_CLIENT_ID');
+export const OIDC_CLIENT_SECRET = validateOidcEnv('OIDC_CLIENT_SECRET');
+export const OIDC_SCOPES = validateEnv('OIDC_SCOPES', 'openid email profile');
+export const OIDC_DISPLAY_NAME = validateEnv('OIDC_DISPLAY_NAME', 'Single Sign-On');
+export const OIDC_EMAIL_CLAIM = validateEnv('OIDC_EMAIL_CLAIM', 'email');
+export const OIDC_EMAIL_VERIFIED_CLAIM = validateEnv('OIDC_EMAIL_VERIFIED_CLAIM', 'email_verified');
+export const OIDC_REQUIRE_EMAIL_VERIFIED = validateEnv('OIDC_REQUIRE_EMAIL_VERIFIED', 'true') === 'true';
+export const OIDC_ALLOW_SIGNUPS = validateEnv('OIDC_ALLOW_SIGNUPS', 'true') === 'true';
+export const OIDC_ENABLED = OIDC_ISSUER !== '' && OIDC_CLIENT_ID !== '' && OIDC_CLIENT_SECRET !== '';
+
+// OAuth (disabled in OIDC-only mode)
 export const GITHUB_OAUTH_CLIENT = validateEnv('GITHUB_OAUTH_CLIENT', '');
 export const GITHUB_OAUTH_SECRET = validateEnv('GITHUB_OAUTH_SECRET', '');
-export const GITHUB_OAUTH_ENABLED = GITHUB_OAUTH_CLIENT !== '' && GITHUB_OAUTH_SECRET !== '';
+export const GITHUB_OAUTH_ENABLED = false;
 
 export const GOOGLE_OAUTH_CLIENT = validateEnv('GOOGLE_OAUTH_CLIENT', '');
 export const GOOGLE_OAUTH_SECRET = validateEnv('GOOGLE_OAUTH_SECRET', '');
-export const GOOGLE_OAUTH_ENABLED = GOOGLE_OAUTH_CLIENT !== '' && GOOGLE_OAUTH_SECRET !== '';
+export const GOOGLE_OAUTH_ENABLED = false;
 
 // Stripe (optional - if not set, billing features are disabled)
 export const STRIPE_SK = validateEnv('STRIPE_SK', '');
