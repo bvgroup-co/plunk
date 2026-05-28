@@ -22,6 +22,21 @@ export function validateEnv<T extends string = string>(key: keyof NodeJS.Process
 
 // Environment
 export const NODE_ENV = validateEnv<string>('NODE_ENV', 'development');
+
+export type AuthMode = 'oidc' | 'password' | 'oauth';
+
+function validateAuthMode(value: string): AuthMode {
+  if (value === 'oidc' || value === 'password' || value === 'oauth') {
+    return value;
+  }
+
+  throw new Error('AUTH_MODE must be one of: oidc, password, oauth');
+}
+
+export const AUTH_MODE = validateAuthMode(validateEnv<string>('AUTH_MODE', 'password'));
+export const PASSWORD_AUTH_ENABLED = AUTH_MODE === 'password';
+export const OAUTH_AUTH_ENABLED = AUTH_MODE === 'oauth';
+export const OIDC_AUTH_ENABLED = AUTH_MODE === 'oidc';
 export const JWT_SECRET = validateEnv('JWT_SECRET');
 export const PORT = Number(validateEnv('PORT', '8080'));
 
@@ -86,34 +101,40 @@ export const REDIS_URL = validateEnv('REDIS_URL');
 export const DATABASE_URL = validateEnv('DATABASE_URL');
 export const DIRECT_DATABASE_URL = validateEnv('DIRECT_DATABASE_URL');
 
-function validateOidcEnv(key: keyof NodeJS.ProcessEnv): string {
-  if (NODE_ENV === 'test') {
+function validateAuthProviderEnv(key: keyof NodeJS.ProcessEnv, required: boolean): string {
+  if (!required || NODE_ENV === 'test') {
     return validateEnv(key, '');
   }
 
   return validateEnv(key);
 }
 
-// OIDC (required for dashboard login in this fork)
-export const OIDC_ISSUER = validateOidcEnv('OIDC_ISSUER').replace(/\/$/, '');
-export const OIDC_CLIENT_ID = validateOidcEnv('OIDC_CLIENT_ID');
-export const OIDC_CLIENT_SECRET = validateOidcEnv('OIDC_CLIENT_SECRET');
+// OIDC
+export const OIDC_ISSUER = validateAuthProviderEnv('OIDC_ISSUER', OIDC_AUTH_ENABLED).replace(/\/$/, '');
+export const OIDC_CLIENT_ID = validateAuthProviderEnv('OIDC_CLIENT_ID', OIDC_AUTH_ENABLED);
+export const OIDC_CLIENT_SECRET = validateAuthProviderEnv('OIDC_CLIENT_SECRET', OIDC_AUTH_ENABLED);
 export const OIDC_SCOPES = validateEnv('OIDC_SCOPES', 'openid email profile');
 export const OIDC_DISPLAY_NAME = validateEnv('OIDC_DISPLAY_NAME', 'Single Sign-On');
 export const OIDC_EMAIL_CLAIM = validateEnv('OIDC_EMAIL_CLAIM', 'email');
 export const OIDC_EMAIL_VERIFIED_CLAIM = validateEnv('OIDC_EMAIL_VERIFIED_CLAIM', 'email_verified');
 export const OIDC_REQUIRE_EMAIL_VERIFIED = validateEnv('OIDC_REQUIRE_EMAIL_VERIFIED', 'true') === 'true';
 export const OIDC_ALLOW_SIGNUPS = validateEnv('OIDC_ALLOW_SIGNUPS', 'true') === 'true';
-export const OIDC_ENABLED = OIDC_ISSUER !== '' && OIDC_CLIENT_ID !== '' && OIDC_CLIENT_SECRET !== '';
+export const OIDC_ENABLED = OIDC_AUTH_ENABLED && OIDC_ISSUER !== '' && OIDC_CLIENT_ID !== '' && OIDC_CLIENT_SECRET !== '';
 
-// OAuth (disabled in OIDC-only mode)
+// OAuth
 export const GITHUB_OAUTH_CLIENT = validateEnv('GITHUB_OAUTH_CLIENT', '');
 export const GITHUB_OAUTH_SECRET = validateEnv('GITHUB_OAUTH_SECRET', '');
-export const GITHUB_OAUTH_ENABLED = false;
+export const GITHUB_OAUTH_CONFIGURED = GITHUB_OAUTH_CLIENT !== '' && GITHUB_OAUTH_SECRET !== '';
+export const GITHUB_OAUTH_ENABLED = OAUTH_AUTH_ENABLED && GITHUB_OAUTH_CONFIGURED;
 
 export const GOOGLE_OAUTH_CLIENT = validateEnv('GOOGLE_OAUTH_CLIENT', '');
 export const GOOGLE_OAUTH_SECRET = validateEnv('GOOGLE_OAUTH_SECRET', '');
-export const GOOGLE_OAUTH_ENABLED = false;
+export const GOOGLE_OAUTH_CONFIGURED = GOOGLE_OAUTH_CLIENT !== '' && GOOGLE_OAUTH_SECRET !== '';
+export const GOOGLE_OAUTH_ENABLED = OAUTH_AUTH_ENABLED && GOOGLE_OAUTH_CONFIGURED;
+
+if (OAUTH_AUTH_ENABLED && NODE_ENV !== 'test' && !GITHUB_OAUTH_CONFIGURED && !GOOGLE_OAUTH_CONFIGURED) {
+  throw new Error('AUTH_MODE=oauth requires Google or GitHub OAuth credentials');
+}
 
 // Stripe (optional - if not set, billing features are disabled)
 export const STRIPE_SK = validateEnv('STRIPE_SK', '');

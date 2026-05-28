@@ -11,6 +11,12 @@ export interface ConfigResponse {
   features: {
     billing: {enabled: boolean};
     storage: {s3Enabled: boolean};
+    auth: {
+      mode: 'oidc' | 'password' | 'oauth';
+      password: {enabled: boolean; signupEnabled: boolean};
+      oidc: {enabled: boolean; displayName: string};
+      oauth: {enabled: boolean; google: boolean; github: boolean};
+    };
     authProviders: {github: boolean; google: boolean; oidc: boolean; oidcDisplayName: string};
     email: {trackingToggleEnabled: boolean};
     smtp: {
