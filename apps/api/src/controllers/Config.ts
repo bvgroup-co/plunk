@@ -3,13 +3,19 @@ import type {Request, Response} from 'express';
 
 import {
   API_URI,
+  AUTH_MODE,
   AWS_SES_REGION,
   DASHBOARD_URI,
+  DISABLE_SIGNUPS,
+  GITHUB_OAUTH_ENABLED,
+  GOOGLE_OAUTH_ENABLED,
   LANDING_URI,
   MAIL_FROM_SUBDOMAIN,
   NODE_ENV,
+  OAUTH_AUTH_ENABLED,
   OIDC_DISPLAY_NAME,
   OIDC_ENABLED,
+  PASSWORD_AUTH_ENABLED,
   S3_ENABLED,
   SMTP_DOMAIN,
   SMTP_ENABLED,
@@ -43,9 +49,25 @@ export class Config {
         storage: {
           s3Enabled: S3_ENABLED,
         },
+        auth: {
+          mode: AUTH_MODE,
+          password: {
+            enabled: PASSWORD_AUTH_ENABLED,
+            signupEnabled: PASSWORD_AUTH_ENABLED && !DISABLE_SIGNUPS,
+          },
+          oidc: {
+            enabled: OIDC_ENABLED,
+            displayName: OIDC_DISPLAY_NAME,
+          },
+          oauth: {
+            enabled: OAUTH_AUTH_ENABLED,
+            google: GOOGLE_OAUTH_ENABLED,
+            github: GITHUB_OAUTH_ENABLED,
+          },
+        },
         authProviders: {
-          github: false,
-          google: false,
+          github: GITHUB_OAUTH_ENABLED,
+          google: GOOGLE_OAUTH_ENABLED,
           oidc: OIDC_ENABLED,
           oidcDisplayName: OIDC_DISPLAY_NAME,
         },
