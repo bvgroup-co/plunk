@@ -21,7 +21,7 @@ export function validateEnv<T extends string = string>(key: keyof NodeJS.Process
 }
 
 // Environment
-export const NODE_ENV = validateEnv('NODE_ENV', 'development');
+export const NODE_ENV = validateEnv<string>('NODE_ENV', 'development');
 export const JWT_SECRET = validateEnv('JWT_SECRET');
 export const PORT = Number(validateEnv('PORT', '8080'));
 
@@ -86,10 +86,18 @@ export const REDIS_URL = validateEnv('REDIS_URL');
 export const DATABASE_URL = validateEnv('DATABASE_URL');
 export const DIRECT_DATABASE_URL = validateEnv('DIRECT_DATABASE_URL');
 
+function validateOidcEnv(key: keyof NodeJS.ProcessEnv): string {
+  if (NODE_ENV === 'test') {
+    return validateEnv(key, '');
+  }
+
+  return validateEnv(key);
+}
+
 // OIDC (required for dashboard login in this fork)
-export const OIDC_ISSUER = validateEnv('OIDC_ISSUER', '').replace(/\/$/, '');
-export const OIDC_CLIENT_ID = validateEnv('OIDC_CLIENT_ID', '');
-export const OIDC_CLIENT_SECRET = validateEnv('OIDC_CLIENT_SECRET', '');
+export const OIDC_ISSUER = validateOidcEnv('OIDC_ISSUER').replace(/\/$/, '');
+export const OIDC_CLIENT_ID = validateOidcEnv('OIDC_CLIENT_ID');
+export const OIDC_CLIENT_SECRET = validateOidcEnv('OIDC_CLIENT_SECRET');
 export const OIDC_SCOPES = validateEnv('OIDC_SCOPES', 'openid email profile');
 export const OIDC_DISPLAY_NAME = validateEnv('OIDC_DISPLAY_NAME', 'Single Sign-On');
 export const OIDC_EMAIL_CLAIM = validateEnv('OIDC_EMAIL_CLAIM', 'email');

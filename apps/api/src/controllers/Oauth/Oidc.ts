@@ -2,7 +2,7 @@ import {Controller, Get} from '@overnightjs/core';
 import {createHash, randomBytes} from 'node:crypto';
 import type {NextFunction, Request, Response} from 'express';
 import {createRemoteJWKSet, jwtVerify} from 'jose';
-import type {JWTPayload} from 'jose';
+import type {JWTPayload, JWTVerifyGetKey} from 'jose';
 
 import {
   API_URI,
@@ -51,6 +51,16 @@ type OidcTokenResponse = {
   error_description?: unknown;
 };
 
+export type VerifiedOidcClaims = {
+  iss: string;
+  sub: string;
+  email: string;
+};
+
+export type OidcCallbackResult =
+  | {status: 'success'; userId: string; isNewUser: boolean}
+  | {status: 'failure'; reason: string};
+
 function redirectToLogin(res: Response, reason: string) {
   return res.redirect(`${DASHBOARD_URI}/auth/login?message=${encodeURIComponent(reason)}`);
 }
@@ -93,6 +103,90 @@ function getEmailVerified(payload: JWTPayload): boolean {
   }
 
   return false;
+}
+
+export function extractVerifiedOidcClaims(payload: JWTPayload): VerifiedOidcClaims | string {
+  const email = getClaimAsString(payload, OIDC_EMAIL_CLAIM);
+
+  if (!payload.iss || !payload.sub || !email) {
+    return 'OIDC response did not include required identity claims';
+  }
+
+  if (OIDC_REQUIRE_EMAIL_VERIFIED && !getEmailVerified(payload)) {
+    return 'OIDC email address is not verified';
+  }
+
+  return {
+    iss: payload.iss,
+    sub: payload.sub,
+    email,
+  };
+}
+
+export async function completeOidcCallback(claims: VerifiedOidcClaims): Promise<OidcCallbackResult> {
+  let user = await prisma.user.findUnique({
+    where: {
+      oidcIssuer_oidcSubject: {
+        oidcIssuer: claims.iss,
+        oidcSubject: claims.sub,
+      },
+    },
+  });
+  let isNewUser = false;
+
+  if (!user) {
+    if (!OIDC_ALLOW_SIGNUPS) {
+      return {status: 'failure', reason: 'New user signups are currently disabled'};
+    }
+
+    const existingEmailUser = await UserService.email(claims.email);
+
+    if (existingEmailUser) {
+      return {status: 'failure', reason: 'An account with this email already exists'};
+    }
+
+    user = await prisma.user.create({
+      data: {
+        email: claims.email,
+        password: null,
+        type: 'OIDC',
+        emailVerified: true,
+        oidcIssuer: claims.iss,
+        oidcSubject: claims.sub,
+      },
+    });
+    isNewUser = true;
+  }
+
+  if (user.type !== 'OIDC') {
+    return {status: 'failure', reason: 'You used another form of authentication'};
+  }
+
+  if (isNewUser) {
+    await NtfyService.notifyUserOAuthSignup(user.email, user.id, OIDC_DISPLAY_NAME);
+  }
+
+  await redis.set(Keys.User.id(user.id), JSON.stringify(user), 'EX', 60 * 60);
+
+  return {status: 'success', userId: user.id, isNewUser};
+}
+
+export async function verifyOidcIdToken(
+  idToken: string,
+  nonce: string,
+  jwks: JWTVerifyGetKey,
+): Promise<JWTPayload> {
+  const {payload} = await jwtVerify(idToken, jwks, {
+    issuer: OIDC_ISSUER,
+    audience: OIDC_CLIENT_ID,
+    maxTokenAge: '10 minutes',
+  });
+
+  if (payload.nonce !== nonce) {
+    throw new Error('OIDC nonce mismatch');
+  }
+
+  return payload;
 }
 
 export class OidcConfigurationService {
@@ -203,62 +297,19 @@ export class Oidc {
         return redirectToLogin(res, this.getTokenError(tokenResponse));
       }
 
-      const claims = await this.verifyIdToken(tokenResponse.id_token, stateRecord.nonce);
-      const email = getClaimAsString(claims, OIDC_EMAIL_CLAIM);
+      const claims = extractVerifiedOidcClaims(await this.verifyIdToken(tokenResponse.id_token, stateRecord.nonce));
 
-      if (!claims.iss || !claims.sub || !email) {
-        return redirectToLogin(res, 'OIDC response did not include required identity claims');
+      if (typeof claims === 'string') {
+        return redirectToLogin(res, claims);
       }
 
-      if (OIDC_REQUIRE_EMAIL_VERIFIED && !getEmailVerified(claims)) {
-        return redirectToLogin(res, 'OIDC email address is not verified');
+      const callbackResult = await completeOidcCallback(claims);
+
+      if (callbackResult.status === 'failure') {
+        return redirectToLogin(res, callbackResult.reason);
       }
 
-      let user = await prisma.user.findUnique({
-        where: {
-          oidcIssuer_oidcSubject: {
-            oidcIssuer: claims.iss,
-            oidcSubject: claims.sub,
-          },
-        },
-      });
-      let isNewUser = false;
-
-      if (!user) {
-        if (!OIDC_ALLOW_SIGNUPS) {
-          return redirectToLogin(res, 'New user signups are currently disabled');
-        }
-
-        const existingEmailUser = await UserService.email(email);
-
-        if (existingEmailUser) {
-          return redirectToLogin(res, 'An account with this email already exists');
-        }
-
-        user = await prisma.user.create({
-          data: {
-            email,
-            password: null,
-            type: 'OIDC',
-            emailVerified: true,
-            oidcIssuer: claims.iss,
-            oidcSubject: claims.sub,
-          },
-        });
-        isNewUser = true;
-      }
-
-      if (user.type !== 'OIDC') {
-        return redirectToLogin(res, 'You used another form of authentication');
-      }
-
-      if (isNewUser) {
-        await NtfyService.notifyUserOAuthSignup(user.email, user.id, OIDC_DISPLAY_NAME);
-      }
-
-      await redis.set(Keys.User.id(user.id), JSON.stringify(user), 'EX', 60 * 60);
-
-      const token = jwt.sign(user.id);
+      const token = jwt.sign(callbackResult.userId);
       const cookie = UserService.cookieOptions();
 
       return res.cookie(UserService.COOKIE_NAME, token, cookie).redirect(DASHBOARD_URI);
@@ -291,18 +342,7 @@ export class Oidc {
   }
 
   private async verifyIdToken(idToken: string, nonce: string): Promise<JWTPayload> {
-    const jwks = await OidcConfigurationService.getJwks();
-    const {payload} = await jwtVerify(idToken, jwks, {
-      issuer: OIDC_ISSUER,
-      audience: OIDC_CLIENT_ID,
-      maxTokenAge: '10 minutes',
-    });
-
-    if (payload.nonce !== nonce) {
-      throw new Error('OIDC nonce mismatch');
-    }
-
-    return payload;
+    return verifyOidcIdToken(idToken, nonce, await OidcConfigurationService.getJwks());
   }
 
   private getTokenError(tokenResponse: OidcTokenResponse): string {
