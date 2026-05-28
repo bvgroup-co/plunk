@@ -32,6 +32,9 @@ if (process.env.REDIS_URL) {
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
+process.env.OIDC_ISSUER = process.env.OIDC_ISSUER || 'https://oidc.test';
+process.env.OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID || 'test-oidc-client';
+process.env.OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET || 'test-oidc-secret';
 
 // Static import is safe: database.ts only reads env in initialize(), which runs
 // in beforeAll — well after the env mutations above.
