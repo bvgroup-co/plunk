@@ -3,15 +3,9 @@ import {createLocalJWKSet, exportJWK, generateKeyPair, SignJWT} from 'jose';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {factories, getPrismaClient} from '../../../../../test/helpers';
-import {OIDC_CLIENT_ID, OIDC_ISSUER} from '../../app/constants';
 import {redis} from '../../database/redis';
-import {
-  completeOidcCallback,
-  extractVerifiedOidcClaims,
-  verifyOidcIdToken,
-  type VerifiedOidcClaims,
-} from '../Oauth/Oidc';
 import {Keys} from '../../services/keys';
+import type {VerifiedOidcClaims} from '../Oauth/Oidc';
 
 vi.mock('../../services/NtfyService.js', () => ({
   NtfyService: {
@@ -20,12 +14,24 @@ vi.mock('../../services/NtfyService.js', () => ({
 }));
 
 const prisma = getPrismaClient();
+const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID || 'test-oidc-client';
+const OIDC_ISSUER = process.env.OIDC_ISSUER || 'https://oidc.test';
 const validClaims: VerifiedOidcClaims = {
   iss: OIDC_ISSUER,
   sub: 'oidc-subject-1',
   email: 'oidc-user@example.com',
   emailVerified: true,
 };
+
+async function loadOidcModule(env: Record<string, string> = {}) {
+  vi.resetModules();
+
+  for (const [key, value] of Object.entries(env)) {
+    vi.stubEnv(key, value);
+  }
+
+  return import('../Oauth/Oidc');
+}
 
 const unverifiedClaims: VerifiedOidcClaims = {
   ...validClaims,
@@ -53,10 +59,12 @@ async function createIdToken(nonce: string) {
 
 describe('OIDC callback security invariants', () => {
   beforeEach(async () => {
+    vi.unstubAllEnvs();
     await redis.flushdb();
   });
 
   it('creates and caches a verified OIDC user on first sign-in', async () => {
+    const {completeOidcCallback} = await loadOidcModule();
     const result = await completeOidcCallback(validClaims);
 
     expect(result.status).toBe('success');
@@ -78,13 +86,17 @@ describe('OIDC callback security invariants', () => {
     await expect(redis.get(Keys.User.email(user.email))).resolves.not.toBeNull();
   });
 
-  it('rejects responses without required identity claims', () => {
+  it('rejects responses without required identity claims', async () => {
+    const {extractVerifiedOidcClaims} = await loadOidcModule();
+
     expect(extractVerifiedOidcClaims({iss: validClaims.iss, email: validClaims.email, email_verified: true})).toBe(
       'OIDC response did not include required identity claims',
     );
   });
 
-  it('rejects unverified email claims when verification is required', () => {
+  it('rejects unverified email claims when verification is required', async () => {
+    const {extractVerifiedOidcClaims} = await loadOidcModule();
+
     expect(
       extractVerifiedOidcClaims({
         iss: validClaims.iss,
@@ -96,12 +108,14 @@ describe('OIDC callback security invariants', () => {
   });
 
   it('rejects ID tokens whose nonce does not match the stored OIDC state', async () => {
+    const {verifyOidcIdToken} = await loadOidcModule();
     const {idToken, jwks} = await createIdToken('provider-nonce');
 
     await expect(verifyOidcIdToken(idToken, 'stored-state-nonce', jwks)).rejects.toThrow('OIDC nonce mismatch');
   });
 
   it('does not link an OIDC subject to an existing password account with the same email', async () => {
+    const {completeOidcCallback} = await loadOidcModule();
     await factories.createUser({email: validClaims.email, type: AuthMethod.PASSWORD});
 
     await expect(completeOidcCallback(validClaims)).resolves.toEqual({
@@ -122,7 +136,7 @@ describe('OIDC callback security invariants', () => {
   });
 
   it('links an existing password user by verified email when explicitly enabled', async () => {
-    vi.stubEnv('OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL', 'true');
+    const {completeOidcCallback} = await loadOidcModule({OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL: 'true'});
     const {user: existingUser, project} = await factories.createUserWithProject({
       email: validClaims.email.toUpperCase(),
       type: AuthMethod.PASSWORD,
@@ -156,7 +170,7 @@ describe('OIDC callback security invariants', () => {
   });
 
   it('does not link an existing user when the OIDC email is unverified', async () => {
-    vi.stubEnv('OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL', 'true');
+    const {completeOidcCallback} = await loadOidcModule({OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL: 'true'});
     const existingUser = await factories.createUser({email: unverifiedClaims.email, type: AuthMethod.PASSWORD});
 
     await expect(completeOidcCallback(unverifiedClaims)).resolves.toEqual({
@@ -173,7 +187,7 @@ describe('OIDC callback security invariants', () => {
   });
 
   it('does not overwrite an existing OIDC identity when linking by email', async () => {
-    vi.stubEnv('OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL', 'true');
+    const {completeOidcCallback} = await loadOidcModule({OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL: 'true'});
     const existingUser = await prisma.user.create({
       data: {
         email: validClaims.email,
@@ -194,8 +208,10 @@ describe('OIDC callback security invariants', () => {
   });
 
   it('allows verified-email linking when OIDC signups are disabled but rejects new users', async () => {
-    vi.stubEnv('OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL', 'true');
-    vi.stubEnv('OIDC_ALLOW_SIGNUPS', 'false');
+    const {completeOidcCallback} = await loadOidcModule({
+      OIDC_ALLOW_SIGNUPS: 'false',
+      OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL: 'true',
+    });
     const existingUser = await factories.createUser({email: validClaims.email, type: AuthMethod.PASSWORD});
 
     await expect(completeOidcCallback(validClaims)).resolves.toEqual({

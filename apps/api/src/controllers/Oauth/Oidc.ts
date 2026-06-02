@@ -108,16 +108,6 @@ function getEmailVerified(payload: JWTPayload): boolean {
   return false;
 }
 
-function isOidcSignupAllowed(): boolean {
-  return process.env.OIDC_ALLOW_SIGNUPS ? process.env.OIDC_ALLOW_SIGNUPS === 'true' : OIDC_ALLOW_SIGNUPS;
-}
-
-function isOidcLinkExistingByVerifiedEmailEnabled(): boolean {
-  return process.env.OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL
-    ? process.env.OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL === 'true'
-    : OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL;
-}
-
 export function extractVerifiedOidcClaims(payload: JWTPayload): VerifiedOidcClaims | string {
   const email = getClaimAsString(payload, OIDC_EMAIL_CLAIM);
   const emailVerified = getEmailVerified(payload);
@@ -208,14 +198,14 @@ export async function completeOidcCallback(claims: VerifiedOidcClaims): Promise<
     const existingEmailUser = await UserService.email(claims.email);
 
     if (existingEmailUser) {
-      if (isOidcLinkExistingByVerifiedEmailEnabled()) {
+      if (OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL) {
         return linkExistingUserByVerifiedEmail(claims, existingEmailUser);
       }
 
       return {status: 'failure', reason: 'An account with this email already exists'};
     }
 
-    if (!isOidcSignupAllowed()) {
+    if (!OIDC_ALLOW_SIGNUPS) {
       return {status: 'failure', reason: 'New user signups are currently disabled'};
     }
 
