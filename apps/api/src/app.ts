@@ -11,7 +11,6 @@ import {ZodError} from 'zod';
 import {
   DASHBOARD_URI,
   EMAIL_PROVIDER,
-  EMAIL_PROVIDER_IS_SES,
   LANDING_URI,
   NODE_ENV,
   OIDC_ENABLED,
@@ -450,21 +449,20 @@ void prisma.$connect().then(async () => {
     }
   }
 
-  if (EMAIL_PROVIDER_IS_SES) {
-    // Run every 5 minutes to check domain verification status with AWS SES
-    await domainVerificationQueue.add(
-      'check-domain-verification',
-      {},
-      {
-        repeat: {
-          pattern: '*/5 * * * *', // Every 5 minutes
-        },
-        jobId: 'domain-verification-repeatable', // Fixed ID to prevent duplicates
+  // Set up repeatable job for domain verification (BullMQ)
+  // Run every 5 minutes to check domain verification status with AWS SES
+  await domainVerificationQueue.add(
+    'check-domain-verification',
+    {},
+    {
+      repeat: {
+        pattern: '*/5 * * * *', // Every 5 minutes
       },
-    );
+      jobId: 'domain-verification-repeatable', // Fixed ID to prevent duplicates
+    },
+  );
 
-    signale.info('[BACKGROUND-JOB] Domain verification scheduled (BullMQ repeatable job, runs every 5 minutes)');
-  }
+  signale.info('[BACKGROUND-JOB] Domain verification scheduled (BullMQ repeatable job, runs every 5 minutes)');
 
   // Set up repeatable job for segment count updates (BullMQ)
   // Run every 5 minutes to compute membership changes and trigger events

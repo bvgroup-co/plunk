@@ -64,12 +64,10 @@ async function startWorkers() {
     workers.push({name: 'segment-count', worker: segmentCountWorker});
     signale.success('[WORKER] Segment count worker started');
 
-    if (EMAIL_PROVIDER_IS_SES) {
-      // Start domain verification worker
-      const domainVerificationWorker = createDomainVerificationWorker();
-      workers.push({name: 'domain-verification', worker: domainVerificationWorker});
-      signale.success('[WORKER] Domain verification worker started');
-    }
+    // Start domain verification worker
+    const domainVerificationWorker = createDomainVerificationWorker();
+    workers.push({name: 'domain-verification', worker: domainVerificationWorker});
+    signale.success('[WORKER] Domain verification worker started');
 
     // Start API request cleanup worker
     const apiRequestCleanupWorker = createApiRequestCleanupWorker();

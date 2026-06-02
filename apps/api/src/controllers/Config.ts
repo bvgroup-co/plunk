@@ -6,7 +6,6 @@ import {
   AWS_SES_REGION,
   DASHBOARD_URI,
   EMAIL_PROVIDER,
-  EMAIL_PROVIDER_IS_SES,
   LANDING_URI,
   MAIL_FROM_SUBDOMAIN,
   NODE_ENV,
@@ -67,8 +66,8 @@ export class Config {
         },
       },
       aws: {
-        sesRegion: EMAIL_PROVIDER_IS_SES ? AWS_SES_REGION : null,
-        mailFromSubdomain: EMAIL_PROVIDER_IS_SES ? MAIL_FROM_SUBDOMAIN : null,
+        sesRegion: AWS_SES_REGION,
+        mailFromSubdomain: MAIL_FROM_SUBDOMAIN,
       },
     });
   }

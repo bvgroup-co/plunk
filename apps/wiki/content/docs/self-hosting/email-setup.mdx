@@ -3,7 +3,7 @@ title: AWS SES Setup
 description: Configure email delivery
 ---
 
-Plunk uses AWS SES by default (`EMAIL_PROVIDER=ses`). If you want to use SendGrid for outbound sending instead, set `EMAIL_PROVIDER=sendgrid`, provide `SENDGRID_API_KEY`, and skip the SES outbound setup below. SES domain verification, inbound email, and SNS/SQS event ingestion remain SES-only features.
+Plunk uses AWS SES by default (`EMAIL_PROVIDER=ses`). If you want to use SendGrid for outbound sending instead, set `EMAIL_PROVIDER=sendgrid` and provide `SENDGRID_API_KEY`. Plunk still uses the existing SES-backed domain verification lifecycle for sender domain ownership, while outbound sending switches to SendGrid. SES inbound email and SNS/SQS event ingestion remain SES-only features.
 
 ```bash
 EMAIL_PROVIDER="sendgrid"
