@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Check if this commit is a release
         id: check-release
@@ -27,7 +28,7 @@ jobs:
           git fetch --tags
 
           # Check if this is a release-please commit
-          if git log -1 --pretty=%B | grep -q "release-please--branches--next"; then
+          if git log -1 --pretty=%s | grep -Eq '^chore\(next\): release [0-9]+\.[0-9]+\.[0-9]+( \(#[0-9]+\))?$'; then
             echo "This is a release commit, waiting for tag..."
             # Wait up to 60 seconds for release-please to create the tag
             for i in {1..12}; do
