@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Contact, Event, Project } from "@prisma/client";
 import dayjs from "dayjs";
 import { prisma } from "../database/prisma";
@@ -118,12 +119,21 @@ export class ActionService {
 					},
 				});
 
+				const createdEmail = await prisma.email.create({
+					data: {
+						messageId: `pending-${crypto.randomUUID()}`,
+						contactId: contact.id,
+						actionId: action.id,
+					},
+				});
+
 				const { messageId } = await EmailService.send({
 					from: {
 						name: action.template.from ?? project.from ?? project.name,
-						email: project.verified && project.email ? action.template.email ?? project.email : "no-reply@useplunk.dev",
+						email: project.verified && project.email ? (action.template.email ?? project.email) : "no-reply@useplunk.dev",
 					},
 					to: [contact.email],
+					headers: { "X-Plunk-Email-ID": createdEmail.id },
 					content: {
 						subject,
 						html: EmailService.compile({
@@ -142,13 +152,7 @@ export class ActionService {
 					},
 				});
 
-				await prisma.email.create({
-					data: {
-						messageId,
-						actionId: action.id,
-						contactId: contact.id,
-					},
-				});
+				await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId } });
 			} else {
 				await prisma.task.create({
 					data: {

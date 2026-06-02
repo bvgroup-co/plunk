@@ -1,5 +1,5 @@
 import mjml2html from "mjml";
-import { APP_URI, AWS_SES_CONFIGURATION_SET } from "../app/constants";
+import { APP_URI, AWS_SES_CONFIGURATION_SET, EMAIL_PROVIDER, SENDGRID_API_KEY } from "../app/constants";
 import { ses } from "../util/ses";
 
 export class EmailService {
@@ -30,6 +30,10 @@ export class EmailService {
 			contentType: string;
 		}> | null;
 	}) {
+		if (EMAIL_PROVIDER === "sendgrid") {
+			return EmailService.sendWithSendGrid({ from, to, content, reply, headers, attachments });
+		}
+
 		// Check if the body contains an unsubscribe link
 		const regex = /unsubscribe\/([a-f\d-]+)"/;
 		const containsUnsubscribeLink = content.html.match(regex);
@@ -50,7 +54,7 @@ Reply-To: ${reply || from.email}
 Subject: ${content.subject}
 MIME-Version: 1.0
 ${
-	mixedBoundary 
+	mixedBoundary
 		? `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`
 		: `Content-Type: multipart/alternative; boundary="${boundary}"`
 }
@@ -64,9 +68,7 @@ ${
 ${unsubscribeLink}
 
 ${mixedBoundary ? `--${mixedBoundary}\n` : ""}${
-	mixedBoundary 
-		? `Content-Type: multipart/alternative; boundary="${boundary}"\n\n` 
-		: ""
+	mixedBoundary ? `Content-Type: multipart/alternative; boundary="${boundary}"\n\n` : ""
 }--${boundary}
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: 7bit
@@ -74,15 +76,19 @@ Content-Transfer-Encoding: 7bit
 ${EmailService.breakLongLines(content.html, 500)}
 --${boundary}--
 ${
-	attachments?.length 
-		? attachments.map(attachment => `
+	attachments?.length
+		? attachments
+				.map(
+					(attachment) => `
 --${mixedBoundary}
 Content-Type: ${attachment.contentType}
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="${attachment.filename}"
 
 ${EmailService.breakLongLines(attachment.content, 76, true)}
-`).join('\n')
+`,
+				)
+				.join("\n")
 		: ""
 }${mixedBoundary ? `\n--${mixedBoundary}--` : ""}`;
 
@@ -100,6 +106,52 @@ ${EmailService.breakLongLines(attachment.content, 76, true)}
 		}
 
 		return { messageId: response.MessageId };
+	}
+
+	private static async sendWithSendGrid(params: Parameters<typeof EmailService.send>[0]) {
+		if (!SENDGRID_API_KEY) {
+			throw new Error("SendGrid is not configured");
+		}
+
+		const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${SENDGRID_API_KEY}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				from: { email: params.from.email, name: params.from.name },
+				reply_to: { email: params.reply || params.from.email },
+				personalizations: params.to.map((email) => ({
+					to: [{ email }],
+					custom_args: params.headers?.["X-Plunk-Email-ID"]
+						? { plunk_email_id: params.headers["X-Plunk-Email-ID"] }
+						: undefined,
+					headers: params.headers
+						? Object.fromEntries(Object.entries(params.headers).filter(([key]) => key !== "X-Plunk-Email-ID"))
+						: undefined,
+				})),
+				subject: params.content.subject,
+				content: [{ type: "text/html", value: params.content.html }],
+				attachments: params.attachments?.map((attachment) => ({
+					filename: attachment.filename,
+					type: attachment.contentType,
+					content: attachment.content,
+					disposition: "attachment",
+				})),
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error(await response.text());
+		}
+
+		const messageId = response.headers.get("x-message-id");
+		if (!messageId) {
+			throw new Error("Could not send email");
+		}
+
+		return { messageId };
 	}
 
 	public static compile({
@@ -530,7 +582,7 @@ ${
 		};
 	}
 
-	private static breakLongLines(input: string, maxLineLength: number, isBase64: boolean = false): string {
+	private static breakLongLines(input: string, maxLineLength: number, isBase64 = false): string {
 		if (isBase64) {
 			// For base64 content, break at exact intervals without looking for spaces
 			const result = [];
@@ -538,25 +590,25 @@ ${
 				result.push(input.substring(i, i + maxLineLength));
 			}
 			return result.join("\n");
-		} else {
-			// Original implementation for text content
-			const lines = input.split("\n");
-			const result = [];
-			for (let line of lines) {
-				while (line.length > maxLineLength) {
-					let pos = maxLineLength;
-					while (pos > 0 && line[pos] !== " ") {
-						pos--;
-					}
-					if (pos === 0) {
-						pos = maxLineLength;
-					}
-					result.push(line.substring(0, pos));
-					line = line.substring(pos).trim();
-				}
-				result.push(line);
-			}
-			return result.join("\n");
 		}
+
+		// Original implementation for text content
+		const lines = input.split("\n");
+		const result = [];
+		for (let line of lines) {
+			while (line.length > maxLineLength) {
+				let pos = maxLineLength;
+				while (pos > 0 && line[pos] !== " ") {
+					pos--;
+				}
+				if (pos === 0) {
+					pos = maxLineLength;
+				}
+				result.push(line.substring(0, pos));
+				line = line.substring(pos).trim();
+			}
+			result.push(line);
+		}
+		return result.join("\n");
 	}
 }
