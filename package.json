@@ -4,9 +4,7 @@
 	"private": true,
 	"license": "agpl-3.0",
 	"workspaces": {
-		"packages": [
-			"packages/*"
-		]
+		"packages": ["packages/*"]
 	},
 	"engines": {
 		"npm": ">=6.14.x",
@@ -15,9 +13,12 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.8.3",
+		"@types/supertest": "^7.2.0",
 		"lerna": "^8.1.6",
 		"prisma": "^5.17.0",
-		"rimraf": "^5.0.9"
+		"rimraf": "^5.0.9",
+		"supertest": "^7.2.2",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@prisma/client": "^5.17.0"
@@ -34,6 +35,9 @@
 		"migrate": "prisma migrate dev",
 		"migrate:deploy": "prisma migrate deploy",
 		"generate": "prisma generate",
+		"test": "vitest run",
+		"test:sendgrid": "vitest run test/sendgrid/sendgrid-parity.e2e.test.ts",
+		"lint:sendgrid": "biome check .github/workflows/sendgrid-ci.yml packages/api/src/app.ts packages/api/src/util/sendgrid.ts test/sendgrid vitest.config.ts package.json",
 		"services:up": "docker compose -f docker-compose.dev.yml up -d",
 		"services:down": "docker compose -f docker-compose.dev.yml down"
 	},

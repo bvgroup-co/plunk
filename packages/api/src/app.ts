@@ -81,6 +81,8 @@ const server = new (class extends Server {
 	}
 })();
 
+export const app = server.app;
+
 server.app.use((req, res, next) => {
 	console.log(`Incoming request: ${req.method} ${req.path}`);
 	next();
@@ -101,10 +103,12 @@ server.app.use((error: Error, req: Request, res: Response, _next: NextFunction) 
 	});
 });
 
-void prisma.$connect().then(() => {
-	server.app.listen(4000, () => {
-		task.start();
+if (process.env.PLUNK_SKIP_LISTEN !== "true") {
+	void prisma.$connect().then(() => {
+		server.app.listen(4000, () => {
+			task.start();
 
-		signale.success("[HTTPS] Ready on", 4000);
+			signale.success("[HTTPS] Ready on", 4000);
+		});
 	});
-});
+}
