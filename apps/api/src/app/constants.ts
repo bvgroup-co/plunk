@@ -104,6 +104,8 @@ export const OIDC_EMAIL_CLAIM = validateEnv('OIDC_EMAIL_CLAIM', 'email');
 export const OIDC_EMAIL_VERIFIED_CLAIM = validateEnv('OIDC_EMAIL_VERIFIED_CLAIM', 'email_verified');
 export const OIDC_REQUIRE_EMAIL_VERIFIED = validateEnv('OIDC_REQUIRE_EMAIL_VERIFIED', 'true') === 'true';
 export const OIDC_ALLOW_SIGNUPS = validateEnv('OIDC_ALLOW_SIGNUPS', 'true') === 'true';
+export const OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL =
+  validateEnv<string>('OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL', 'false') === 'true';
 export const OIDC_ENABLED = OIDC_ISSUER !== '' && OIDC_CLIENT_ID !== '' && OIDC_CLIENT_SECRET !== '';
 
 // OAuth (disabled in OIDC-only mode)
