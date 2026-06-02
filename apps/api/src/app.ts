@@ -10,6 +10,7 @@ import {ZodError} from 'zod';
 
 import {
   DASHBOARD_URI,
+  EMAIL_PROVIDER,
   LANDING_URI,
   NODE_ENV,
   OIDC_ENABLED,
@@ -413,6 +414,11 @@ void prisma.$connect().then(async () => {
     },
     {name: 'SMTP relay', enabled: SMTP_ENABLED, details: SMTP_ENABLED ? 'SMTP server enabled' : 'SMTP disabled'},
     {name: 'OIDC login', enabled: OIDC_ENABLED, details: OIDC_ENABLED ? 'OIDC login enabled' : 'OIDC not configured'},
+    {
+      name: 'Outbound email provider',
+      enabled: true,
+      details: EMAIL_PROVIDER,
+    },
     {
       name: 'Tracking toggle',
       enabled: TRACKING_TOGGLE_ENABLED,

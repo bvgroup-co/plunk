@@ -147,7 +147,10 @@ services:
       LANDING_URI: ${LANDING_URI:-}
       WIKI_URI: ${WIKI_URI:-}
 
-      # AWS SES (for sending emails)
+      # Outbound email provider: ses (default) or sendgrid
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-ses}
+
+      # AWS SES (required when EMAIL_PROVIDER=ses)
       AWS_SES_REGION: ${AWS_SES_REGION}
       AWS_SES_ACCESS_KEY_ID: ${AWS_SES_ACCESS_KEY_ID}
       AWS_SES_SECRET_ACCESS_KEY: ${AWS_SES_SECRET_ACCESS_KEY}
@@ -163,6 +166,11 @@ services:
       # Custom MAIL FROM subdomain (defaults to 'plunk'; override when
       # plunk.<your-domain> is already used for something else, e.g. a CDN)
       MAIL_FROM_SUBDOMAIN: ${MAIL_FROM_SUBDOMAIN:-}
+
+      # SendGrid (required when EMAIL_PROVIDER=sendgrid)
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_TRACKING_ENABLED: ${SENDGRID_TRACKING_ENABLED:-true}
+      SENDGRID_SANDBOX_MODE: ${SENDGRID_SANDBOX_MODE:-false}
 
       # OIDC login
       OIDC_ISSUER: ${OIDC_ISSUER:-}

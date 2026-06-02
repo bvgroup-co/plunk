@@ -3,6 +3,17 @@ title: AWS SES Setup
 description: Configure email delivery
 ---
 
+Plunk uses AWS SES by default (`EMAIL_PROVIDER=ses`). If you want to use SendGrid for outbound sending instead, set `EMAIL_PROVIDER=sendgrid` and provide `SENDGRID_API_KEY`. Plunk still uses the existing SES-backed domain verification lifecycle for sender domain ownership, while outbound sending switches to SendGrid. SES inbound email and SNS/SQS event ingestion remain SES-only features.
+
+```bash
+EMAIL_PROVIDER="sendgrid"
+SENDGRID_API_KEY="SG..."
+SENDGRID_TRACKING_ENABLED="true"
+SENDGRID_SANDBOX_MODE="false"
+```
+
+In SendGrid mode, Plunk maps the project tracking decision to SendGrid `tracking_settings` for open and click tracking and stores SendGrid's `x-message-id` response header as the email message ID.
+
 ## 1. Create IAM User
 
 1. Go to IAM Console → Users → Create user

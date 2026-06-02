@@ -23,6 +23,7 @@
     "@plunk/shared": "*",
     "@plunk/types": "*",
     "@react-email/render": "^2.0.0",
+    "@sendgrid/mail": "^8.1.6",
     "@zootools/email-spell-checker": "^1.12.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",

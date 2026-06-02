@@ -40,14 +40,41 @@ export const S3_PUBLIC_URL = validateEnv('S3_PUBLIC_URL', '');
 export const S3_FORCE_PATH_STYLE = validateEnv('S3_FORCE_PATH_STYLE', 'true') === 'true';
 export const S3_ENABLED = S3_ACCESS_KEY_ID !== '' && S3_ACCESS_KEY_SECRET !== '';
 
-// AWS SES (required for email sending)
-export const AWS_SES_REGION = validateEnv('AWS_SES_REGION');
-export const AWS_SES_ACCESS_KEY_ID = validateEnv('AWS_SES_ACCESS_KEY_ID');
-export const AWS_SES_SECRET_ACCESS_KEY = validateEnv('AWS_SES_SECRET_ACCESS_KEY');
+export const EMAIL_PROVIDERS = ['ses', 'sendgrid'] as const;
+export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
+
+function validateEmailProvider(): EmailProvider {
+  const provider = validateEnv('EMAIL_PROVIDER', 'ses');
+  if (EMAIL_PROVIDERS.includes(provider as EmailProvider)) {
+    return provider as EmailProvider;
+  }
+
+  throw new Error(`EMAIL_PROVIDER must be one of: ${EMAIL_PROVIDERS.join(', ')}`);
+}
+
+export const EMAIL_PROVIDER = validateEmailProvider();
+export const EMAIL_PROVIDER_IS_SES = EMAIL_PROVIDER === 'ses';
+export const EMAIL_PROVIDER_IS_SENDGRID = EMAIL_PROVIDER === 'sendgrid';
+
+function validateSesEnv(key: keyof NodeJS.ProcessEnv): string {
+  return EMAIL_PROVIDER_IS_SES ? validateEnv(key) : validateEnv(key, '');
+}
+
+// AWS SES (required when EMAIL_PROVIDER=ses)
+export const AWS_SES_REGION = validateSesEnv('AWS_SES_REGION');
+export const AWS_SES_ACCESS_KEY_ID = validateSesEnv('AWS_SES_ACCESS_KEY_ID');
+export const AWS_SES_SECRET_ACCESS_KEY = validateSesEnv('AWS_SES_SECRET_ACCESS_KEY');
+
+// SendGrid (required when EMAIL_PROVIDER=sendgrid)
+export const SENDGRID_API_KEY = EMAIL_PROVIDER_IS_SENDGRID
+  ? validateEnv('SENDGRID_API_KEY')
+  : validateEnv('SENDGRID_API_KEY', '');
+export const SENDGRID_TRACKING_ENABLED = validateEnv<string>('SENDGRID_TRACKING_ENABLED', 'true') === 'true';
+export const SENDGRID_SANDBOX_MODE = validateEnv<string>('SENDGRID_SANDBOX_MODE', 'false') === 'true';
 
 // Optional SES event SQS polling (SNS -> SQS -> worker)
 export const SES_EVENTS_SQS_QUEUE_URL = validateEnv('SES_EVENTS_SQS_QUEUE_URL', '').trim();
-export const SES_EVENTS_SQS_ENABLED = SES_EVENTS_SQS_QUEUE_URL !== '';
+export const SES_EVENTS_SQS_ENABLED = EMAIL_PROVIDER_IS_SES && SES_EVENTS_SQS_QUEUE_URL !== '';
 export const SES_EVENTS_SQS_WAIT_TIME_SECONDS = Number(validateEnv('SES_EVENTS_SQS_WAIT_TIME_SECONDS', '20'));
 export const SES_EVENTS_SQS_MAX_MESSAGES = Number(validateEnv('SES_EVENTS_SQS_MAX_MESSAGES', '10'));
 export const SES_EVENTS_SQS_VISIBILITY_TIMEOUT_SECONDS = Number(
@@ -134,7 +161,9 @@ export const SES_CONFIGURATION_SET_NO_TRACKING = validateEnv(
   'plunk-configuration-set-no-tracking',
 );
 // Check if no-tracking configuration set was explicitly provided (not using default)
-export const TRACKING_TOGGLE_ENABLED = process.env.SES_CONFIGURATION_SET_NO_TRACKING !== undefined;
+export const TRACKING_TOGGLE_ENABLED = EMAIL_PROVIDER_IS_SENDGRID
+  ? SENDGRID_TRACKING_ENABLED
+  : process.env.SES_CONFIGURATION_SET_NO_TRACKING !== undefined;
 
 // SMTP Server Configuration (optional)
 // SMTP server can run with or without a domain (runs without TLS in dev mode)
