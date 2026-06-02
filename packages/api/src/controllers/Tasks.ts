@@ -96,7 +96,7 @@ export class Tasks {
 				},
 			});
 
-			const { messageId } = await EmailService.send({
+			const sentEmail = await EmailService.send({
 				from: {
 					name,
 					email,
@@ -119,11 +119,14 @@ export class Tasks {
 						isHtml: (campaign && campaign.style === "HTML") ?? (!!action && action.template.style === "HTML"),
 					}),
 				},
+			}).catch(async (error) => {
+				await prisma.email.delete({ where: { id: createdEmail.id } });
+				throw error;
 			});
 
 			await prisma.email.update({
 				where: { id: createdEmail.id },
-				data: { messageId, ...(campaign ? { campaignId: campaign.id } : {}) },
+				data: { messageId: sentEmail.messageId, ...(campaign ? { campaignId: campaign.id } : {}) },
 			});
 
 			await prisma.task.delete({ where: { id: task.id } });

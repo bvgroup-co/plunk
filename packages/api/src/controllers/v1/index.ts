@@ -213,7 +213,7 @@ export class V1 {
 				},
 			});
 
-			const { messageId } = await EmailService.send({
+			const sentEmail = await EmailService.send({
 				from: {
 					name: name ?? project.from ?? project.name,
 					email: from ?? project.email,
@@ -238,9 +238,12 @@ export class V1 {
 						},
 					}),
 				},
+			}).catch(async (error) => {
+				await prisma.email.delete({ where: { id: createdEmail.id } });
+				throw error;
 			});
 
-			await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId } });
+			await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId: sentEmail.messageId } });
 
 			emails.push({
 				contact: { id: contact.id, email: contact.email },

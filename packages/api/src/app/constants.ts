@@ -48,10 +48,10 @@ export const EMAIL_PROVIDER_IS_SES = EMAIL_PROVIDER === "ses";
 export const EMAIL_PROVIDER_IS_SENDGRID = EMAIL_PROVIDER === "sendgrid";
 
 // AWS SES
-export const AWS_REGION = validateEnv("AWS_REGION");
-export const AWS_ACCESS_KEY_ID = validateEnv("AWS_ACCESS_KEY_ID");
-export const AWS_SECRET_ACCESS_KEY = validateEnv("AWS_SECRET_ACCESS_KEY");
-export const AWS_SES_CONFIGURATION_SET = validateEnv("AWS_SES_CONFIGURATION_SET");
+export const AWS_REGION = validateEnv("AWS_REGION", "");
+export const AWS_ACCESS_KEY_ID = validateEnv("AWS_ACCESS_KEY_ID", "");
+export const AWS_SECRET_ACCESS_KEY = validateEnv("AWS_SECRET_ACCESS_KEY", "");
+export const AWS_SES_CONFIGURATION_SET = validateEnv("AWS_SES_CONFIGURATION_SET", "");
 
 // SendGrid
 export const SENDGRID_API_KEY = validateEnv("SENDGRID_API_KEY", "");
@@ -69,6 +69,13 @@ export const SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = Number.parseIn
 	validateEnv("SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS", "300"),
 	10,
 );
+
+if (
+	EMAIL_PROVIDER_IS_SES &&
+	(!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_SES_CONFIGURATION_SET)
+) {
+	throw new Error("AWS SES env vars are required when EMAIL_PROVIDER=ses");
+}
 
 if (EMAIL_PROVIDER_IS_SENDGRID && !SENDGRID_API_KEY) {
 	throw new Error("SENDGRID_API_KEY is required when EMAIL_PROVIDER=sendgrid");

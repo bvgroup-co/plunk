@@ -1,17 +1,25 @@
 import { SES } from "@aws-sdk/client-ses";
 import { AWS_ACCESS_KEY_ID, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "../app/constants";
 
-export const ses = new SES({
-	apiVersion: "2010-12-01",
-	region: AWS_REGION,
-	credentials: {
-		accessKeyId: AWS_ACCESS_KEY_ID,
-		secretAccessKey: AWS_SECRET_ACCESS_KEY,
+function getSes(): SES {
+	return new SES({
+		apiVersion: "2010-12-01",
+		region: AWS_REGION,
+		credentials: {
+			accessKeyId: AWS_ACCESS_KEY_ID,
+			secretAccessKey: AWS_SECRET_ACCESS_KEY,
+		},
+	});
+}
+
+export const ses = new Proxy({} as SES, {
+	get(_target, property: keyof SES) {
+		return getSes()[property];
 	},
 });
 
 export const getIdentities = async (identities: string[]) => {
-	const res = await ses.getIdentityVerificationAttributes({
+	const res = await getSes().getIdentityVerificationAttributes({
 		Identities: identities.flatMap((identity) => [identity.split("@")[1]]),
 	});
 
@@ -22,11 +30,11 @@ export const getIdentities = async (identities: string[]) => {
 };
 
 export const verifyIdentity = async (email: string) => {
-	const DKIM = await ses.verifyDomainDkim({
+	const DKIM = await getSes().verifyDomainDkim({
 		Domain: email.includes("@") ? email.split("@")[1] : email,
 	});
 
-	await ses.setIdentityMailFromDomain({
+	await getSes().setIdentityMailFromDomain({
 		Identity: email.includes("@") ? email.split("@")[1] : email,
 		MailFromDomain: `plunk.${email.includes("@") ? email.split("@")[1] : email}`,
 	});
@@ -35,7 +43,7 @@ export const verifyIdentity = async (email: string) => {
 };
 
 export const getIdentityVerificationAttributes = async (email: string) => {
-	const attributes = await ses.getIdentityDkimAttributes({
+	const attributes = await getSes().getIdentityDkimAttributes({
 		Identities: [email, email.split("@")[1]],
 	});
 

@@ -1,18 +1,16 @@
 import crypto from "node:crypto";
-import type { Contact, Email, EmailStatus } from "@prisma/client";
+import { type Contact, type Email, type EmailStatus, Prisma } from "@prisma/client";
 import signale from "signale";
 import {
 	AWS_REGION,
 	EMAIL_PROVIDER,
-	SENDGRID_API_KEY,
 	SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
 	SENDGRID_DOMAIN_AUTH_DEFAULT,
 	SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
-	SENDGRID_ON_BEHALF_OF,
-	SENDGRID_REGION,
 } from "../app/constants";
 import { prisma } from "../database/prisma";
 import { HttpException } from "../exceptions";
+import { sendGridRequest } from "../util/sendgrid";
 import { getIdentities, getIdentityVerificationAttributes, ses, verifyIdentity } from "../util/ses";
 import { ActionService } from "./ActionService";
 import { EventService } from "./EventService";
@@ -60,11 +58,6 @@ type ProjectIdentity = {
 	secret: string;
 };
 
-const SENDGRID_BASE_URLS = {
-	global: "https://api.sendgrid.com",
-	eu: "https://api.eu.sendgrid.com",
-} as const;
-
 function getDomainFromEmail(email: string): string {
 	return email.split("@")[1].toLowerCase();
 }
@@ -100,30 +93,7 @@ function buildSesRecords(domain: string, tokens: string[]): DnsRecord[] {
 	];
 }
 
-async function sendGridRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-	if (!SENDGRID_API_KEY) {
-		throw new HttpException(503, "SendGrid is not configured");
-	}
-
-	const headers = new Headers(init.headers);
-	headers.set("Authorization", `Bearer ${SENDGRID_API_KEY}`);
-	headers.set("Content-Type", "application/json");
-
-	if (SENDGRID_ON_BEHALF_OF) {
-		headers.set("On-Behalf-Of", SENDGRID_ON_BEHALF_OF);
-	}
-
-	const response = await fetch(`${SENDGRID_BASE_URLS[SENDGRID_REGION]}${path}`, { ...init, headers });
-
-	if (!response.ok) {
-		const body = await response.text();
-		throw new HttpException(response.status, body || "SendGrid request failed");
-	}
-
-	if (response.status === 204) {
-		return undefined as T;
-	}
-
+async function parseSendGridJson<T>(response: Response): Promise<T> {
 	return (await response.json()) as T;
 }
 
@@ -179,15 +149,17 @@ export class DomainService {
 		}
 
 		if (EMAIL_PROVIDER === "sendgrid") {
-			const sendGridDomain = await sendGridRequest<SendGridDomainResponse>("/v3/whitelabel/domains", {
-				method: "POST",
-				body: JSON.stringify({
-					domain,
-					subdomain: SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
-					automatic_security: SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
-					default: SENDGRID_DOMAIN_AUTH_DEFAULT,
+			const sendGridDomain = await parseSendGridJson<SendGridDomainResponse>(
+				await sendGridRequest("/v3/whitelabel/domains", {
+					method: "POST",
+					body: JSON.stringify({
+						domain,
+						subdomain: SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
+						automatic_security: SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
+						default: SENDGRID_DOMAIN_AUTH_DEFAULT,
+					}),
 				}),
-			});
+			);
 			const records = recordsFromSendGrid(sendGridDomain);
 
 			await prisma.$transaction([
@@ -311,9 +283,8 @@ export class DomainService {
 		});
 
 		for (const domain of domains) {
-			const validation = await sendGridRequest<SendGridValidateResponse>(
-				`/v3/whitelabel/domains/${domain.providerDomainId}/validate`,
-				{ method: "POST" },
+			const validation = await parseSendGridJson<SendGridValidateResponse>(
+				await sendGridRequest(`/v3/whitelabel/domains/${domain.providerDomainId}/validate`, { method: "POST" }),
 			);
 			const verified = validation.valid;
 
@@ -352,7 +323,7 @@ function normalizeMessageId(messageId: string): string {
 }
 
 function shouldUpdateStatus(current: EmailStatus, next: EmailStatus): boolean {
-	return statusRank[next] >= statusRank[current];
+	return next === current || statusRank[next] > statusRank[current];
 }
 
 async function triggerEmailEvent(email: Email & { contact: Contact }, eventName: string) {
@@ -425,7 +396,7 @@ export class ProviderEventService {
 			});
 			return true;
 		} catch (error) {
-			if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
 				return false;
 			}
 			throw error;
@@ -447,7 +418,7 @@ export class ProviderEventService {
 			await prisma.contact.update({ where: { id: email.contactId }, data: { subscribed: false } });
 			await redis.del(Keys.Contact.id(email.contactId));
 			await redis.del(Keys.Contact.email(email.contact.projectId, email.contact.email));
-			await triggerEmailEvent(email, "unsubscribe");
+			await triggerEmailEvent(email, "email.unsubscribed");
 			return;
 		}
 

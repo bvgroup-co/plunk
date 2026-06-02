@@ -1,5 +1,6 @@
 import mjml2html from "mjml";
 import { APP_URI, AWS_SES_CONFIGURATION_SET, EMAIL_PROVIDER, SENDGRID_API_KEY } from "../app/constants";
+import { sendGridRequest } from "../util/sendgrid";
 import { ses } from "../util/ses";
 
 export class EmailService {
@@ -113,12 +114,8 @@ ${EmailService.breakLongLines(attachment.content, 76, true)}
 			throw new Error("SendGrid is not configured");
 		}
 
-		const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+		const response = await sendGridRequest("/v3/mail/send", {
 			method: "POST",
-			headers: {
-				Authorization: `Bearer ${SENDGRID_API_KEY}`,
-				"Content-Type": "application/json",
-			},
 			body: JSON.stringify({
 				from: { email: params.from.email, name: params.from.name },
 				reply_to: { email: params.reply || params.from.email },

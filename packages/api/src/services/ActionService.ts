@@ -127,7 +127,7 @@ export class ActionService {
 					},
 				});
 
-				const { messageId } = await EmailService.send({
+				const sentEmail = await EmailService.send({
 					from: {
 						name: action.template.from ?? project.from ?? project.name,
 						email: project.verified && project.email ? (action.template.email ?? project.email) : "no-reply@useplunk.dev",
@@ -150,9 +150,12 @@ export class ActionService {
 							isHtml: action.template.style === "HTML",
 						}),
 					},
+				}).catch(async (error) => {
+					await prisma.email.delete({ where: { id: createdEmail.id } });
+					throw error;
 				});
 
-				await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId } });
+				await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId: sentEmail.messageId } });
 			} else {
 				await prisma.task.create({
 					data: {

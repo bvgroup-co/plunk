@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Controller, Middleware, Post } from "@overnightjs/core";
 import type { NextFunction, Request, Response } from "express";
 import signale from "signale";
+import { z } from "zod";
 import {
 	EMAIL_PROVIDER_IS_SENDGRID,
 	SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY,
@@ -22,18 +23,26 @@ const actionableEvents = new Set([
 	"dropped",
 ]);
 
-type SendGridWebhookEvent = {
-	event: string;
-	timestamp?: number;
-	sg_event_id?: string;
-	sg_message_id?: string;
-	email?: string;
-	url?: string;
-	reason?: string;
-	custom_args?: {
-		plunk_email_id?: string;
-	};
-};
+const sendGridWebhookEventSchema = z
+	.object({
+		event: z.string().min(1),
+		timestamp: z.number().optional(),
+		sg_event_id: z.string().optional(),
+		sg_message_id: z.string().optional(),
+		email: z.string().optional(),
+		url: z.string().optional(),
+		reason: z.string().optional(),
+		custom_args: z
+			.object({
+				plunk_email_id: z.string().optional(),
+			})
+			.passthrough()
+			.optional(),
+	})
+	.passthrough();
+
+const sendGridWebhookEventsSchema = z.array(sendGridWebhookEventSchema);
+type SendGridWebhookEvent = z.infer<typeof sendGridWebhookEventSchema>;
 
 function assertSendGridEnabled(_req: Request, res: Response, next: NextFunction): void {
 	if (!EMAIL_PROVIDER_IS_SENDGRID) {
@@ -66,12 +75,23 @@ function parseEvents(req: Request): SendGridWebhookEvent[] {
 		throw new HttpException(400, "Raw request body is required");
 	}
 
-	const parsed = JSON.parse(req.body.toString("utf8")) as unknown;
-	if (!Array.isArray(parsed)) {
-		throw new HttpException(400, "SendGrid event webhook payload must be an array");
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(req.body.toString("utf8")) as unknown;
+	} catch (error) {
+		if (error instanceof SyntaxError) {
+			throw new HttpException(400, "SendGrid event webhook payload must be valid JSON");
+		}
+
+		throw error;
 	}
 
-	return parsed as SendGridWebhookEvent[];
+	const result = sendGridWebhookEventsSchema.safeParse(parsed);
+	if (!result.success) {
+		throw new HttpException(400, result.error.issues[0].message);
+	}
+
+	return result.data;
 }
 
 function assertSignature(req: Request): void {
