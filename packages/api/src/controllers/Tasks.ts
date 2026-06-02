@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Controller, Post } from "@overnightjs/core";
 import type { Request, Response } from "express";
 import signale from "signale";
@@ -10,7 +11,7 @@ import { ProjectService } from "../services/ProjectService";
 export class Tasks {
 	@Post()
 	public async handleTasksApi(req: Request, res: Response) {
-		await (new Tasks().handleTasks());
+		await new Tasks().handleTasks();
 		return res.status(200).json({ success: true });
 	}
 
@@ -60,7 +61,7 @@ export class Tasks {
 					}
 				}
 
-				email = project.verified && project.email ? template.email ?? project.email : "no-reply@useplunk.dev";
+				email = project.verified && project.email ? (template.email ?? project.email) : "no-reply@useplunk.dev";
 				name = template.from ?? project.from ?? project.name;
 
 				({ subject, body } = EmailService.format({
@@ -73,7 +74,7 @@ export class Tasks {
 					},
 				}));
 			} else if (campaign) {
-				email = project.verified && project.email ? campaign.email ?? project.email : "no-reply@useplunk.dev";
+				email = project.verified && project.email ? (campaign.email ?? project.email) : "no-reply@useplunk.dev";
 				name = campaign.from ?? project.from ?? project.name;
 
 				({ subject, body } = EmailService.format({
@@ -87,12 +88,21 @@ export class Tasks {
 				}));
 			}
 
-			const { messageId } = await EmailService.send({
+			const createdEmail = await prisma.email.create({
+				data: {
+					messageId: `pending-${crypto.randomUUID()}`,
+					contactId: contact.id,
+					...(action ? { actionId: action.id } : {}),
+				},
+			});
+
+			const sentEmail = await EmailService.send({
 				from: {
 					name,
 					email,
 				},
 				to: [contact.email],
+				headers: { "X-Plunk-Email-ID": createdEmail.id },
 				content: {
 					subject,
 					html: EmailService.compile({
@@ -109,25 +119,15 @@ export class Tasks {
 						isHtml: (campaign && campaign.style === "HTML") ?? (!!action && action.template.style === "HTML"),
 					}),
 				},
+			}).catch(async (error) => {
+				await prisma.email.delete({ where: { id: createdEmail.id } });
+				throw error;
 			});
 
-			const emailData: {
-				messageId: string;
-				contactId: string;
-				actionId?: string;
-				campaignId?: string;
-			} = {
-				messageId,
-				contactId: contact.id,
-			};
-
-			if (action) {
-				emailData.actionId = action.id;
-			} else if (campaign) {
-				emailData.campaignId = campaign.id;
-			}
-
-			await prisma.email.create({ data: emailData });
+			await prisma.email.update({
+				where: { id: createdEmail.id },
+				data: { messageId: sentEmail.messageId, ...(campaign ? { campaignId: campaign.id } : {}) },
+			});
 
 			await prisma.task.delete({ where: { id: task.id } });
 

@@ -15,7 +15,7 @@ Support can be asked in the `#contributions` channel of the [Plunk Discord serve
 ### 3. Set your environment variables
 
 - Copy the `.env.example` files in the `api`, `dashboard` and `prisma` folder to `.env` in their respective folders.
-- Set AWS credentials in the `api` `.env` file.
+- Set credentials for your selected email provider in the `api` `.env` file (`EMAIL_PROVIDER=ses` requires AWS SES variables; `EMAIL_PROVIDER=sendgrid` requires SendGrid variables).
 
 ### 4. Start resources
 

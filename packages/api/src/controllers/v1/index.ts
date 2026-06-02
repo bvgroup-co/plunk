@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { ChildControllers, Controller, Middleware, Post } from "@overnightjs/core";
 import { EventSchemas } from "@plunk/shared";
 import dayjs from "dayjs";
@@ -79,11 +80,11 @@ export class V1 {
 			redis.del(Keys.Contact.email(project.id, contact.email));
 		} else {
 			if (subscribed !== null && contact.subscribed !== subscribed) {
-				contact = await prisma.contact.update({where: {id: contact.id}, data: {subscribed}});
-		
+				contact = await prisma.contact.update({ where: { id: contact.id }, data: { subscribed } });
+
 				redis.del(Keys.Contact.id(contact.id));
 				redis.del(Keys.Contact.email(project.id, contact.email));
-			  }
+			}
 		}
 
 		if (data) {
@@ -202,14 +203,24 @@ export class V1 {
 				},
 			});
 
-			const { messageId } = await EmailService.send({
+			const createdEmail = await prisma.email.create({
+				data: {
+					messageId: `pending-${crypto.randomUUID()}`,
+					subject,
+					body: enrichedBody,
+					contactId: contact.id,
+					projectId: project.id,
+				},
+			});
+
+			const sentEmail = await EmailService.send({
 				from: {
 					name: name ?? project.from ?? project.name,
 					email: from ?? project.email,
 				},
 				reply: reply ?? from ?? project.email,
 				to: [email],
-				headers,
+				headers: { ...(headers ?? {}), "X-Plunk-Email-ID": createdEmail.id },
 				attachments,
 				content: {
 					subject: enrichedSubject,
@@ -227,17 +238,12 @@ export class V1 {
 						},
 					}),
 				},
+			}).catch(async (error) => {
+				await prisma.email.delete({ where: { id: createdEmail.id } });
+				throw error;
 			});
 
-			const createdEmail = await prisma.email.create({
-				data: {
-					messageId,
-					subject,
-					body: enrichedBody,
-					contactId: contact.id,
-					projectId: project.id,
-				},
-			});
+			await prisma.email.update({ where: { id: createdEmail.id }, data: { messageId: sentEmail.messageId } });
 
 			emails.push({
 				contact: { id: contact.id, email: contact.email },

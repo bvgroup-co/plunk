@@ -6,13 +6,14 @@ import { Server } from "@overnightjs/core";
 import compression from "compression";
 import cookies from "cookie-parser";
 import cors from "cors";
-import { type NextFunction, type Request, type Response, json } from "express";
+import { type NextFunction, type Request, type Response, json, raw } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import signale from "signale";
 import { APP_URI, NODE_ENV } from "./app/constants";
 import { task } from "./app/cron";
 import { Auth } from "./controllers/Auth";
+import { Health } from "./controllers/Health";
 import { Identities } from "./controllers/Identities";
 import { Memberships } from "./controllers/Memberships";
 import { Projects } from "./controllers/Projects";
@@ -22,7 +23,6 @@ import { Webhooks } from "./controllers/Webhooks";
 import { V1 } from "./controllers/v1";
 import { prisma } from "./database/prisma";
 import { HttpException } from "./exceptions";
-import { Health } from "./controllers/Health";
 
 const server = new (class extends Server {
 	public constructor() {
@@ -41,6 +41,8 @@ const server = new (class extends Server {
 				threshold: 0,
 			}),
 		);
+
+		this.app.use("/webhooks/sendgrid/events", raw({ type: "application/json", limit: "5mb" }));
 
 		// Parse the rest of our application as json
 		this.app.use(json({ limit: "50mb" }));

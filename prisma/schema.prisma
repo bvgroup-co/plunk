@@ -48,12 +48,43 @@ model Project {
   events      Event[]
   templates   Template[]
   emails      Email[]
+  domains     Domain[]
 
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("projects")
+}
+
+model Domain {
+  id String @id @default(uuid())
+
+  domain       String
+  email        String
+  provider     EmailProvider @default(SES)
+  verified     Boolean       @default(false)
+  dkimTokens   String[]      @default([])
+
+  providerDomainId  String?
+  providerSubdomain String?
+  providerRecords   Json?
+  providerData      Json?
+  providerError     String?
+  lastCheckedAt     DateTime?
+  verifiedAt        DateTime?
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerDomainId])
+  @@unique([projectId, domain])
+  @@index([projectId])
+  @@index([provider, verified])
+  @@map("domains")
 }
 
 // Table to maintain many-to-many relationship between Account and Project
@@ -265,6 +296,7 @@ model Email {
   contactId String
 
   clicks Click[]
+  providerEvents ProviderWebhookEvent[]
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -277,6 +309,28 @@ model Email {
   @@index([contactId])
   @@index([createdAt])
   @@map("emails")
+}
+
+model ProviderWebhookEvent {
+  id String @id @default(uuid())
+
+  provider        EmailProvider
+  providerEventId String
+  event           String
+  payload         Json
+  status          WebhookEventStatus @default(PROCESSED)
+  error           String?
+
+  email   Email?  @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  emailId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerEventId])
+  @@index([emailId])
+  @@index([provider, createdAt])
+  @@map("provider_webhook_events")
 }
 
 model Click {
@@ -344,6 +398,20 @@ enum EmailStatus {
   BOUNCED
   OPENED
   COMPLAINT
+  COMPLAINED
+  CLICKED
+  FAILED
+}
+
+enum EmailProvider {
+  SES
+  SENDGRID
+}
+
+enum WebhookEventStatus {
+  PROCESSED
+  FAILED
+  IGNORED
 }
 
 enum CampaignStatus {
