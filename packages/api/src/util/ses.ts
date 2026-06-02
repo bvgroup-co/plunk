@@ -1,20 +1,33 @@
 import { SES } from "@aws-sdk/client-ses";
 import { AWS_ACCESS_KEY_ID, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "../app/constants";
 
+let sesClient: SES | null = null;
+
 function getSes(): SES {
-	return new SES({
-		apiVersion: "2010-12-01",
-		region: AWS_REGION,
-		credentials: {
-			accessKeyId: AWS_ACCESS_KEY_ID,
-			secretAccessKey: AWS_SECRET_ACCESS_KEY,
-		},
-	});
+	if (!sesClient) {
+		sesClient = new SES({
+			apiVersion: "2010-12-01",
+			region: AWS_REGION,
+			credentials: {
+				accessKeyId: AWS_ACCESS_KEY_ID,
+				secretAccessKey: AWS_SECRET_ACCESS_KEY,
+			},
+		});
+	}
+
+	return sesClient;
 }
 
 export const ses = new Proxy({} as SES, {
 	get(_target, property: keyof SES) {
-		return getSes()[property];
+		const client = getSes();
+		const value = client[property];
+
+		if (typeof value === "function") {
+			return value.bind(client);
+		}
+
+		return value;
 	},
 });
 
