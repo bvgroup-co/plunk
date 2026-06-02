@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/bvgroup-co/plunk/compare/v0.13.0...v0.14.0) (2026-06-02)
+
+
+### Features
+
+* **email:** add SendGrid provider ([#21](https://github.com/bvgroup-co/plunk/issues/21)) ([078e09f](https://github.com/bvgroup-co/plunk/commit/078e09fdb86f2a30b68ddda749dc75967ed71548))
+
+
+### Bug Fixes
+
+* **ci:** detect release commits by subject ([#24](https://github.com/bvgroup-co/plunk/issues/24)) ([11b1e4d](https://github.com/bvgroup-co/plunk/commit/11b1e4dbf59d7a8e2155199dd1481edf4f4dab2f))
+
 ## [0.13.0](https://github.com/bvgroup-co/plunk/compare/v0.12.0...v0.13.0) (2026-06-02)
 
 
