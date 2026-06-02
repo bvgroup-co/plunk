@@ -91,6 +91,7 @@ Dashboard authentication uses OIDC only. Register the redirect URI `${API_URI}/o
 | `OIDC_EMAIL_VERIFIED_CLAIM`   | No       | Claim used to determine whether the email is verified.                  | `email_verified`        |
 | `OIDC_REQUIRE_EMAIL_VERIFIED` | No       | Require the verified-email claim before creating or signing in a user.  | `true`                  |
 | `OIDC_ALLOW_SIGNUPS`          | No       | Create a local user on first successful OIDC sign-in.                   | `true`                  |
+| `OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL` | No       | Link an existing non-OIDC user by verified email.                       | `false`                 |
 
 ## Stripe
 

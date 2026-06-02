@@ -1,4 +1,5 @@
 import {Controller, Get} from '@overnightjs/core';
+import type {User} from '@plunk/db';
 import {createHash, randomBytes} from 'node:crypto';
 import type {NextFunction, Request, Response} from 'express';
 import {createRemoteJWKSet, jwtVerify} from 'jose';
@@ -15,6 +16,7 @@ import {
   OIDC_EMAIL_VERIFIED_CLAIM,
   OIDC_ENABLED,
   OIDC_ISSUER,
+  OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL,
   OIDC_REQUIRE_EMAIL_VERIFIED,
   OIDC_SCOPES,
 } from '../../app/constants.js';
@@ -55,6 +57,7 @@ export type VerifiedOidcClaims = {
   iss: string;
   sub: string;
   email: string;
+  emailVerified: boolean;
 };
 
 export type OidcCallbackResult =
@@ -105,14 +108,25 @@ function getEmailVerified(payload: JWTPayload): boolean {
   return false;
 }
 
+function isOidcSignupAllowed(): boolean {
+  return process.env.OIDC_ALLOW_SIGNUPS ? process.env.OIDC_ALLOW_SIGNUPS === 'true' : OIDC_ALLOW_SIGNUPS;
+}
+
+function isOidcLinkExistingByVerifiedEmailEnabled(): boolean {
+  return process.env.OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL
+    ? process.env.OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL === 'true'
+    : OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL;
+}
+
 export function extractVerifiedOidcClaims(payload: JWTPayload): VerifiedOidcClaims | string {
   const email = getClaimAsString(payload, OIDC_EMAIL_CLAIM);
+  const emailVerified = getEmailVerified(payload);
 
   if (!payload.iss || !payload.sub || !email) {
     return 'OIDC response did not include required identity claims';
   }
 
-  if (OIDC_REQUIRE_EMAIL_VERIFIED && !getEmailVerified(payload)) {
+  if (OIDC_REQUIRE_EMAIL_VERIFIED && !emailVerified) {
     return 'OIDC email address is not verified';
   }
 
@@ -120,7 +134,63 @@ export function extractVerifiedOidcClaims(payload: JWTPayload): VerifiedOidcClai
     iss: payload.iss,
     sub: payload.sub,
     email,
+    emailVerified,
   };
+}
+
+async function cacheUser(user: User, emailLookup = user.email) {
+  await redis.set(Keys.User.id(user.id), JSON.stringify(user), 'EX', 60 * 60);
+  await redis.set(Keys.User.email(user.email), JSON.stringify(user), 'EX', 60);
+
+  if (emailLookup !== user.email) {
+    await redis.set(Keys.User.email(emailLookup), JSON.stringify(user), 'EX', 60);
+  }
+}
+
+async function linkExistingUserByVerifiedEmail(
+  claims: VerifiedOidcClaims,
+  existingEmailUser: User,
+): Promise<OidcCallbackResult> {
+  if (!claims.emailVerified) {
+    return {status: 'failure', reason: 'OIDC email address is not verified'};
+  }
+
+  const linkedUsers = await prisma.user.updateManyAndReturn({
+    where: {
+      id: existingEmailUser.id,
+      email: {
+        equals: claims.email,
+        mode: 'insensitive',
+      },
+      oidcIssuer: null,
+      oidcSubject: null,
+    },
+    data: {
+      password: null,
+      type: 'OIDC',
+      emailVerified: true,
+      oidcIssuer: claims.iss,
+      oidcSubject: claims.sub,
+    },
+  });
+
+  if (linkedUsers.length === 0) {
+    return {status: 'failure', reason: 'An account with this email already exists'};
+  }
+
+  if (linkedUsers.length !== 1) {
+    throw new Error('OIDC email linking matched multiple users');
+  }
+
+  const linkedUser = linkedUsers[0];
+
+  if (!linkedUser) {
+    throw new Error('OIDC email linking did not return the linked user');
+  }
+
+  await cacheUser(linkedUser, claims.email);
+
+  return {status: 'success', userId: linkedUser.id, isNewUser: false};
 }
 
 export async function completeOidcCallback(claims: VerifiedOidcClaims): Promise<OidcCallbackResult> {
@@ -135,14 +205,18 @@ export async function completeOidcCallback(claims: VerifiedOidcClaims): Promise<
   let isNewUser = false;
 
   if (!user) {
-    if (!OIDC_ALLOW_SIGNUPS) {
-      return {status: 'failure', reason: 'New user signups are currently disabled'};
-    }
-
     const existingEmailUser = await UserService.email(claims.email);
 
     if (existingEmailUser) {
+      if (isOidcLinkExistingByVerifiedEmailEnabled()) {
+        return linkExistingUserByVerifiedEmail(claims, existingEmailUser);
+      }
+
       return {status: 'failure', reason: 'An account with this email already exists'};
+    }
+
+    if (!isOidcSignupAllowed()) {
+      return {status: 'failure', reason: 'New user signups are currently disabled'};
     }
 
     user = await prisma.user.create({
@@ -166,16 +240,12 @@ export async function completeOidcCallback(claims: VerifiedOidcClaims): Promise<
     await NtfyService.notifyUserOAuthSignup(user.email, user.id, OIDC_DISPLAY_NAME);
   }
 
-  await redis.set(Keys.User.id(user.id), JSON.stringify(user), 'EX', 60 * 60);
+  await cacheUser(user);
 
   return {status: 'success', userId: user.id, isNewUser};
 }
 
-export async function verifyOidcIdToken(
-  idToken: string,
-  nonce: string,
-  jwks: JWTVerifyGetKey,
-): Promise<JWTPayload> {
+export async function verifyOidcIdToken(idToken: string, nonce: string, jwks: JWTVerifyGetKey): Promise<JWTPayload> {
   const {payload} = await jwtVerify(idToken, jwks, {
     issuer: OIDC_ISSUER,
     audience: OIDC_CLIENT_ID,

@@ -28,7 +28,8 @@
         "OIDC_EMAIL_CLAIM",
         "OIDC_EMAIL_VERIFIED_CLAIM",
         "OIDC_REQUIRE_EMAIL_VERIFIED",
-        "OIDC_ALLOW_SIGNUPS"
+        "OIDC_ALLOW_SIGNUPS",
+        "OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL"
       ],
       "inputs": [
         "$TURBO_DEFAULT$",
@@ -120,7 +121,8 @@
         "OIDC_EMAIL_CLAIM",
         "OIDC_EMAIL_VERIFIED_CLAIM",
         "OIDC_REQUIRE_EMAIL_VERIFIED",
-        "OIDC_ALLOW_SIGNUPS"
+        "OIDC_ALLOW_SIGNUPS",
+        "OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL"
       ],
       "inputs": [
         "$TURBO_DEFAULT$",
@@ -202,7 +204,8 @@
         "OIDC_EMAIL_CLAIM",
         "OIDC_EMAIL_VERIFIED_CLAIM",
         "OIDC_REQUIRE_EMAIL_VERIFIED",
-        "OIDC_ALLOW_SIGNUPS"
+        "OIDC_ALLOW_SIGNUPS",
+        "OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL"
       ]
     },
     "dev:worker": {
@@ -268,7 +271,8 @@
         "OIDC_EMAIL_CLAIM",
         "OIDC_EMAIL_VERIFIED_CLAIM",
         "OIDC_REQUIRE_EMAIL_VERIFIED",
-        "OIDC_ALLOW_SIGNUPS"
+        "OIDC_ALLOW_SIGNUPS",
+        "OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL"
       ]
     },
     "clean": {
