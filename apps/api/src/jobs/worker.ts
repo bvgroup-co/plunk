@@ -20,6 +20,7 @@ import {createScheduledCampaignWorker} from './scheduled-processor.js';
 import {createSegmentCountWorker} from './segment-count-processor.js';
 import {createSesEventSqsPoller, type SesEventSqsPoller} from './ses-event-sqs-poller.js';
 import {createWorkflowWorker} from './workflow-processor-queue.js';
+import {EMAIL_PROVIDER_IS_SES} from '../app/constants.js';
 
 const workers: {name: string; worker: Worker}[] = [];
 let sesEventSqsPoller: SesEventSqsPoller | null = null;
@@ -63,10 +64,12 @@ async function startWorkers() {
     workers.push({name: 'segment-count', worker: segmentCountWorker});
     signale.success('[WORKER] Segment count worker started');
 
-    // Start domain verification worker
-    const domainVerificationWorker = createDomainVerificationWorker();
-    workers.push({name: 'domain-verification', worker: domainVerificationWorker});
-    signale.success('[WORKER] Domain verification worker started');
+    if (EMAIL_PROVIDER_IS_SES) {
+      // Start domain verification worker
+      const domainVerificationWorker = createDomainVerificationWorker();
+      workers.push({name: 'domain-verification', worker: domainVerificationWorker});
+      signale.success('[WORKER] Domain verification worker started');
+    }
 
     // Start API request cleanup worker
     const apiRequestCleanupWorker = createApiRequestCleanupWorker();
@@ -79,8 +82,10 @@ async function startWorkers() {
     signale.success('[WORKER] Meter worker started');
 
     // Start optional SES event SQS poller
-    sesEventSqsPoller = createSesEventSqsPoller();
-    sesEventSqsPoller?.start();
+    if (EMAIL_PROVIDER_IS_SES) {
+      sesEventSqsPoller = createSesEventSqsPoller();
+      sesEventSqsPoller?.start();
+    }
 
     signale.success('[WORKER] All workers started successfully');
   } catch (error) {

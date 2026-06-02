@@ -21,11 +21,11 @@ import {EventService} from '../services/EventService.js';
 import {MeterService} from '../services/MeterService.js';
 import {emailQueue} from '../services/QueueService.js';
 import {SecurityService} from '../services/SecurityService.js';
-import {getSendingQuota, sendRawEmail} from '../services/SESService.js';
+import {getOutboundEmailProvider} from '../services/email-providers/index.js';
 
 /**
  * Determine the email sending rate limit (emails per second)
- * Priority: ENV variable > AWS SES quota > Safe default (14)
+ * Priority: ENV variable > provider quota > safe default (14)
  */
 async function getEmailRateLimit(): Promise<number> {
   const DEFAULT_RATE_LIMIT = 14; // AWS SES sandbox limit - safe default
@@ -36,19 +36,24 @@ async function getEmailRateLimit(): Promise<number> {
     return EMAIL_RATE_LIMIT_PER_SECOND;
   }
 
-  // Try to fetch from AWS SES
-  signale.info('[EMAIL-PROCESSOR] Fetching rate limit from AWS SES...');
-  const quota = await getSendingQuota();
+  const provider = getOutboundEmailProvider();
+  if (!provider.getRateLimit) {
+    signale.info(`[EMAIL-PROCESSOR] No ${provider.provider} rate limit lookup configured; using default`);
+    return DEFAULT_RATE_LIMIT;
+  }
+
+  signale.info(`[EMAIL-PROCESSOR] Fetching rate limit from ${provider.provider}...`);
+  const quota = await provider.getRateLimit();
 
   if (quota) {
     signale.info(
-      `[EMAIL-PROCESSOR] AWS SES quota: ${quota.maxSendRate} emails/second (${quota.sentLast24Hours}/${quota.max24HourSend} emails sent today)`,
+      `[EMAIL-PROCESSOR] ${provider.provider} quota: ${quota.maxSendRate} emails/second (${quota.sentLast24Hours}/${quota.max24HourSend} emails sent today)`,
     );
     return quota.maxSendRate;
   }
 
   // Fallback to safe default
-  signale.warn(`[EMAIL-PROCESSOR] Failed to fetch AWS quota, using safe default: ${DEFAULT_RATE_LIMIT} emails/second`);
+  signale.warn(`[EMAIL-PROCESSOR] Failed to fetch provider quota, using safe default: ${DEFAULT_RATE_LIMIT} emails/second`);
   return DEFAULT_RATE_LIMIT;
 }
 
@@ -211,24 +216,24 @@ export async function createEmailWorker() {
           throw new Error(`Project ${email.projectId} has been disabled due to a policy violation`);
         }
 
-        // Send via AWS SES
-        const result = await sendRawEmail({
+        const provider = getOutboundEmailProvider();
+        const result = await provider.sendEmail({
           from: {
             name: fromName,
             email: fromEmail,
           },
-          to: typeof recipient === 'string' ? [recipient] : [{name: recipient.name, email: recipient.email}],
-          content: {
-            subject: formattedEmail.subject,
-            html: compiledHtml,
-          },
+          to: typeof recipient === 'string' ? [{email: recipient}] : [{name: recipient.name, email: recipient.email}],
+          subject: formattedEmail.subject,
+          html: compiledHtml,
           reply: email.replyTo || undefined,
           headers: publicHeaders,
           tracking: shouldTrack,
           attachments: email.attachments as {filename: string; content: string; contentType: string}[] | null,
+          emailId: email.id,
+          projectId: email.projectId,
         });
 
-        // Mark as sent with SES message ID
+        // Mark as sent with provider message ID
         await prisma.email.update({
           where: {id: emailId},
           data: {

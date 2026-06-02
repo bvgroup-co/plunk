@@ -12,7 +12,7 @@ import {BillingLimitService} from './BillingLimitService.js';
 import {DomainService} from './DomainService.js';
 import {EventService} from './EventService.js';
 import {QueueService} from './QueueService.js';
-import {sendRawEmail} from './SESService.js';
+import {getOutboundEmailProvider} from './email-providers/index.js';
 
 interface Attachment {
   filename: string;
@@ -401,24 +401,24 @@ export class EmailService {
       // Determine tracking based on project settings and email type
       const shouldTrack = this.shouldTrackEmail(email.project.tracking, email.sourceType);
 
-      // Send via AWS SES
-      const result = await sendRawEmail({
+      const provider = getOutboundEmailProvider();
+      const result = await provider.sendEmail({
         from: {
           name: fromName,
           email: fromEmail,
         },
-        to: [recipientEmail],
-        content: {
-          subject: formattedEmail.subject,
-          html: compiledHtml,
-        },
+        to: email.toName ? [{name: email.toName, email: recipientEmail}] : [{email: recipientEmail}],
+        subject: formattedEmail.subject,
+        html: compiledHtml,
         reply: email.replyTo || undefined,
         headers: publicHeaders,
         attachments: attachments,
         tracking: shouldTrack,
+        emailId: email.id,
+        projectId: email.projectId,
       });
 
-      // Mark as sent with SES message ID
+      // Mark as sent with provider message ID
       await prisma.email.update({
         where: {id: emailId},
         data: {

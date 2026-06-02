@@ -11,11 +11,11 @@ import {buildEmailFieldsUpdate} from '../utils/modelUpdate.js';
 import {BillingLimitService} from './BillingLimitService.js';
 import {DomainService} from './DomainService.js';
 import {EmailService} from './EmailService.js';
+import {getOutboundEmailProvider} from './email-providers/index.js';
 import {NtfyService} from './NtfyService.js';
 import {QueueService} from './QueueService.js';
 import {SegmentService} from './SegmentService.js';
 import {DASHBOARD_URI, STRIPE_ENABLED} from '../app/constants.js';
-import {sendRawEmail} from './SESService.js';
 
 const BATCH_SIZE = 500; // Number of emails to process per batch (increased for better performance)
 
@@ -707,22 +707,21 @@ export class CampaignService {
       throw new HttpException(404, 'Project not found');
     }
 
-    // Prepare the email content (no variable replacement for test emails)
-    await sendRawEmail({
+    const provider = getOutboundEmailProvider();
+    await provider.sendEmail({
       from: {
         name: campaign.fromName || project.name || 'Plunk',
         email: campaign.from,
       },
-      to: [testEmail],
-      content: {
-        subject: `[TEST] ${campaign.subject}`,
-        html: campaign.body,
-      },
+      to: [{email: testEmail}],
+      subject: `[TEST] ${campaign.subject}`,
+      html: campaign.body,
       reply: campaign.replyTo || undefined,
       headers: {
         'X-Plunk-Test': 'true',
       },
       tracking: false, // Disable tracking for test emails
+      projectId,
     });
   }
 

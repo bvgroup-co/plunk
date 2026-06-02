@@ -2,7 +2,6 @@ import {beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
 import {EmailSourceType, EmailStatus, TemplateType} from '@plunk/db';
 import {ActionSchemas} from '@plunk/shared';
 import {EmailService} from '../EmailService';
-import {sendRawEmail} from '../SESService';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 
 // Mock AWS SDK globally (used by real SESService calls in MIME tests)
@@ -13,7 +12,7 @@ vi.mock('@aws-sdk/client-ses', () => {
 });
 
 // Mock constants to provide AWS credentials for SESService, preserving other exports
-vi.mock('../../app/constants.js', async (importOriginal) => {
+vi.mock('../../app/constants.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../../app/constants.js')>();
   return {
     ...actual,
@@ -26,9 +25,13 @@ vi.mock('../../app/constants.js', async (importOriginal) => {
   };
 });
 
-// Mock SES service (default behavior for most tests)
-vi.mock('../SESService', () => ({
-  sendRawEmail: vi.fn(),
+const sendEmailMock = vi.fn();
+
+vi.mock('../email-providers', () => ({
+  getOutboundEmailProvider: vi.fn(() => ({
+    provider: 'ses',
+    sendEmail: sendEmailMock,
+  })),
 }));
 
 describe('EmailService', () => {
@@ -50,8 +53,8 @@ describe('EmailService', () => {
       verified: true,
     });
 
-    // Mock successful SES send by default
-    vi.mocked(sendRawEmail).mockResolvedValue({
+    sendEmailMock.mockResolvedValue({
+      provider: 'ses',
       messageId: 'ses-message-123',
     });
   });
@@ -387,7 +390,7 @@ describe('EmailService', () => {
 
     describe('PENDING → SENDING → FAILED', () => {
       it('should mark as FAILED on SES error', async () => {
-        vi.mocked(sendRawEmail).mockRejectedValue(new Error('SES rate limit exceeded'));
+        sendEmailMock.mockRejectedValue(new Error('SES rate limit exceeded'));
 
         const email = await factories.createEmail({
           projectId,
@@ -416,12 +419,11 @@ describe('EmailService', () => {
           messageId: 'already-sent-123',
         });
 
-        const sesSpy = vi.mocked(sendRawEmail);
-        sesSpy.mockClear();
+        sendEmailMock.mockClear();
 
         await EmailService.sendEmail(email.id);
 
-        expect(sesSpy).not.toHaveBeenCalled();
+        expect(sendEmailMock).not.toHaveBeenCalled();
       });
     });
 
@@ -702,8 +704,7 @@ describe('EmailService', () => {
       // Send the email
       await EmailService.sendEmail(email.id);
 
-      // Verify SES was called with attachments
-      expect(vi.mocked(sendRawEmail)).toHaveBeenCalledWith(
+      expect(sendEmailMock).toHaveBeenCalledWith(
         expect.objectContaining({
           attachments: [attachment],
         }),
@@ -962,7 +963,6 @@ describe('EmailService', () => {
 
       expect(result.success).toBe(false);
     });
-
   });
 });
 
@@ -979,7 +979,8 @@ describe('SES MIME Boundary Structure', () => {
   });
 
   it('should correctly structure MIME boundaries for mixed content (attachments)', async () => {
-    const {sendRawEmail: realSendRawEmail, ses} = await vi.importActual<typeof import('../SESService')>('../SESService');
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
 
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
@@ -1013,7 +1014,8 @@ describe('SES MIME Boundary Structure', () => {
   });
 
   it('should correctly structure MIME boundaries for related content (inline images)', async () => {
-    const {sendRawEmail: realSendRawEmail, ses} = await vi.importActual<typeof import('../SESService')>('../SESService');
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
 
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
@@ -1022,8 +1024,7 @@ describe('SES MIME Boundary Structure', () => {
       attachments: [
         {
           filename: 'image.png',
-          content:
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
           contentType: 'image/png',
           contentId: 'image1',
           disposition: 'inline' as const,
@@ -1048,7 +1049,8 @@ describe('SES MIME Boundary Structure', () => {
   });
 
   it('should correctly nest mixed > related > alternative boundaries', async () => {
-    const {sendRawEmail: realSendRawEmail, ses} = await vi.importActual<typeof import('../SESService')>('../SESService');
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
 
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
@@ -1063,8 +1065,7 @@ describe('SES MIME Boundary Structure', () => {
         },
         {
           filename: 'image.png',
-          content:
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
           contentType: 'image/png',
           contentId: 'image1',
           disposition: 'inline' as const,
