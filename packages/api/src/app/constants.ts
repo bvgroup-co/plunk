@@ -62,6 +62,7 @@ export const SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY =
 export const SENDGRID_DOMAIN_AUTH_DEFAULT =
 	validateEnv("SENDGRID_DOMAIN_AUTH_DEFAULT", "false").toLowerCase() === "true";
 export const SENDGRID_ON_BEHALF_OF = validateEnv("SENDGRID_ON_BEHALF_OF", "");
+export const SENDGRID_TRACKING_ENABLED = validateEnv("SENDGRID_TRACKING_ENABLED", "true").toLowerCase() === "true";
 export const SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY = validateEnv("SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY", "");
 export const SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED =
 	validateEnv("SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED", "true").toLowerCase() === "true";

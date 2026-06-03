@@ -220,6 +220,7 @@ export class V1 {
 				},
 				reply: reply ?? from ?? project.email,
 				to: [email],
+				tracking: true,
 				headers: { ...(headers ?? {}), "X-Plunk-Email-ID": createdEmail.id },
 				attachments,
 				content: {

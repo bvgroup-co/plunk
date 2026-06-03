@@ -1,0 +1,101 @@
+name: SendGrid CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  sendgrid-e2e:
+    name: SendGrid E2E
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 55432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 56379:6379
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:55432/postgres
+      REDIS_URL: redis://127.0.0.1:56379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate Prisma client
+        run: yarn generate
+
+      - name: Build shared package
+        run: yarn workspace @plunk/shared build
+
+      - name: Run database migrations
+        run: yarn migrate:deploy
+
+      - name: Run SendGrid E2E tests
+        run: yarn test:sendgrid
+
+  lint-and-build:
+    name: Lint and build
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:55432/postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate Prisma client
+        run: yarn generate
+
+      - name: Format package manifest
+        run: yarn biome format --write package.json
+
+      - name: Run linter
+        run: yarn lint:sendgrid
+
+      - name: Build API and dashboard
+        run: |
+          yarn build:api
+          yarn build:dashboard
