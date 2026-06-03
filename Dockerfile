@@ -6,7 +6,7 @@
 # Stage 1: Dependencies (All dependencies for building)
 # ============================================
 # Use build platform (AMD64) to install dependencies, avoiding QEMU issues
-FROM --platform=$BUILDPLATFORM node:20-slim AS deps
+FROM node:20-slim AS deps
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 WORKDIR /app
@@ -20,8 +20,8 @@ RUN corepack enable && corepack prepare yarn@4.9.1 --activate
 # Copy Yarn configuration and release
 COPY .yarnrc.yml ./
 COPY .yarn/releases ./.yarn/releases
-COPY docker/yarn-install-target-platform.sh /usr/local/bin/yarn-install-target-platform.sh
-RUN chmod +x /usr/local/bin/yarn-install-target-platform.sh
+COPY docker/install-deps.sh /usr/local/bin/install-deps.sh
+RUN chmod +x /usr/local/bin/install-deps.sh
 
 # Copy package files for dependency installation
 COPY package.json yarn.lock ./
@@ -43,13 +43,13 @@ COPY packages/eslint-config/package.json ./packages/eslint-config/
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Building on $BUILDPLATFORM for $TARGETPLATFORM" && \
-    /usr/local/bin/yarn-install-target-platform.sh
+    /usr/local/bin/install-deps.sh
 
 # ============================================
 # Stage 1b: Production Dependencies for API/SMTP
 # ============================================
 # Install only production dependencies needed for API and SMTP services
-FROM --platform=$BUILDPLATFORM node:20-slim AS prod-deps
+FROM node:20-slim AS prod-deps
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 WORKDIR /app
@@ -60,6 +60,8 @@ RUN corepack enable && corepack prepare yarn@4.9.1 --activate
 # Copy Yarn configuration
 COPY .yarnrc.yml ./
 COPY .yarn/releases ./.yarn/releases
+COPY docker/install-deps.sh /usr/local/bin/install-deps.sh
+RUN chmod +x /usr/local/bin/install-deps.sh
 
 # Copy all package.json files (needed for workspace resolution)
 COPY package.json yarn.lock ./
