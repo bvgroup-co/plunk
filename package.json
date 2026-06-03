@@ -15,7 +15,8 @@
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:sendgrid": "vitest run test/sendgrid/sendgrid-parity.e2e.test.ts --pool=forks --maxWorkers=1"
   },
   "resolutions": {
     "fumadocs-core": "16.0.8"
