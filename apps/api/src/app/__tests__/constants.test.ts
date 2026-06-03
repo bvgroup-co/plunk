@@ -10,8 +10,6 @@ async function importConstants(env: Record<string, string | undefined>) {
     JWT_SECRET: 'test',
     API_URI: 'http://localhost:8080',
     DASHBOARD_URI: 'http://localhost:3000',
-    LANDING_URI: 'http://localhost:4000',
-    WIKI_URI: 'http://localhost:1000',
     REDIS_URL: 'redis://localhost:6379',
     DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/plunk_test',
     DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/plunk_test',

@@ -1,10 +1,7 @@
 import {Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@plunk/ui';
 import {ChevronDown, Plus, Trash2} from 'lucide-react';
-import Link from 'next/link';
 import {useState} from 'react';
 import {toast} from 'sonner';
-
-import {WIKI_URI} from '../../lib/constants';
 
 import {type EditStepDialogProps, getStepConfig, StepDialogShell, useStepUpdate} from './shared';
 
@@ -76,14 +73,6 @@ export function WebhookStepDialog({step, workflowId, open, onOpenChange, onSucce
               <ChevronDown className={`h-3 w-3 transition-transform ${showWebhookInfo ? 'rotate-180' : ''}`} />
               {showWebhookInfo ? 'Hide' : 'View'} request payload
             </CollapsibleTrigger>
-            <Link
-              href={`${WIKI_URI}/guides/webhooks#webhook-payload`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-neutral-500 hover:text-neutral-700 underline underline-offset-2"
-            >
-              Webhook guide
-            </Link>
           </div>
           <CollapsibleContent className="mt-2">
             <pre className="text-[10px] bg-neutral-50 p-2 rounded border border-neutral-200 overflow-x-auto">

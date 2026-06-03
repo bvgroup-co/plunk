@@ -9,7 +9,6 @@ interface DomainUnverifiedEmailProps {
   projectId: string;
   domain: string;
   dashboardUrl?: string;
-  landingUrl?: string;
 }
 
 export function DomainUnverifiedEmail({
@@ -17,7 +16,6 @@ export function DomainUnverifiedEmail({
   projectId = 'proj_example123',
   domain = 'example.com',
   dashboardUrl = 'https://next-app.useplunk.com',
-  landingUrl = 'https://www.useplunk.com',
 }: DomainUnverifiedEmailProps) {
   return (
     <EmailLayout>
@@ -107,7 +105,7 @@ export function DomainUnverifiedEmail({
         </Section>
       </Section>
 
-      <Footer projectId={projectId} landingUrl={landingUrl} />
+      <Footer projectId={projectId} />
     </EmailLayout>
   );
 }

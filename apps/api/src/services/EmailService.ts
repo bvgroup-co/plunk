@@ -3,7 +3,7 @@ import {EmailSourceType, EmailStatus, TrackingMode} from '@plunk/db';
 import {toPrismaJson} from '@plunk/types';
 import signale from 'signale';
 
-import {DASHBOARD_URI, LANDING_URI, STRIPE_ENABLED} from '../app/constants.js';
+import {DASHBOARD_URI, STRIPE_ENABLED} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
 import {HttpException} from '../exceptions/index.js';
 import {createTranslatorSync, renderTemplate} from '@plunk/shared';
@@ -1102,7 +1102,7 @@ export class EmailService {
                             <tbody>
                               <tr>
                                 <td style="width:180px;">
-                                  <a href="${LANDING_URI}?ref=badge" target="_blank">
+                                  <a href="${DASHBOARD_URI}" target="_blank">
                                     <img alt="Powered by Plunk" height="auto" src="https://cdn.useplunk.com/badge.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="180" />
                                   </a>
                                 </td>

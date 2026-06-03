@@ -3,11 +3,9 @@ version: '3.8'
 # Plunk Self-Hosting Docker Compose
 # This setup runs all Plunk services in a single container with nginx reverse proxy
 #
-# Uses subdomain-based routing:
+# Uses domain-based routing:
 #   - api.example.com -> API Server
-#   - app.example.com -> Web Dashboard
-#   - www.example.com -> Landing Page
-#   - docs.example.com -> Documentation
+#   - example.com -> Web Dashboard
 #   - smtp.example.com -> SMTP Relay Server (ports 465, 587)
 #
 # Usage:
@@ -130,12 +128,9 @@ services:
       # Nginx configuration
       NGINX_PORT: ${NGINX_PORT:-80}
 
-      # Domain configuration (subdomain-based routing)
-      # Each service gets its own subdomain
+      # Domain configuration
       API_DOMAIN: ${API_DOMAIN:-api.localhost}
-      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:-app.localhost}
-      LANDING_DOMAIN: ${LANDING_DOMAIN:-www.localhost}
-      WIKI_DOMAIN: ${WIKI_DOMAIN:-docs.localhost}
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:-localhost}
 
       # Protocol configuration (set to true for HTTPS in production)
       USE_HTTPS: ${USE_HTTPS:-false}
@@ -144,8 +139,6 @@ services:
       # You can override these if needed
       API_URI: ${API_URI:-}
       DASHBOARD_URI: ${DASHBOARD_URI:-}
-      LANDING_URI: ${LANDING_URI:-}
-      WIKI_URI: ${WIKI_URI:-}
 
       # Outbound email provider: ses (default) or sendgrid
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-ses}

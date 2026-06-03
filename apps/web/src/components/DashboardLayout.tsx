@@ -1,12 +1,10 @@
 import {useActiveProject} from '../lib/contexts/ActiveProjectProvider';
 import {useUser} from '../lib/hooks/useUser';
-import {WIKI_URI} from '../lib/constants';
 import {network} from '../lib/network';
 import {OnboardingBanner} from './onboarding/OnboardingBanner';
 import {
   Activity,
   BarChart3,
-  BookOpen,
   ChevronDown,
   FileText,
   Layers,
@@ -262,16 +260,6 @@ export function DashboardLayout({children}: DashboardLayoutProps) {
 
       {/* Settings & User Menu */}
       <div className="border-t border-neutral-200 p-3 space-y-1">
-        <a
-          href={WIKI_URI}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <BookOpen className="h-5 w-5" />
-          Documentation
-        </a>
-
         <Link
           href="/settings"
           onClick={() => setShowMobileMenu(false)}

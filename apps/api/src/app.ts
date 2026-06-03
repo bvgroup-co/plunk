@@ -11,7 +11,6 @@ import {ZodError} from 'zod';
 import {
   DASHBOARD_URI,
   EMAIL_PROVIDER,
-  LANDING_URI,
   NODE_ENV,
   OIDC_ENABLED,
   PLUNK_ENABLED,
@@ -20,7 +19,6 @@ import {
   SMTP_ENABLED,
   STRIPE_ENABLED,
   TRACKING_TOGGLE_ENABLED,
-  WIKI_URI,
 } from './app/constants.js';
 import {Actions} from './controllers/Actions.js';
 import {Activity} from './controllers/Activity.js';
@@ -80,7 +78,7 @@ const server = new (class extends Server {
     const allowedOrigins =
       NODE_ENV === 'development'
         ? [/.*\.localhost:1000/, 'http://localhost:3000', 'http://localhost:4000']
-        : [DASHBOARD_URI, LANDING_URI, WIKI_URI];
+        : [DASHBOARD_URI];
 
     // Public API endpoints that should allow all origins
     const publicApiPaths = ['/v1', '/v1/track', '/v1/send'];
@@ -176,7 +174,7 @@ const server = new (class extends Server {
       });
     });
 
-    this.app.get('/', (_, res) => res.redirect(LANDING_URI));
+    this.app.get('/', (_, res) => res.redirect(DASHBOARD_URI));
 
     this.app.use('*', () => {
       throw new HttpException(404, 'Unknown route');

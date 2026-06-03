@@ -7,13 +7,11 @@ import {Header} from '../common/Header';
 interface PasswordResetEmailProps {
   email: string;
   resetUrl: string;
-  landingUrl?: string;
 }
 
 export function PasswordResetEmail({
   email = 'user@example.com',
   resetUrl = 'https://next-app.useplunk.com/auth/reset-password?token=abc123',
-  landingUrl = 'https://www.useplunk.com',
 }: PasswordResetEmailProps) {
   return (
     <EmailLayout>
@@ -49,7 +47,7 @@ export function PasswordResetEmail({
         </Section>
       </Section>
 
-      <Footer landingUrl={landingUrl} />
+      <Footer />
     </EmailLayout>
   );
 }

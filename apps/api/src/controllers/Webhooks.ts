@@ -6,7 +6,7 @@ import type Stripe from 'stripe';
 import {ProjectDisabledPaymentEmail, sendPlatformEmail} from '@plunk/email';
 import React from 'react';
 
-import {DASHBOARD_URI, LANDING_URI, STRIPE_ENABLED, STRIPE_WEBHOOK_SECRET} from '../app/constants.js';
+import {DASHBOARD_URI, STRIPE_ENABLED, STRIPE_WEBHOOK_SECRET} from '../app/constants.js';
 import {stripe} from '../app/stripe.js';
 import {prisma} from '../database/prisma.js';
 import {MembershipService} from '../services/MembershipService.js';
@@ -265,7 +265,6 @@ export class Webhooks {
                 projectName: project.name,
                 projectId: project.id,
                 dashboardUrl: DASHBOARD_URI,
-                landingUrl: LANDING_URI,
               });
               await Promise.all(
                 emails.map(email => sendPlatformEmail(email, 'Project Disabled - Payment Failed', template)),
