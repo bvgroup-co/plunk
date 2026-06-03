@@ -11,11 +11,8 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
 # Enable Corepack and set Yarn version
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
+RUN corepack enable
 
 # Copy Yarn configuration and release
 COPY .yarnrc.yml ./
@@ -26,8 +23,10 @@ COPY package.json yarn.lock ./
 
 # Copy workspace package.json files
 COPY apps/api/package.json ./apps/api/
+COPY apps/landing/package.json ./apps/landing/
 COPY apps/smtp/package.json ./apps/smtp/
 COPY apps/web/package.json ./apps/web/
+COPY apps/wiki/package.json ./apps/wiki/
 COPY packages/db/package.json ./packages/db/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/shared/package.json ./packages/shared/
@@ -41,7 +40,7 @@ COPY packages/eslint-config/package.json ./packages/eslint-config/
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Building on $BUILDPLATFORM for $TARGETPLATFORM" && \
-    yarn install --immutable
+    node .yarn/releases/yarn-4.9.1.cjs install --immutable
 
 # ============================================
 # Stage 1b: Production Dependencies for API/SMTP
@@ -53,7 +52,7 @@ ARG BUILDPLATFORM
 WORKDIR /app
 
 # Enable Corepack and set Yarn version
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
+RUN corepack enable
 
 # Copy Yarn configuration
 COPY .yarnrc.yml ./
@@ -62,18 +61,24 @@ COPY .yarn/releases ./.yarn/releases
 # Copy all package.json files (needed for workspace resolution)
 COPY package.json yarn.lock ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/landing/package.json ./apps/landing/
 COPY apps/smtp/package.json ./apps/smtp/
+COPY apps/web/package.json ./apps/web/
+COPY apps/wiki/package.json ./apps/wiki/
 COPY packages/db/package.json ./packages/db/
+COPY packages/ui/package.json ./packages/ui/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/types/package.json ./packages/types/
 COPY packages/email/package.json ./packages/email/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
 
 # Install ONLY production dependencies for api, smtp, and their workspace dependencies
 # This excludes devDependencies and unneeded workspaces (web, ui)
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Installing production dependencies for API/SMTP on $BUILDPLATFORM for $TARGETPLATFORM" && \
-    yarn workspaces focus api smtp --production
+    node .yarn/releases/yarn-4.9.1.cjs workspaces focus api smtp --production
 
 # ============================================
 # Stage 2: Builder
@@ -94,7 +99,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Enable Corepack and set Yarn version
-RUN corepack enable && corepack prepare yarn@4.9.1 --activate
+RUN corepack enable
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -118,13 +123,13 @@ RUN chmod +x /usr/local/bin/generate-url-manifest.sh
 # Step 1: Copy and build shared packages (these change less frequently)
 # Shared packages are dependencies for apps, so build them first
 COPY packages ./packages
-RUN yarn workspace @plunk/db db:generate
+RUN node .yarn/releases/yarn-4.9.1.cjs workspace @plunk/db db:generate
 RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     API_URI=${API_URI} \
     DASHBOARD_URI=${DASHBOARD_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    yarn turbo build --filter="@plunk/*"
+    node .yarn/releases/yarn-4.9.1.cjs turbo build --filter="@plunk/*"
 
 # Step 2: Copy and build API (backend services)
 COPY apps/api ./apps/api
@@ -134,7 +139,7 @@ RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     DASHBOARD_URI=${DASHBOARD_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    yarn turbo build --filter=api --filter=smtp
+    node .yarn/releases/yarn-4.9.1.cjs turbo build --filter=api --filter=smtp
 
 # Step 3: Copy and build Web dashboard
 COPY apps/web ./apps/web
@@ -143,9 +148,9 @@ RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     DASHBOARD_URI=${DASHBOARD_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    yarn turbo build --filter=web
+    node .yarn/releases/yarn-4.9.1.cjs turbo build --filter=web
 # Generate sitemap for web
-RUN NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} yarn workspace web sitemap
+RUN NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} node .yarn/releases/yarn-4.9.1.cjs workspace web sitemap
 # Generate URL replacement manifest for web (build-time optimization)
 RUN generate-url-manifest.sh web /app/apps/web
 
