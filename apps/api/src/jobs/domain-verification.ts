@@ -24,12 +24,13 @@ export async function checkDomainVerifications() {
   signale.info('[DOMAIN-VERIFICATION] Starting domain verification check...');
 
   try {
-    const count = await prisma.domain.count();
+    const count = await prisma.domain.count({where: {provider: 'SES'}});
     signale.info(`[DOMAIN-VERIFICATION] Found ${count} domains to check`);
 
     // Process domains in batches of 99 (AWS SES limit is 100)
     for (let i = 0; i < count; i += 99) {
       const domains = await prisma.domain.findMany({
+        where: {provider: 'SES'},
         select: {
           id: true,
           domain: true,

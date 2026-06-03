@@ -1,19 +1,17 @@
-import sendgrid from '@sendgrid/mail';
 import type {MailDataRequired} from '@sendgrid/mail';
+import {SENDGRID_SANDBOX_MODE} from '../../app/constants.js';
 
-import {SENDGRID_API_KEY, SENDGRID_SANDBOX_MODE} from '../../app/constants.js';
+import {sendGridRequest} from '../../utils/sendgrid.js';
 
 import {addListUnsubscribeHeader} from './unsubscribe.js';
 import type {EmailAddress, OutboundEmailProvider, SendEmailInput, SendEmailResult} from './types.js';
-
-type SendGridHeaders = Record<string, string>;
 
 function formatAddress(address: EmailAddress) {
   return address.name ? {email: address.email, name: address.name} : {email: address.email};
 }
 
-function getHeader(headers: SendGridHeaders, name: string): string {
-  const headerValue = headers[name];
+function getHeader(headers: Headers, name: string): string {
+  const headerValue = headers.get(name);
 
   if (!headerValue) {
     throw new Error(`SendGrid response did not include ${name}`);
@@ -24,10 +22,6 @@ function getHeader(headers: SendGridHeaders, name: string): string {
 
 export class SendGridProvider implements OutboundEmailProvider {
   public readonly provider = 'sendgrid' as const;
-
-  public constructor() {
-    sendgrid.setApiKey(SENDGRID_API_KEY);
-  }
 
   public async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
     const headers = addListUnsubscribeHeader(input.headers, input.html);
@@ -68,8 +62,11 @@ export class SendGridProvider implements OutboundEmailProvider {
       message.replyTo = {email: input.reply};
     }
 
-    const [response] = await sendgrid.send(message);
-    const messageId = getHeader(response.headers as SendGridHeaders, 'x-message-id');
+    const response = await sendGridRequest('/v3/mail/send', {
+      method: 'POST',
+      body: JSON.stringify(message),
+    });
+    const messageId = getHeader(response.headers, 'x-message-id');
 
     return {
       provider: this.provider,

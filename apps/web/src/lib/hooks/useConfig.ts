@@ -10,7 +10,7 @@ export interface ConfigResponse {
     billing: {enabled: boolean};
     storage: {s3Enabled: boolean};
     authProviders: {github: boolean; google: boolean; oidc: boolean; oidcDisplayName: string};
-    email: {trackingToggleEnabled: boolean};
+    email: {provider: 'ses' | 'sendgrid'; trackingToggleEnabled: boolean};
     smtp: {
       enabled: boolean;
       domain: string | null;

@@ -105,11 +105,19 @@ model Domain {
   id String @id @default(uuid())
 
   // Domain details
-  domain   String
-  verified Boolean @default(false)
+  domain       String
+  provider     EmailProvider @default(SES)
+  verified     Boolean       @default(false)
+  dkimTokens   Json? // Array of DKIM token strings
 
-  // DKIM tokens for DNS verification
-  dkimTokens Json? // Array of DKIM token strings
+  // Provider-specific metadata
+  providerDomainId  String?
+  providerSubdomain String?
+  providerRecords   Json?
+  providerData      Json?
+  providerError     String?
+  lastCheckedAt     DateTime?
+  verifiedAt        DateTime?
 
   // Relations
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -119,9 +127,11 @@ model Domain {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([provider, providerDomainId])
   @@unique([projectId, domain])
   @@index([projectId])
   @@index([projectId, verified])
+  @@index([provider, verified])
   @@map("domains")
 }
 
@@ -575,7 +585,8 @@ model Email {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
 
-  events Event[]
+  events                Event[]
+  providerWebhookEvents ProviderWebhookEvent[]
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -646,6 +657,28 @@ model SesNotification {
 
   @@index([status])
   @@map("ses_notifications")
+}
+
+model ProviderWebhookEvent {
+  id String @id @default(uuid())
+
+  provider        EmailProvider
+  providerEventId String
+  event           String
+  payload         Json
+  status          WebhookEventStatus @default(PROCESSED)
+  error           String?
+
+  email   Email?  @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  emailId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerEventId])
+  @@index([emailId])
+  @@index([provider, createdAt])
+  @@map("provider_webhook_events")
 }
 
 // ============================================
@@ -792,6 +825,17 @@ enum EmailSourceType {
   CAMPAIGN // Sent as part of broadcast
   WORKFLOW // Sent via workflow automation
   INBOUND // Received via SES inbound
+}
+
+enum EmailProvider {
+  SES
+  SENDGRID
+}
+
+enum WebhookEventStatus {
+  PROCESSED
+  FAILED
+  IGNORED
 }
 
 enum EmailStatus {

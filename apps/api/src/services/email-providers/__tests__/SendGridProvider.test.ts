@@ -1,27 +1,37 @@
-import sendgrid from '@sendgrid/mail';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {SendGridProvider} from '../SendGridProvider.js';
 
-vi.mock('@sendgrid/mail', () => ({
-  default: {
-    send: vi.fn(),
-    setApiKey: vi.fn(),
-  },
-}));
-
 vi.mock('../../../app/constants.js', async importOriginal => {
+  process.env.API_URI = 'http://localhost:8080';
+  process.env.DASHBOARD_URI = 'http://localhost:3000';
+  process.env.JWT_SECRET = 'test';
+  process.env.REDIS_URL = 'redis://localhost:6379';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+  process.env.DIRECT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+  process.env.EMAIL_PROVIDER = 'sendgrid';
+  process.env.SENDGRID_API_KEY = 'sendgrid-key';
   const actual = await importOriginal<typeof import('../../../app/constants.js')>();
   return {
     ...actual,
     SENDGRID_API_KEY: 'sendgrid-api-key',
+    SENDGRID_ON_BEHALF_OF: 'sendgrid-subuser',
+    SENDGRID_REGION: 'eu',
     SENDGRID_SANDBOX_MODE: true,
   };
 });
 
 describe('SendGridProvider', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
-    vi.mocked(sendgrid.send).mockResolvedValue([{headers: {'x-message-id': 'sendgrid-message-id'}} as never, {}]);
+    global.fetch = vi.fn(
+      async () => new Response(null, {status: 202, headers: {'x-message-id': 'sendgrid-message-id'}}),
+    );
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('maps outbound email input to SendGrid mail send payload', async () => {
@@ -46,47 +56,50 @@ describe('SendGridProvider', () => {
       projectId: 'project-id',
     });
 
-    expect(sendgrid.setApiKey).toHaveBeenCalledWith('sendgrid-api-key');
-    expect(sendgrid.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        from: {name: 'Sender', email: 'sender@example.com'},
-        to: [{name: 'Recipient', email: 'recipient@example.com'}],
-        subject: 'Subject',
-        html: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>',
-        replyTo: {email: 'reply@example.com'},
-        headers: {
-          'X-Custom': 'value',
-          'List-Unsubscribe': '<http://localhost:3000/unsubscribe/contact-id>',
-        },
-        attachments: [
-          {
-            content: 'SGVsbG8=',
-            filename: 'file.txt',
-            type: 'text/plain',
-            disposition: 'attachment',
-            contentId: undefined,
-          },
-        ],
-        customArgs: {
-          plunk_email_id: 'email-id',
-          plunk_project_id: 'project-id',
-        },
-        mailSettings: {
-          sandboxMode: {
-            enable: true,
-          },
-        },
-        trackingSettings: {
-          clickTracking: {
-            enable: false,
-            enableText: false,
-          },
-          openTracking: {
-            enable: false,
-          },
-        },
-      }),
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.eu.sendgrid.com/v3/mail/send',
+      expect.objectContaining({method: 'POST'}),
     );
+    const headers = vi.mocked(global.fetch).mock.calls[0]?.[1]?.headers;
+    expect(headers).toBeInstanceOf(Headers);
+    expect((headers as Headers).get('On-Behalf-Of')).toBe('sendgrid-subuser');
+    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string)).toEqual({
+      from: {name: 'Sender', email: 'sender@example.com'},
+      to: [{name: 'Recipient', email: 'recipient@example.com'}],
+      subject: 'Subject',
+      html: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>',
+      replyTo: {email: 'reply@example.com'},
+      headers: {
+        'X-Custom': 'value',
+        'List-Unsubscribe': '<http://localhost:3000/unsubscribe/contact-id>',
+      },
+      attachments: [
+        {
+          content: 'SGVsbG8=',
+          filename: 'file.txt',
+          type: 'text/plain',
+          disposition: 'attachment',
+        },
+      ],
+      customArgs: {
+        plunk_email_id: 'email-id',
+        plunk_project_id: 'project-id',
+      },
+      mailSettings: {
+        sandboxMode: {
+          enable: true,
+        },
+      },
+      trackingSettings: {
+        clickTracking: {
+          enable: false,
+          enableText: false,
+        },
+        openTracking: {
+          enable: false,
+        },
+      },
+    });
     expect(result).toEqual({provider: 'sendgrid', messageId: 'sendgrid-message-id'});
   });
 
@@ -101,7 +114,7 @@ describe('SendGridProvider', () => {
       tracking: true,
     });
 
-    expect(sendgrid.send).toHaveBeenCalledWith(
+    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string)).toEqual(
       expect.objectContaining({
         trackingSettings: {
           clickTracking: {

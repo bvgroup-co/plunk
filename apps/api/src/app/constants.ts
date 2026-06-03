@@ -69,6 +69,27 @@ export const SENDGRID_API_KEY = EMAIL_PROVIDER_IS_SENDGRID
   : validateEnv('SENDGRID_API_KEY', '');
 export const SENDGRID_TRACKING_ENABLED = validateEnv<string>('SENDGRID_TRACKING_ENABLED', 'true') === 'true';
 export const SENDGRID_SANDBOX_MODE = validateEnv<string>('SENDGRID_SANDBOX_MODE', 'false') === 'true';
+export const SENDGRID_REGION = validateEnv<'global' | 'eu'>('SENDGRID_REGION', 'global');
+export const SENDGRID_DOMAIN_AUTH_SUBDOMAIN = validateEnv('SENDGRID_DOMAIN_AUTH_SUBDOMAIN', 'mail');
+export const SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY =
+  validateEnv<string>('SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY', 'true') === 'true';
+export const SENDGRID_DOMAIN_AUTH_DEFAULT = validateEnv<string>('SENDGRID_DOMAIN_AUTH_DEFAULT', 'false') === 'true';
+export const SENDGRID_ON_BEHALF_OF = validateEnv('SENDGRID_ON_BEHALF_OF', '');
+export const SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY = validateEnv('SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY', '');
+export const SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED =
+  validateEnv<string>('SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED', 'true') === 'true';
+export const SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = Number.parseInt(
+  validateEnv('SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS', '300'),
+  10,
+);
+
+if (SENDGRID_REGION !== 'global' && SENDGRID_REGION !== 'eu') {
+  throw new Error("SENDGRID_REGION must be either 'global' or 'eu'");
+}
+
+if (!Number.isInteger(SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS)) {
+  throw new Error('SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS must be an integer');
+}
 
 // Optional SES event SQS polling (SNS -> SQS -> worker)
 export const SES_EVENTS_SQS_QUEUE_URL = validateEnv('SES_EVENTS_SQS_QUEUE_URL', '').trim();

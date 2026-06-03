@@ -31,6 +31,7 @@ import {Events} from './controllers/Events.js';
 import {Oauth} from './controllers/Oauth/index.js';
 import {Projects} from './controllers/Projects.js';
 import {Segments} from './controllers/Segments.js';
+import {SendGridWebhooks} from './controllers/SendGridWebhooks.js';
 import {Templates} from './controllers/Templates.js';
 import {Uploads} from './controllers/Uploads.js';
 import {Users} from './controllers/Users.js';
@@ -49,8 +50,9 @@ const server = new (class extends Server {
   public constructor() {
     super();
 
-    // Specify that we need raw json for the webhook
+    // Specify that we need raw json for provider webhooks
     this.app.use('/webhooks/incoming/stripe', raw({type: 'application/json'}));
+    this.app.use('/webhooks/sendgrid/events', raw({type: 'application/json', limit: '5mb'}));
 
     // Set the content-type to JSON for any request coming from AWS SNS
     this.app.use(function (req, res, next) {
@@ -159,6 +161,7 @@ const server = new (class extends Server {
       new Templates(),
       new Uploads(),
       new Webhooks(),
+      new SendGridWebhooks(),
       new Workflows(),
       new Events(),
       new Config(),

@@ -1,4 +1,4 @@
-import {SES} from '@aws-sdk/client-ses';
+import {SES, type SESClientConfig} from '@aws-sdk/client-ses';
 import signale from 'signale';
 
 import {
@@ -9,22 +9,33 @@ import {
   SES_CONFIGURATION_SET,
   SES_CONFIGURATION_SET_NO_TRACKING,
   TRACKING_TOGGLE_ENABLED,
+  EMAIL_PROVIDER_IS_SES,
 } from '../app/constants.js';
 
 import {addListUnsubscribeHeader} from './email-providers/unsubscribe.js';
 import type {SendEmailInput} from './email-providers/types.js';
 
+type SesClient = InstanceType<typeof SES>;
+
+function createSesClientConfig(): SESClientConfig {
+  if (!EMAIL_PROVIDER_IS_SES) {
+    return {apiVersion: '2010-12-01'};
+  }
+
+  return {
+    apiVersion: '2010-12-01',
+    region: AWS_SES_REGION,
+    credentials: {
+      accessKeyId: AWS_SES_ACCESS_KEY_ID,
+      secretAccessKey: AWS_SES_SECRET_ACCESS_KEY,
+    },
+  };
+}
+
 /**
  * AWS SES Client
  */
-export const ses = new SES({
-  apiVersion: '2010-12-01',
-  region: AWS_SES_REGION,
-  credentials: {
-    accessKeyId: AWS_SES_ACCESS_KEY_ID,
-    secretAccessKey: AWS_SES_SECRET_ACCESS_KEY,
-  },
-});
+export const ses: SesClient = new SES(createSesClientConfig());
 
 type SendRawEmailParams = Omit<SendEmailInput, 'emailId' | 'projectId' | 'subject' | 'html'> & {
   content: {

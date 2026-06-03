@@ -1,10 +1,17 @@
 import React from 'react';
 import signale from 'signale';
 import {DomainUnverifiedEmail, DomainVerifiedEmail, sendPlatformEmail} from '@plunk/email';
-import {DASHBOARD_URI} from '../app/constants.js';
+import {
+  DASHBOARD_URI,
+  EMAIL_PROVIDER,
+  SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
+  SENDGRID_DOMAIN_AUTH_DEFAULT,
+  SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
+} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
 import {redis, wrapRedis} from '../database/redis.js';
 import {HttpException} from '../exceptions/index.js';
+import {sendGridRequest} from '../utils/sendgrid.js';
 import {Keys} from './keys.js';
 import {MembershipService} from './MembershipService.js';
 import {NtfyService} from './NtfyService.js';
@@ -14,6 +21,54 @@ import {
   getDomainVerificationAttributes,
   verifyDomain,
 } from './SESService.js';
+
+type DnsRecord = {
+  type: string;
+  host: string;
+  value: string;
+};
+
+type SendGridDnsRecord = {
+  type: string;
+  host: string;
+  data: string;
+  valid?: boolean;
+};
+
+type SendGridDomainResponse = {
+  id: number;
+  domain: string;
+  subdomain?: string;
+  valid?: boolean;
+  dns?: Record<string, SendGridDnsRecord>;
+};
+
+type SendGridValidateResponse = {
+  valid: boolean;
+  validation_results?: Record<string, {valid: boolean; reason?: string}>;
+};
+
+function serializeRecords(records: DnsRecord[]): DnsRecord[] {
+  return records.map(record => ({
+    type: record.type.toUpperCase(),
+    host: record.host,
+    value: record.value,
+  }));
+}
+
+function recordsFromSendGrid(response: SendGridDomainResponse): DnsRecord[] {
+  return serializeRecords(
+    Object.values(response.dns ?? {}).map(record => ({
+      type: record.type,
+      host: record.host,
+      value: record.data,
+    })),
+  );
+}
+
+async function parseSendGridJson<T>(response: Response): Promise<T> {
+  return (await response.json()) as T;
+}
 
 export class DomainService {
   /**
@@ -41,10 +96,16 @@ export class DomainService {
    * Add a new domain to a project and start verification
    */
   public static async addDomain(projectId: string, domain: string) {
-    // Start verification process with AWS SES
+    if (EMAIL_PROVIDER === 'sendgrid') {
+      return DomainService.addSendGridDomain(projectId, domain);
+    }
+
+    return DomainService.addSesDomain(projectId, domain);
+  }
+
+  private static async addSesDomain(projectId: string, domain: string) {
     const dkimTokens = await verifyDomain(domain);
 
-    // Create domain record
     const newDomain = await prisma.domain.create({
       data: {
         projectId,
@@ -59,7 +120,44 @@ export class DomainService {
       },
     });
 
-    // Send notification about domain added
+    await NtfyService.notifyDomainAdded(domain, newDomain.project.name, projectId);
+
+    return newDomain;
+  }
+
+  private static async addSendGridDomain(projectId: string, domain: string) {
+    const sendGridDomain = await parseSendGridJson<SendGridDomainResponse>(
+      await sendGridRequest('/v3/whitelabel/domains', {
+        method: 'POST',
+        body: JSON.stringify({
+          domain,
+          subdomain: SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
+          automatic_security: SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
+          default: SENDGRID_DOMAIN_AUTH_DEFAULT,
+        }),
+      }),
+    );
+    const records = recordsFromSendGrid(sendGridDomain);
+
+    const newDomain = await prisma.domain.create({
+      data: {
+        projectId,
+        domain,
+        provider: 'SENDGRID',
+        verified: Boolean(sendGridDomain.valid),
+        dkimTokens: [],
+        providerDomainId: String(sendGridDomain.id),
+        providerSubdomain: sendGridDomain.subdomain ?? SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
+        providerRecords: records,
+        providerData: sendGridDomain,
+      },
+      include: {
+        project: {
+          select: {name: true},
+        },
+      },
+    });
+
     await NtfyService.notifyDomainAdded(domain, newDomain.project.name, projectId);
 
     return newDomain;
@@ -73,6 +171,37 @@ export class DomainService {
 
     if (!domain) {
       throw new Error('Domain not found');
+    }
+
+    if (domain.provider === 'SENDGRID') {
+      if (!domain.providerDomainId) {
+        throw new Error('SendGrid domain is missing provider domain ID');
+      }
+
+      const validation = await parseSendGridJson<SendGridValidateResponse>(
+        await sendGridRequest(`/v3/whitelabel/domains/${domain.providerDomainId}/validate`, {method: 'POST'}),
+      );
+      const verified = validation.valid;
+
+      const updatedDomain = await prisma.domain.update({
+        where: {id: domainId},
+        data: {
+          verified,
+          lastCheckedAt: new Date(),
+          verifiedAt: verified ? new Date() : null,
+          providerData: validation,
+          providerError: verified ? null : JSON.stringify(validation.validation_results ?? {}),
+        },
+      });
+
+      return {
+        domain: updatedDomain.domain,
+        tokens: [],
+        records: (updatedDomain.providerRecords as DnsRecord[] | null) ?? [],
+        status: verified ? 'Success' : 'Pending',
+        verified,
+        provider: 'sendgrid',
+      };
     }
 
     const attributes = await getDomainVerificationAttributes(domain.domain);
@@ -212,8 +341,10 @@ export class DomainService {
     return {
       domain: domain.domain,
       tokens: attributes.tokens,
+      records: [],
       status: attributes.status,
       verified: attributes.status === 'Success',
+      provider: 'ses',
     };
   }
 
@@ -304,18 +435,27 @@ export class DomainService {
       },
     });
 
-    // If domain is not used by any other project, remove it from AWS SES
     if (!domainExistsElsewhere) {
-      try {
-        await deleteIdentity(domainName);
-        signale.info(`[DOMAIN] Removed AWS SES identity for ${domainName} (no longer used by any project)`);
-      } catch (error) {
-        // Log error but don't fail the domain removal if AWS cleanup fails
-        signale.error(`[DOMAIN] Failed to remove AWS SES identity for ${domainName}:`, error);
+      if (domain.provider === 'SENDGRID') {
+        if (domain.providerDomainId) {
+          try {
+            await sendGridRequest(`/v3/whitelabel/domains/${domain.providerDomainId}`, {method: 'DELETE'});
+            signale.info(`[DOMAIN] Removed SendGrid domain authentication for ${domainName}`);
+          } catch (error) {
+            signale.error(`[DOMAIN] Failed to remove SendGrid domain authentication for ${domainName}:`, error);
+          }
+        }
+      } else {
+        try {
+          await deleteIdentity(domainName);
+          signale.info(`[DOMAIN] Removed AWS SES identity for ${domainName} (no longer used by any project)`);
+        } catch (error) {
+          signale.error(`[DOMAIN] Failed to remove AWS SES identity for ${domainName}:`, error);
+        }
       }
     } else {
       signale.info(
-        `[DOMAIN] Keeping AWS SES identity for ${domainName} (still used by project ${domainExistsElsewhere.projectId})`,
+        `[DOMAIN] Keeping provider domain identity for ${domainName} (still used by project ${domainExistsElsewhere.projectId})`,
       );
     }
 
