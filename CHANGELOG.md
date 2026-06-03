@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.1](https://github.com/bvgroup-co/plunk/compare/v0.15.0...v0.15.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **docker:** include all workspace manifests so yarn --immutable passes ([#44](https://github.com/bvgroup-co/plunk/issues/44)) ([7a081f4](https://github.com/bvgroup-co/plunk/commit/7a081f4211afbf7e9181b81a476e390c476868c4))
+* **docker:** make yarn install deterministic for TARGETPLATFORM ([#40](https://github.com/bvgroup-co/plunk/issues/40)) ([4c9f1fe](https://github.com/bvgroup-co/plunk/commit/4c9f1fe50e681331278deee67a8c9e1349642df4))
+* **docker:** run yarn install on target platform ([#42](https://github.com/bvgroup-co/plunk/issues/42)) ([5f44bed](https://github.com/bvgroup-co/plunk/commit/5f44bed8ad3046dbcb681be12f7e746b316189df))
+* **docker:** stabilize deps install ([#46](https://github.com/bvgroup-co/plunk/issues/46)) ([ea42d59](https://github.com/bvgroup-co/plunk/commit/ea42d598012b87f9df504f40d7438d1e586ba4f0))
+
 ## [0.15.0](https://github.com/bvgroup-co/plunk/compare/v0.14.0...v0.15.0) (2026-06-03)
 
 
