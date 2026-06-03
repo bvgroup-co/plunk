@@ -31,6 +31,7 @@ import {Events} from './controllers/Events.js';
 import {Oauth} from './controllers/Oauth/index.js';
 import {Projects} from './controllers/Projects.js';
 import {Segments} from './controllers/Segments.js';
+import {SendGridWebhooks} from './controllers/SendGridWebhooks.js';
 import {Templates} from './controllers/Templates.js';
 import {Uploads} from './controllers/Uploads.js';
 import {Users} from './controllers/Users.js';
@@ -49,8 +50,13 @@ const server = new (class extends Server {
   public constructor() {
     super();
 
-    // Specify that we need raw json for the webhook
+    // Provider webhooks that verify signatures must see the raw bytes before express.json().
     this.app.use('/webhooks/incoming/stripe', raw({type: 'application/json'}));
+    this.app.post(
+      '/webhooks/sendgrid/events',
+      raw({type: 'application/json', limit: '5mb'}),
+      SendGridWebhooks.receiveEvents,
+    );
 
     // Set the content-type to JSON for any request coming from AWS SNS
     this.app.use(function (req, res, next) {

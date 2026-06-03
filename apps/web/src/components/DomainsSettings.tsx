@@ -24,7 +24,14 @@ import {
 import {AnimatePresence, motion} from 'framer-motion';
 import {Check, CheckCircle2, ChevronDown, Copy, Globe, RefreshCw, Trash2, XCircle} from 'lucide-react';
 import {useConfig} from '../lib/hooks/useConfig';
-import {useAddDomain, useCheckDomainVerification, useDomains, useRemoveDomain} from '../lib/hooks/useDomains';
+import {
+  type DnsRecord,
+  type DomainVerificationStatus,
+  useAddDomain,
+  useCheckDomainVerification,
+  useDomains,
+  useRemoveDomain,
+} from '../lib/hooks/useDomains';
 
 function AnimatedCopyIcon({isCopied}: {isCopied: boolean}) {
   return (
@@ -58,6 +65,40 @@ interface DomainsSettingsProps {
   projectId: string;
 }
 
+type DomainProvider = 'ses' | 'sendgrid';
+
+type DomainListItem = {
+  id: string;
+  domain: string;
+  verified: boolean;
+  dkimTokens: unknown;
+  provider?: 'SES' | 'SENDGRID';
+  providerRecords?: unknown;
+};
+
+function normalizeTokens(tokens: unknown): string[] {
+  return Array.isArray(tokens) ? tokens.filter((token): token is string => typeof token === 'string') : [];
+}
+
+function isDnsRecord(record: unknown): record is DnsRecord {
+  if (!record || typeof record !== 'object') {
+    return false;
+  }
+
+  const candidate = record as Partial<DnsRecord>;
+  return (
+    typeof candidate.type === 'string' && typeof candidate.host === 'string' && typeof candidate.value === 'string'
+  );
+}
+
+function normalizeRecords(records: unknown): DnsRecord[] {
+  return Array.isArray(records) ? records.filter(isDnsRecord) : [];
+}
+
+function normalizeProvider(provider: DomainListItem['provider']): DomainProvider {
+  return provider === 'SENDGRID' ? 'sendgrid' : 'ses';
+}
+
 export function DomainsSettings({projectId}: DomainsSettingsProps) {
   const {domains, mutate: mutateDomains, isLoading} = useDomains(projectId);
   const {addDomain} = useAddDomain();
@@ -68,9 +109,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const [verificationStatus, setVerificationStatus] = useState<{
-    [key: string]: boolean | string | {tokens: string[] | null; status: string; verified: boolean};
-  }>({});
+  const [verificationStatus, setVerificationStatus] = useState<Record<string, DomainVerificationStatus>>({});
   const [checkingVerification, setCheckingVerification] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [lastVerificationCheck, setLastVerificationCheck] = useState<{[key: string]: number}>({});
@@ -155,23 +194,22 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
       setErrorMessage(null);
       const newDomain = await addDomain(projectId, values.domain);
 
-      // Store DKIM tokens for display
-      if (newDomain.dkimTokens) {
-        setVerificationStatus(prev => ({
-          ...prev,
-          [newDomain.id]: {
-            tokens: newDomain.dkimTokens as string[] | null,
-            status: 'Pending',
-            verified: false,
-          },
-        }));
-        setSelectedDomain(newDomain.id);
-        // Auto-expand newly added domain
-        setExpandedDomains(prev => ({
-          ...prev,
-          [newDomain.id]: true,
-        }));
-      }
+      setVerificationStatus(prev => ({
+        ...prev,
+        [newDomain.id]: {
+          domain: newDomain.domain,
+          tokens: normalizeTokens(newDomain.dkimTokens),
+          records: normalizeRecords(newDomain.providerRecords),
+          status: 'Pending',
+          verified: false,
+          provider: normalizeProvider(newDomain.provider),
+        },
+      }));
+      setSelectedDomain(newDomain.id);
+      setExpandedDomains(prev => ({
+        ...prev,
+        [newDomain.id]: true,
+      }));
 
       await mutateDomains();
       form.reset();
@@ -243,16 +281,20 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  const getDomainStatus = (domain: {
-    id: string;
-    verified: boolean;
-    dkimTokens: unknown;
-  }): {verified: boolean; tokens: unknown; status: string} => {
+  const getDomainStatus = (domain: DomainListItem): DomainVerificationStatus => {
     const status = verificationStatus[domain.id];
-    if (status && typeof status === 'object' && 'verified' in status) {
+    if (status) {
       return status;
     }
-    return {verified: domain.verified, tokens: domain.dkimTokens, status: domain.verified ? 'Success' : 'Pending'};
+
+    return {
+      domain: domain.domain,
+      tokens: normalizeTokens(domain.dkimTokens),
+      records: normalizeRecords(domain.providerRecords),
+      status: domain.verified ? 'Success' : 'Pending',
+      verified: domain.verified,
+      provider: normalizeProvider(domain.provider),
+    };
   };
 
   return (
@@ -337,6 +379,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                 const status = getDomainStatus(domain);
                 const mailFromSubdomain = config?.aws?.mailFromSubdomain ?? 'plunk';
                 const mailFromHost = `${mailFromSubdomain}.${domain.domain}`;
+                const isSendGridDomain = status.provider === 'sendgrid';
                 return (
                   <div key={domain.id} className="border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -383,7 +426,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                       </div>
                     </div>
 
-                    {Array.isArray(status.tokens) && (status.tokens as string[]).length > 0 && (
+                    {(status.tokens.length > 0 || status.records.length > 0) && (
                       <div className="mt-3">
                         <button
                           onClick={() =>
@@ -435,59 +478,109 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-neutral-200">
-                                    {/* DKIM Records */}
-                                    {status.tokens.map((token: string, index: number) => (
-                                      <tr key={index} className="hover:bg-neutral-50/50">
-                                        <td className="py-3 px-3">
-                                          <code className="text-xs font-medium text-neutral-900">CNAME</code>
-                                        </td>
-                                        <td className="py-3 px-3">
-                                          <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono text-neutral-700 break-all flex-1">
-                                              {token}._domainkey.{domain.domain}
-                                            </code>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleCopyToken(`${token}._domainkey.${domain.domain}`, index + 2000)
-                                              }
-                                              className="shrink-0 h-6 w-6 p-0 overflow-hidden"
-                                            >
-                                              <AnimatedCopyIcon
-                                                isCopied={
-                                                  copiedToken === `${token}._domainkey.${domain.domain}-${index + 2000}`
-                                                }
-                                              />
-                                            </Button>
-                                          </div>
-                                        </td>
-                                        <td className="py-3 px-3">
-                                          <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono text-neutral-700 break-all flex-1">
-                                              {token}.dkim.amazonses.com
-                                            </code>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleCopyToken(`${token}.dkim.amazonses.com`, index)}
-                                              className="shrink-0 h-6 w-6 p-0 overflow-hidden"
-                                            >
-                                              <AnimatedCopyIcon
-                                                isCopied={copiedToken === `${token}.dkim.amazonses.com-${index}`}
-                                              />
-                                            </Button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                    {isSendGridDomain
+                                      ? status.records.map((record, index) => (
+                                          <tr
+                                            key={`${record.type}-${record.host}-${index}`}
+                                            className="hover:bg-neutral-50/50"
+                                          >
+                                            <td className="py-3 px-3">
+                                              <code className="text-xs font-medium text-neutral-900">
+                                                {record.type}
+                                              </code>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-neutral-700 break-all flex-1">
+                                                  {record.host}
+                                                </code>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleCopyToken(record.host, index + 2000)}
+                                                  className="shrink-0 h-6 w-6 p-0 overflow-hidden"
+                                                >
+                                                  <AnimatedCopyIcon
+                                                    isCopied={copiedToken === `${record.host}-${index + 2000}`}
+                                                  />
+                                                </Button>
+                                              </div>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-neutral-700 break-all flex-1">
+                                                  {record.value}
+                                                </code>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleCopyToken(record.value, index)}
+                                                  className="shrink-0 h-6 w-6 p-0 overflow-hidden"
+                                                >
+                                                  <AnimatedCopyIcon
+                                                    isCopied={copiedToken === `${record.value}-${index}`}
+                                                  />
+                                                </Button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      : status.tokens.map((token: string, index: number) => (
+                                          <tr key={index} className="hover:bg-neutral-50/50">
+                                            <td className="py-3 px-3">
+                                              <code className="text-xs font-medium text-neutral-900">CNAME</code>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-neutral-700 break-all flex-1">
+                                                  {token}._domainkey.{domain.domain}
+                                                </code>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    handleCopyToken(
+                                                      `${token}._domainkey.${domain.domain}`,
+                                                      index + 2000,
+                                                    )
+                                                  }
+                                                  className="shrink-0 h-6 w-6 p-0 overflow-hidden"
+                                                >
+                                                  <AnimatedCopyIcon
+                                                    isCopied={
+                                                      copiedToken ===
+                                                      `${token}._domainkey.${domain.domain}-${index + 2000}`
+                                                    }
+                                                  />
+                                                </Button>
+                                              </div>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-neutral-700 break-all flex-1">
+                                                  {token}.dkim.amazonses.com
+                                                </code>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleCopyToken(`${token}.dkim.amazonses.com`, index)}
+                                                  className="shrink-0 h-6 w-6 p-0 overflow-hidden"
+                                                >
+                                                  <AnimatedCopyIcon
+                                                    isCopied={copiedToken === `${token}.dkim.amazonses.com-${index}`}
+                                                  />
+                                                </Button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
                                   </tbody>
                                 </table>
                               </div>
                             </div>
 
                             {/* Optional: Custom MAIL FROM Domain */}
-                            {config?.aws?.sesRegion && (
+                            {!isSendGridDomain && config?.aws?.sesRegion && (
                               <div>
                                 <div className="flex items-center gap-2 mb-2">
                                   <h4 className="text-xs font-semibold text-neutral-900">Custom MAIL FROM Domain</h4>
@@ -532,9 +625,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                               onClick={() => handleCopyToken(mailFromHost, 3000)}
                                               className="shrink-0 h-6 w-6 p-0 overflow-hidden"
                                             >
-                                              <AnimatedCopyIcon
-                                                isCopied={copiedToken === `${mailFromHost}-3000`}
-                                              />
+                                              <AnimatedCopyIcon isCopied={copiedToken === `${mailFromHost}-3000`} />
                                             </Button>
                                           </div>
                                         </td>
@@ -581,9 +672,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                               onClick={() => handleCopyToken(mailFromHost, 3001)}
                                               className="shrink-0 h-6 w-6 p-0 overflow-hidden"
                                             >
-                                              <AnimatedCopyIcon
-                                                isCopied={copiedToken === `${mailFromHost}-3001`}
-                                              />
+                                              <AnimatedCopyIcon isCopied={copiedToken === `${mailFromHost}-3001`} />
                                             </Button>
                                           </div>
                                         </td>
@@ -614,7 +703,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                             )}
 
                             {/* Optional: Inbound Email */}
-                            {config?.aws?.sesRegion && (
+                            {!isSendGridDomain && config?.aws?.sesRegion && (
                               <div>
                                 <div className="flex items-center gap-2 mb-2">
                                   <h4 className="text-xs font-semibold text-neutral-900">Inbound Email</h4>

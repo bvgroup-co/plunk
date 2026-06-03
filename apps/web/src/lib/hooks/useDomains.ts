@@ -4,11 +4,19 @@ import useSWR from 'swr';
 
 import {network} from '../network';
 
+export interface DnsRecord {
+  type: string;
+  host: string;
+  value: string;
+}
+
 export interface DomainVerificationStatus {
   domain: string;
   tokens: string[];
+  records: DnsRecord[];
   status: string;
   verified: boolean;
+  provider: 'ses' | 'sendgrid';
 }
 
 /**
