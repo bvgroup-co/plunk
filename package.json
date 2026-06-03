@@ -39,7 +39,8 @@
 		"test:sendgrid": "vitest run test/sendgrid/sendgrid-parity.e2e.test.ts",
 		"lint:sendgrid": "biome check packages/api/src/app.ts packages/api/src/app/constants.ts packages/api/src/controllers/Tasks.ts packages/api/src/controllers/v1/index.ts packages/api/src/services/ActionService.ts packages/api/src/services/EmailService.ts packages/api/src/util/sendgrid.ts test/sendgrid vitest.config.ts package.json",
 		"services:up": "docker compose -f docker-compose.dev.yml up -d",
-		"services:down": "docker compose -f docker-compose.dev.yml down"
+		"services:down": "docker compose -f docker-compose.dev.yml down",
+		"lint": "yarn lint:sendgrid"
 	},
 	"packageManager": "yarn@4.3.0"
 }
