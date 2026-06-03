@@ -30,6 +30,8 @@ COPY package.json yarn.lock ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/smtp/package.json ./apps/smtp/
 COPY apps/web/package.json ./apps/web/
+COPY apps/landing/package.json ./apps/landing/
+COPY apps/wiki/package.json ./apps/wiki/
 COPY packages/db/package.json ./packages/db/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/shared/package.json ./packages/shared/
@@ -67,17 +69,24 @@ RUN chmod +x /usr/local/bin/install-deps.sh
 COPY package.json yarn.lock ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/smtp/package.json ./apps/smtp/
+COPY apps/web/package.json ./apps/web/
+COPY apps/landing/package.json ./apps/landing/
+COPY apps/wiki/package.json ./apps/wiki/
+
 COPY packages/db/package.json ./packages/db/
+COPY packages/ui/package.json ./packages/ui/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/types/package.json ./packages/types/
 COPY packages/email/package.json ./packages/email/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
 
 # Install ONLY production dependencies for api, smtp, and their workspace dependencies
 # This excludes devDependencies and unneeded workspaces (web, ui)
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Installing production dependencies for API/SMTP on $BUILDPLATFORM for $TARGETPLATFORM" && \
-    yarn workspaces focus api smtp --production
+    YARN_ENABLE_IMMUTABLE_INSTALLS=true yarn workspaces focus api smtp --production
 
 # ============================================
 # Stage 2: Builder
