@@ -18,6 +18,10 @@ RUN corepack enable
 COPY .yarnrc.yml ./
 COPY .yarn/releases ./.yarn/releases
 
+# Docker builds only run on Linux, so keep Yarn's immutable install aligned
+# with the target OS while still resolving both supported Linux CPUs.
+RUN sed -i 's/os: \[ "linux", "darwin", "win32" \]/os: [ "linux" ]/' .yarnrc.yml
+
 # Copy package files for dependency installation
 COPY package.json yarn.lock ./
 
@@ -57,6 +61,10 @@ RUN corepack enable
 # Copy Yarn configuration
 COPY .yarnrc.yml ./
 COPY .yarn/releases ./.yarn/releases
+
+# Docker builds only run on Linux, so keep Yarn's immutable install aligned
+# with the target OS while still resolving both supported Linux CPUs.
+RUN sed -i 's/os: \[ "linux", "darwin", "win32" \]/os: [ "linux" ]/' .yarnrc.yml
 
 # Copy all package.json files (needed for workspace resolution)
 COPY package.json yarn.lock ./
