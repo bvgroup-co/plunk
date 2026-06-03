@@ -12,4 +12,7 @@ set -euo pipefail
 
 echo "Installing dependencies on $(uname -m) for TARGETPLATFORM=${TARGETPLATFORM:-unknown}"
 
-yarn install --immutable
+# Native addons such as msgpackr-extract can fall back to node-gyp even though
+# they are optional at runtime. The deps stage should validate the immutable
+# dependency graph without requiring a native build toolchain.
+yarn install --immutable --mode=skip-build
