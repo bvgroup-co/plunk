@@ -265,7 +265,6 @@ export class Webhooks {
                 projectName: project.name,
                 projectId: project.id,
                 dashboardUrl: DASHBOARD_URI,
-                landingUrl: DASHBOARD_URI,
               });
               await Promise.all(
                 emails.map(email => sendPlatformEmail(email, 'Project Disabled - Payment Failed', template)),

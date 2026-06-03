@@ -137,7 +137,6 @@ export async function checkDomainVerifications() {
                   projectId: dbDomain.projectId,
                   domain: sesIdentity.domain,
                   dashboardUrl: DASHBOARD_URI,
-                  landingUrl: DASHBOARD_URI,
                 });
                 await Promise.all(
                   emails.map(email => sendPlatformEmail(email, 'Domain Verified Successfully', template)),
@@ -178,7 +177,6 @@ export async function checkDomainVerifications() {
                   projectId: dbDomain.projectId,
                   domain: sesIdentity.domain,
                   dashboardUrl: DASHBOARD_URI,
-                  landingUrl: DASHBOARD_URI,
                 });
                 await Promise.all(
                   emails.map(email => sendPlatformEmail(email, 'Domain Verification Failed', template)),

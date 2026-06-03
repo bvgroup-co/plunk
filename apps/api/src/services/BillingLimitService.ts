@@ -627,7 +627,6 @@ export class BillingLimitService {
         percentage,
         sourceType,
         dashboardUrl: DASHBOARD_URI,
-        landingUrl: DASHBOARD_URI,
       });
 
       await Promise.all(emails.map(email => sendPlatformEmail(email, 'Billing Limit Warning', template)));
@@ -678,7 +677,6 @@ export class BillingLimitService {
         limit,
         sourceType,
         dashboardUrl: DASHBOARD_URI,
-        landingUrl: DASHBOARD_URI,
       });
 
       await Promise.all(emails.map(email => sendPlatformEmail(email, 'Billing Limit Exceeded', template)));

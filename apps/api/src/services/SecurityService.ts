@@ -711,7 +711,6 @@ export class SecurityService {
             projectId,
             violations: status.violations,
             dashboardUrl: DASHBOARD_URI,
-            landingUrl: DASHBOARD_URI,
           });
           await Promise.all(
             emails.map(email => sendPlatformEmail(email, 'Project Disabled', template)),
@@ -1000,7 +999,6 @@ ${strippedBody.substring(0, 2000)}`,
             projectId,
             violations: [violation],
             dashboardUrl: DASHBOARD_URI,
-            landingUrl: DASHBOARD_URI,
           });
           await Promise.all(
             emails.map(email => sendPlatformEmail(email, 'Project Disabled', template)),

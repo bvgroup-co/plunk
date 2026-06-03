@@ -8,14 +8,12 @@ interface ProjectDisabledPaymentEmailProps {
   projectName: string;
   projectId: string;
   dashboardUrl?: string;
-  landingUrl?: string;
 }
 
 export function ProjectDisabledPaymentEmail({
   projectName = 'My Project',
   projectId = 'proj_example123',
   dashboardUrl = 'https://next-app.useplunk.com',
-  landingUrl = 'https://www.useplunk.com',
 }: ProjectDisabledPaymentEmailProps) {
   return (
     <EmailLayout>
@@ -70,7 +68,7 @@ export function ProjectDisabledPaymentEmail({
         </Section>
       </Section>
 
-      <Footer projectId={projectId} landingUrl={landingUrl} />
+      <Footer projectId={projectId} />
     </EmailLayout>
   );
 }

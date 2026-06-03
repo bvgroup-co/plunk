@@ -9,7 +9,6 @@ interface ProjectDisabledEmailProps {
   projectId: string;
   violations: string[];
   dashboardUrl?: string;
-  landingUrl?: string;
 }
 
 export function ProjectDisabledEmail({
@@ -17,7 +16,6 @@ export function ProjectDisabledEmail({
   projectId = 'proj_example123',
   violations: _violations = [],
   dashboardUrl = 'https://next-app.useplunk.com',
-  landingUrl = 'https://www.useplunk.com',
 }: ProjectDisabledEmailProps) {
   return (
     <EmailLayout>
@@ -66,7 +64,7 @@ export function ProjectDisabledEmail({
         </Section>
       </Section>
 
-      <Footer projectId={projectId} landingUrl={landingUrl} />
+      <Footer projectId={projectId} />
     </EmailLayout>
   );
 }

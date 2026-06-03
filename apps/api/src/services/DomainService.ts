@@ -154,7 +154,6 @@ export class DomainService {
               projectId: updatedDomain.project.id,
               domain: domain.domain,
               dashboardUrl: DASHBOARD_URI,
-              landingUrl: DASHBOARD_URI,
             });
             await Promise.all(emails.map(email => sendPlatformEmail(email, 'Domain Verified Successfully', template)));
           }
@@ -201,7 +200,6 @@ export class DomainService {
               projectId: updatedDomain.project.id,
               domain: domain.domain,
               dashboardUrl: DASHBOARD_URI,
-              landingUrl: DASHBOARD_URI,
             });
             await Promise.all(emails.map(email => sendPlatformEmail(email, 'Domain Verification Failed', template)));
           }
