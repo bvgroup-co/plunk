@@ -50,9 +50,13 @@ const server = new (class extends Server {
   public constructor() {
     super();
 
-    // Specify that we need raw json for provider webhooks
+    // Provider webhooks that verify signatures must see the raw bytes before express.json().
     this.app.use('/webhooks/incoming/stripe', raw({type: 'application/json'}));
-    this.app.use('/webhooks/sendgrid/events', raw({type: 'application/json', limit: '5mb'}));
+    this.app.post(
+      '/webhooks/sendgrid/events',
+      raw({type: 'application/json', limit: '5mb'}),
+      SendGridWebhooks.receiveEvents,
+    );
 
     // Set the content-type to JSON for any request coming from AWS SNS
     this.app.use(function (req, res, next) {
@@ -161,7 +165,6 @@ const server = new (class extends Server {
       new Templates(),
       new Uploads(),
       new Webhooks(),
-      new SendGridWebhooks(),
       new Workflows(),
       new Events(),
       new Config(),

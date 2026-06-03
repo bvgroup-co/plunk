@@ -34,7 +34,7 @@ CREATE TABLE "provider_webhook_events" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "domains_provider_providerDomainId_key" ON "domains"("provider", "providerDomainId");
+CREATE UNIQUE INDEX "domains_sendgrid_providerDomainId_key" ON "domains"("providerDomainId") WHERE "provider" = 'SENDGRID' AND "providerDomainId" IS NOT NULL;
 
 -- CreateIndex
 CREATE INDEX "domains_provider_verified_idx" ON "domains"("provider", "verified");

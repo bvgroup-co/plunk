@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
-import {Controller, Middleware, Post} from '@overnightjs/core';
-import type {NextFunction, Request, Response} from 'express';
+import type {Request, Response} from 'express';
 import {EmailStatus, Prisma, WebhookEventStatus} from '@plunk/db';
 import {z} from 'zod';
 import signale from 'signale';
@@ -62,13 +61,10 @@ const statusRank: Record<EmailStatus, number> = {
   FAILED: 4,
 };
 
-function assertSendGridEnabled(_req: Request, res: Response, next: NextFunction): void {
+function assertSendGridEnabled(): void {
   if (!EMAIL_PROVIDER_IS_SENDGRID) {
-    res.status(404).json({success: false});
-    return;
+    throw new HttpException(404, 'SendGrid webhooks are not enabled');
   }
-
-  next();
 }
 
 function parsePublicKey(publicKey: string): crypto.KeyObject {
@@ -301,11 +297,9 @@ async function applySendGridEvent({
   }
 }
 
-@Controller('webhooks/sendgrid')
 export class SendGridWebhooks {
-  @Post('events')
-  @Middleware([assertSendGridEnabled])
-  public async receiveEvents(req: Request, res: Response) {
+  public static async receiveEvents(req: Request, res: Response) {
+    assertSendGridEnabled();
     assertSignature(req);
 
     const events = parseEvents(req);

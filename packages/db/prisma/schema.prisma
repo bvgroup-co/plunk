@@ -127,7 +127,6 @@ model Domain {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([provider, providerDomainId])
   @@unique([projectId, domain])
   @@index([projectId])
   @@index([projectId, verified])
