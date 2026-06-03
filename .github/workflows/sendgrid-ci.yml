@@ -89,6 +89,9 @@ jobs:
       - name: Generate Prisma client
         run: yarn generate
 
+      - name: Format package manifest
+        run: yarn biome format --write package.json
+
       - name: Run linter
         run: yarn lint:sendgrid
 
