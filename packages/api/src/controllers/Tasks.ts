@@ -102,6 +102,7 @@ export class Tasks {
 					email,
 				},
 				to: [contact.email],
+				tracking: campaign ? true : !!action && action.template.type === "MARKETING",
 				headers: { "X-Plunk-Email-ID": createdEmail.id },
 				content: {
 					subject,

@@ -1,5 +1,11 @@
 import mjml2html from "mjml";
-import { APP_URI, AWS_SES_CONFIGURATION_SET, EMAIL_PROVIDER, SENDGRID_API_KEY } from "../app/constants";
+import {
+	APP_URI,
+	AWS_SES_CONFIGURATION_SET,
+	EMAIL_PROVIDER,
+	SENDGRID_API_KEY,
+	SENDGRID_TRACKING_ENABLED,
+} from "../app/constants";
 import { sendGridRequest } from "../util/sendgrid";
 import { ses } from "../util/ses";
 
@@ -10,6 +16,7 @@ export class EmailService {
 		content,
 		reply,
 		headers,
+		tracking,
 		attachments,
 	}: {
 		from: {
@@ -25,6 +32,7 @@ export class EmailService {
 		headers?: {
 			[key: string]: string;
 		} | null;
+		tracking?: boolean;
 		attachments?: Array<{
 			filename: string;
 			content: string;
@@ -32,7 +40,7 @@ export class EmailService {
 		}> | null;
 	}) {
 		if (EMAIL_PROVIDER === "sendgrid") {
-			return EmailService.sendWithSendGrid({ from, to, content, reply, headers, attachments });
+			return EmailService.sendWithSendGrid({ from, to, content, reply, headers, attachments, tracking });
 		}
 
 		// Check if the body contains an unsubscribe link
@@ -114,6 +122,8 @@ ${EmailService.breakLongLines(attachment.content, 76, true)}
 			throw new Error("SendGrid is not configured");
 		}
 
+		const trackingEnabled = SENDGRID_TRACKING_ENABLED && params.tracking !== false;
+
 		const response = await sendGridRequest("/v3/mail/send", {
 			method: "POST",
 			body: JSON.stringify({
@@ -130,6 +140,10 @@ ${EmailService.breakLongLines(attachment.content, 76, true)}
 				})),
 				subject: params.content.subject,
 				content: [{ type: "text/html", value: params.content.html }],
+				tracking_settings: {
+					open_tracking: { enable: trackingEnabled },
+					click_tracking: { enable: trackingEnabled, enable_text: trackingEnabled },
+				},
 				attachments: params.attachments?.map((attachment) => ({
 					filename: attachment.filename,
 					type: attachment.contentType,

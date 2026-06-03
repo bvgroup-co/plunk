@@ -20,6 +20,10 @@ export type SendGridMailSendRequest = {
 	subject: string;
 	content: Array<{ type: string; value: string }>;
 	attachments?: Array<{ filename: string; type: string; content: string; disposition: string }>;
+	tracking_settings?: {
+		open_tracking: { enable: boolean };
+		click_tracking: { enable: boolean; enable_text: boolean };
+	};
 };
 
 export class MockSendGridServer {

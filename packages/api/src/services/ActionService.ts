@@ -133,6 +133,7 @@ export class ActionService {
 						email: project.verified && project.email ? (action.template.email ?? project.email) : "no-reply@useplunk.dev",
 					},
 					to: [contact.email],
+					tracking: action.template.type === "MARKETING",
 					headers: { "X-Plunk-Email-ID": createdEmail.id },
 					content: {
 						subject,
