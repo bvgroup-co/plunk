@@ -20,6 +20,8 @@ RUN corepack enable && corepack prepare yarn@4.9.1 --activate
 # Copy Yarn configuration and release
 COPY .yarnrc.yml ./
 COPY .yarn/releases ./.yarn/releases
+COPY docker/yarn-install-target-platform.sh /usr/local/bin/yarn-install-target-platform.sh
+RUN chmod +x /usr/local/bin/yarn-install-target-platform.sh
 
 # Copy package files for dependency installation
 COPY package.json yarn.lock ./
@@ -41,7 +43,7 @@ COPY packages/eslint-config/package.json ./packages/eslint-config/
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Building on $BUILDPLATFORM for $TARGETPLATFORM" && \
-    yarn install --immutable
+    /usr/local/bin/yarn-install-target-platform.sh
 
 # ============================================
 # Stage 1b: Production Dependencies for API/SMTP
