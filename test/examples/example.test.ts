@@ -198,7 +198,7 @@ describe('Example Tests - Common Patterns', () => {
       // Test first page
       const page1 = await prisma.campaign.findMany({
         where: {projectId},
-        orderBy: {createdAt: 'desc'},
+        orderBy: [{createdAt: 'desc'}, {id: 'desc'}],
         take: 10,
         skip: 0,
       });
@@ -208,7 +208,7 @@ describe('Example Tests - Common Patterns', () => {
       // Test second page
       const page2 = await prisma.campaign.findMany({
         where: {projectId},
-        orderBy: {createdAt: 'desc'},
+        orderBy: [{createdAt: 'desc'}, {id: 'desc'}],
         take: 10,
         skip: 10,
       });
