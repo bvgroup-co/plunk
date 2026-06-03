@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/bvgroup-co/plunk/compare/v0.14.0...v0.15.0) (2026-06-03)
+
+
+### Features
+
+* **email:** port SendGrid parity to next ([#32](https://github.com/bvgroup-co/plunk/issues/32)) ([bfeea1d](https://github.com/bvgroup-co/plunk/commit/bfeea1de846dac7c47ac76a27f6cc439543a5e96))
+
 ## [0.14.0](https://github.com/bvgroup-co/plunk/compare/v0.13.0...v0.14.0) (2026-06-02)
 
 
