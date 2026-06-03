@@ -10,7 +10,7 @@ import React from 'react';
 import signale from 'signale';
 import {DomainUnverifiedEmail, DomainVerifiedEmail, sendPlatformEmail} from '@plunk/email';
 
-import {DASHBOARD_URI, LANDING_URI} from '../app/constants.js';
+import {DASHBOARD_URI} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
 import {redis} from '../database/redis.js';
 import {MembershipService} from '../services/MembershipService.js';
@@ -137,7 +137,7 @@ export async function checkDomainVerifications() {
                   projectId: dbDomain.projectId,
                   domain: sesIdentity.domain,
                   dashboardUrl: DASHBOARD_URI,
-                  landingUrl: LANDING_URI,
+                  landingUrl: DASHBOARD_URI,
                 });
                 await Promise.all(
                   emails.map(email => sendPlatformEmail(email, 'Domain Verified Successfully', template)),
@@ -178,7 +178,7 @@ export async function checkDomainVerifications() {
                   projectId: dbDomain.projectId,
                   domain: sesIdentity.domain,
                   dashboardUrl: DASHBOARD_URI,
-                  landingUrl: LANDING_URI,
+                  landingUrl: DASHBOARD_URI,
                 });
                 await Promise.all(
                   emails.map(email => sendPlatformEmail(email, 'Domain Verification Failed', template)),

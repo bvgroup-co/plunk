@@ -13,7 +13,6 @@ import {QueueService} from './QueueService.js';
 import {
   AUTO_PROJECT_DISABLE,
   DASHBOARD_URI,
-  LANDING_URI,
   OPENROUTER_API_KEY,
   OPENROUTER_MODEL,
   PHISHING_CONFIDENCE_THRESHOLD,
@@ -712,7 +711,7 @@ export class SecurityService {
             projectId,
             violations: status.violations,
             dashboardUrl: DASHBOARD_URI,
-            landingUrl: LANDING_URI,
+            landingUrl: DASHBOARD_URI,
           });
           await Promise.all(
             emails.map(email => sendPlatformEmail(email, 'Project Disabled', template)),
@@ -1001,7 +1000,7 @@ ${strippedBody.substring(0, 2000)}`,
             projectId,
             violations: [violation],
             dashboardUrl: DASHBOARD_URI,
-            landingUrl: LANDING_URI,
+            landingUrl: DASHBOARD_URI,
           });
           await Promise.all(
             emails.map(email => sendPlatformEmail(email, 'Project Disabled', template)),

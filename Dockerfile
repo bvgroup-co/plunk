@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Plunk
-# Creates a single image containing all applications (API, Worker, Web, Landing, Wiki)
+# Creates a single image containing Plunk services (API, Worker, SMTP, Web)
 # Use SERVICE environment variable to specify which service to run
 
 # ============================================
@@ -28,8 +28,6 @@ COPY package.json yarn.lock ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/smtp/package.json ./apps/smtp/
 COPY apps/web/package.json ./apps/web/
-COPY apps/landing/package.json ./apps/landing/
-COPY apps/wiki/package.json ./apps/wiki/
 COPY packages/db/package.json ./packages/db/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/shared/package.json ./packages/shared/
@@ -37,14 +35,6 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/email/package.json ./packages/email/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 COPY packages/eslint-config/package.json ./packages/eslint-config/
-
-# Copy wiki source files for postinstall script (fumadocs-mdx)
-COPY apps/wiki/content ./apps/wiki/content
-COPY apps/wiki/lib ./apps/wiki/lib
-COPY apps/wiki/source.config.ts ./apps/wiki/source.config.ts
-COPY apps/wiki/mdx-components.tsx ./apps/wiki/mdx-components.tsx
-COPY apps/wiki/next.config.mjs ./apps/wiki/next.config.mjs
-COPY apps/wiki/tsconfig.json ./apps/wiki/tsconfig.json
 
 # Install dependencies (runs on build platform, fetches binaries for target platform)
 # Use cache mounts for Yarn cache to speed up dependency installation
@@ -79,7 +69,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/email/package.json ./packages/email/
 
 # Install ONLY production dependencies for api, smtp, and their workspace dependencies
-# This excludes devDependencies and unneeded workspaces (web, landing, wiki, ui)
+# This excludes devDependencies and unneeded workspaces (web, ui)
 RUN --mount=type=cache,target=/root/.yarn/berry/cache,sharing=locked \
     --mount=type=cache,target=/root/.cache/yarn,sharing=locked \
     echo "Installing production dependencies for API/SMTP on $BUILDPLATFORM for $TARGETPLATFORM" && \
@@ -93,12 +83,10 @@ FROM node:20-slim AS builder
 ARG TARGETPLATFORM
 
 # Build-time arguments for URL configuration
-# These are only used during the build process (for wiki OpenAPI generation and static assets)
+# These are only used during the build process for static assets.
 # Runtime URLs are configured via *_DOMAIN and USE_HTTPS environment variables at container startup
 ARG API_URI=https://next-api.useplunk.com
 ARG DASHBOARD_URI=https://next-app.useplunk.com
-ARG LANDING_URI=https://www.useplunk.com
-ARG WIKI_URI=https://docs.useplunk.com
 
 WORKDIR /app
 
@@ -134,12 +122,8 @@ RUN yarn workspace @plunk/db db:generate
 RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     API_URI=${API_URI} \
     DASHBOARD_URI=${DASHBOARD_URI} \
-    LANDING_URI=${LANDING_URI} \
-    WIKI_URI=${WIKI_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    NEXT_PUBLIC_LANDING_URI=${LANDING_URI} \
-    NEXT_PUBLIC_WIKI_URI=${WIKI_URI} \
     yarn turbo build --filter="@plunk/*"
 
 # Step 2: Copy and build API (backend services)
@@ -148,71 +132,22 @@ COPY apps/smtp ./apps/smtp
 RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     API_URI=${API_URI} \
     DASHBOARD_URI=${DASHBOARD_URI} \
-    LANDING_URI=${LANDING_URI} \
-    WIKI_URI=${WIKI_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    NEXT_PUBLIC_LANDING_URI=${LANDING_URI} \
-    NEXT_PUBLIC_WIKI_URI=${WIKI_URI} \
     yarn turbo build --filter=api --filter=smtp
 
-# Step 3: Copy and build Wiki (includes API doc generation)
-COPY apps/wiki ./apps/wiki
-# Generate OpenAPI spec and docs (URLs will be placeholder values for runtime replacement)
-RUN cd apps/wiki && \
-    node scripts/generate-openapi.js && \
-    npx tsx scripts/generate-docs.mts && \
-    npx fumadocs-mdx && \
-    cd ../..
-# Build wiki with placeholder URLs (replaced at container startup)
-RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
-    API_URI=${API_URI} \
-    DASHBOARD_URI=${DASHBOARD_URI} \
-    LANDING_URI=${LANDING_URI} \
-    WIKI_URI=${WIKI_URI} \
-    NEXT_PUBLIC_API_URI=${API_URI} \
-    NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    NEXT_PUBLIC_LANDING_URI=${LANDING_URI} \
-    NEXT_PUBLIC_WIKI_URI=${WIKI_URI} \
-    yarn turbo build --filter=wiki
-# Generate sitemap for wiki
-RUN NEXT_PUBLIC_WIKI_URI=${WIKI_URI} yarn workspace wiki sitemap
-# Generate URL replacement manifest for wiki (build-time optimization)
-RUN generate-url-manifest.sh wiki /app/apps/wiki
-
-# Step 4: Copy and build Web dashboard
+# Step 3: Copy and build Web dashboard
 COPY apps/web ./apps/web
 RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
     API_URI=${API_URI} \
     DASHBOARD_URI=${DASHBOARD_URI} \
-    LANDING_URI=${LANDING_URI} \
-    WIKI_URI=${WIKI_URI} \
     NEXT_PUBLIC_API_URI=${API_URI} \
     NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    NEXT_PUBLIC_LANDING_URI=${LANDING_URI} \
-    NEXT_PUBLIC_WIKI_URI=${WIKI_URI} \
     yarn turbo build --filter=web
 # Generate sitemap for web
 RUN NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} yarn workspace web sitemap
 # Generate URL replacement manifest for web (build-time optimization)
 RUN generate-url-manifest.sh web /app/apps/web
-
-# Step 5: Copy and build Landing page
-COPY apps/landing ./apps/landing
-RUN --mount=type=cache,target=/app/.turbo,sharing=locked \
-    API_URI=${API_URI} \
-    DASHBOARD_URI=${DASHBOARD_URI} \
-    LANDING_URI=${LANDING_URI} \
-    WIKI_URI=${WIKI_URI} \
-    NEXT_PUBLIC_API_URI=${API_URI} \
-    NEXT_PUBLIC_DASHBOARD_URI=${DASHBOARD_URI} \
-    NEXT_PUBLIC_LANDING_URI=${LANDING_URI} \
-    NEXT_PUBLIC_WIKI_URI=${WIKI_URI} \
-    yarn turbo build --filter=landing
-# Generate sitemap for landing
-RUN NEXT_PUBLIC_LANDING_URI=${LANDING_URI} yarn workspace landing sitemap
-# Generate URL replacement manifest for landing (build-time optimization)
-RUN generate-url-manifest.sh landing /app/apps/landing
 
 # Copy any remaining root files (if needed)
 COPY . .
@@ -220,11 +155,7 @@ COPY . .
 # Ensure directories exist (create empty ones if build didn't generate them)
 RUN mkdir -p \
     apps/web/public \
-    apps/landing/public \
-    apps/wiki/public \
-    apps/web/.next/standalone \
-    apps/landing/.next/standalone \
-    apps/wiki/.next/standalone
+    apps/web/.next/standalone
 
 # ============================================
 # Stage 3: Production Runtime
@@ -303,29 +234,9 @@ COPY --from=builder --chown=plunk:nodejs /app/apps/web/.next/static ./apps/web/.
 COPY --from=builder --chown=plunk:nodejs /app/apps/web/.next/url-manifest.txt ./apps/web/.next/standalone/apps/web/.next/url-manifest.txt
 COPY --from=builder --chown=plunk:nodejs /app/apps/web/.next/sitemap-manifest.txt ./apps/web/.next/standalone/apps/web/.next/sitemap-manifest.txt
 
-# Landing app - standalone build with static assets
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/.next/standalone ./apps/landing/.next/standalone
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/public ./apps/landing/.next/standalone/apps/landing/public
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/.next/static ./apps/landing/.next/standalone/apps/landing/.next/static
-# Copy URL replacement manifests to standalone directory
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/.next/url-manifest.txt ./apps/landing/.next/standalone/apps/landing/.next/url-manifest.txt
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/.next/sitemap-manifest.txt ./apps/landing/.next/standalone/apps/landing/.next/sitemap-manifest.txt
-
-# Wiki app - standalone build with static assets and OpenAPI spec
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/.next/standalone ./apps/wiki/.next/standalone
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/public ./apps/wiki/.next/standalone/apps/wiki/public
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/.next/static ./apps/wiki/.next/standalone/apps/wiki/.next/static
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/openapi.local.json ./apps/wiki/.next/standalone/apps/wiki/openapi.local.json
-# Copy URL replacement manifests to standalone directory
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/.next/url-manifest.txt ./apps/wiki/.next/standalone/apps/wiki/.next/url-manifest.txt
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/.next/sitemap-manifest.txt ./apps/wiki/.next/standalone/apps/wiki/.next/sitemap-manifest.txt
-
 # Copy full .next directories for the entrypoint script (URL replacement via find command)
 # These are much smaller than node_modules and needed for runtime URL replacement
 COPY --from=builder --chown=plunk:nodejs /app/apps/web/.next ./apps/web/.next
-COPY --from=builder --chown=plunk:nodejs /app/apps/landing/.next ./apps/landing/.next
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/.next ./apps/wiki/.next
-COPY --from=builder --chown=plunk:nodejs /app/apps/wiki/openapi.local.json ./apps/wiki/openapi.local.json
 
 # ============================================
 # Copy runtime configuration

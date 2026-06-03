@@ -4,7 +4,7 @@ import {BillingLimitExceededEmail, BillingLimitWarningEmail, sendPlatformEmail} 
 import React from 'react';
 import signale from 'signale';
 
-import {DASHBOARD_URI, LANDING_URI, STRIPE_ENABLED} from '../app/constants.js';
+import {DASHBOARD_URI, STRIPE_ENABLED} from '../app/constants.js';
 import {stripe} from '../app/stripe.js';
 import {prisma} from '../database/prisma.js';
 import {redis} from '../database/redis.js';
@@ -627,7 +627,7 @@ export class BillingLimitService {
         percentage,
         sourceType,
         dashboardUrl: DASHBOARD_URI,
-        landingUrl: LANDING_URI,
+        landingUrl: DASHBOARD_URI,
       });
 
       await Promise.all(emails.map(email => sendPlatformEmail(email, 'Billing Limit Warning', template)));
@@ -678,7 +678,7 @@ export class BillingLimitService {
         limit,
         sourceType,
         dashboardUrl: DASHBOARD_URI,
-        landingUrl: LANDING_URI,
+        landingUrl: DASHBOARD_URI,
       });
 
       await Promise.all(emails.map(email => sendPlatformEmail(email, 'Billing Limit Exceeded', template)));

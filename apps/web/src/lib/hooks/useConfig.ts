@@ -5,8 +5,6 @@ export interface ConfigResponse {
   urls: {
     api: string;
     dashboard: string;
-    landing: string;
-    wiki: string | null;
   };
   features: {
     billing: {enabled: boolean};

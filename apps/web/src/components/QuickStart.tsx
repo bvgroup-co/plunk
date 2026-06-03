@@ -1,9 +1,8 @@
 import {Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '@plunk/ui';
 import {AnimatePresence, motion} from 'framer-motion';
-import {BookOpen, Check, CheckCircle2, Mail, MessageCircle, Shield, Users, Zap} from 'lucide-react';
+import {Check, CheckCircle2, Mail, Shield, Users, Zap} from 'lucide-react';
 import Link from 'next/link';
 import {useMemo, useState} from 'react';
-import {LANDING_URI, WIKI_URI} from '../lib/constants';
 import type {ProjectSetupState} from '../lib/hooks/useProjectSetupState';
 import {useConfig} from '../lib/hooks/useConfig';
 
@@ -36,18 +35,6 @@ function HelpResources() {
     <div className="px-6 pb-6 pt-4 border-t border-neutral-200">
       <p className="text-xs font-medium text-neutral-500 mb-3">Need help?</p>
       <div className="flex flex-col sm:flex-row gap-2">
-        <Button asChild variant="outline" size="sm" className="flex-1">
-          <Link href={WIKI_URI} target="_blank">
-            <BookOpen className="h-3.5 w-3.5" />
-            Documentation
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm" className="flex-1">
-          <Link href={`${LANDING_URI}/discord`} target="_blank">
-            <MessageCircle className="h-3.5 w-3.5" />
-            Join Discord
-          </Link>
-        </Button>
         <motion.button
           onClick={copyEmail}
           whileTap={{scale: 0.97}}

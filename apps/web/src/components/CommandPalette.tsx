@@ -13,7 +13,6 @@ import {
 import {
   Activity,
   BarChart3,
-  BookOpen,
   Check,
   Clock,
   Copy,
@@ -32,7 +31,6 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {toast} from 'sonner';
 import useSWR from 'swr';
 import {useActiveProject} from '../lib/contexts/ActiveProjectProvider';
-import {WIKI_URI} from '../lib/constants';
 import {addRecentPage, getRecentPages} from '../lib/recentPages';
 
 interface Action {
@@ -424,18 +422,6 @@ export function CommandPalette() {
                     </span>
                   </CommandItem>
                 )}
-              {(!shouldSearch || matches('documentation docs wiki help', query)) && (
-                <CommandItem
-                  value="open-documentation-docs-wiki-help"
-                  onSelect={() => {
-                    window.open(WIKI_URI, '_blank');
-                    setOpen(false);
-                  }}
-                >
-                  <BookOpen className="mr-3 h-4 w-4 text-neutral-400 shrink-0" />
-                  <span>Documentation</span>
-                </CommandItem>
-              )}
             </CommandGroup>
           </>
         )}

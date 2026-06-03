@@ -6,7 +6,6 @@ import {
   AWS_SES_REGION,
   DASHBOARD_URI,
   EMAIL_PROVIDER,
-  LANDING_URI,
   MAIL_FROM_SUBDOMAIN,
   NODE_ENV,
   OIDC_DISPLAY_NAME,
@@ -18,7 +17,6 @@ import {
   SMTP_PORT_SUBMISSION,
   STRIPE_ENABLED,
   TRACKING_TOGGLE_ENABLED,
-  WIKI_URI,
 } from '../app/constants.js';
 
 @Controller('config')
@@ -34,8 +32,6 @@ export class Config {
       urls: {
         api: API_URI,
         dashboard: DASHBOARD_URI,
-        landing: LANDING_URI,
-        wiki: WIKI_URI || null,
       },
       features: {
         billing: {
