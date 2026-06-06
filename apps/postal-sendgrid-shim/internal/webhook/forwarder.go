@@ -3,12 +3,15 @@ package webhook
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,7 +32,7 @@ type Forwarder struct {
 	backoff        time.Duration
 	sleep          func(time.Duration)
 	signingEnabled bool
-	signingKey     string
+	signingKey     *ecdsa.PrivateKey
 }
 
 type Result struct {
@@ -40,7 +43,7 @@ type Result struct {
 	Event     string `json:"event,omitempty"`
 }
 
-func NewForwarder(store *storage.Store, plunkBaseURL string, httpClient *http.Client, attempts int, backoff time.Duration, signingEnabled bool, signingKey string) *Forwarder {
+func NewForwarder(store *storage.Store, plunkBaseURL string, httpClient *http.Client, attempts int, backoff time.Duration, signingEnabled bool, signingKey *ecdsa.PrivateKey) *Forwarder {
 	return &Forwarder{
 		store:          store,
 		endpoint:       strings.TrimRight(plunkBaseURL, "/") + "/webhooks/sendgrid/events",
@@ -59,6 +62,22 @@ func NewMessageID() string {
 		panic(fmt.Sprintf("failed to generate message ID: %v", err))
 	}
 	return "shim-" + hex.EncodeToString(random)
+}
+
+func ParseSigningPrivateKey(raw string) (*ecdsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(raw))
+	if block != nil {
+		return parseSigningPrivateKeyDER(block.Bytes)
+	}
+	der, err := base64.StdEncoding.DecodeString(strings.TrimSpace(raw))
+	if err != nil {
+		return nil, err
+	}
+	return parseSigningPrivateKeyDER(der)
+}
+
+func SigningPublicKeyDER(privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	return x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 }
 
 func (f *Forwarder) Handle(ctx context.Context, event postal.WebhookEvent) (Result, error) {
@@ -119,7 +138,9 @@ func (f *Forwarder) forward(ctx context.Context, payload []sendgrid.Event) error
 			return err
 		}
 		request.Header.Set("Content-Type", "application/json")
-		f.sign(request, body)
+		if err := f.sign(request, body); err != nil {
+			return err
+		}
 		response, err := f.httpClient.Do(request)
 		if err == nil && response.StatusCode >= 200 && response.StatusCode < 300 {
 			_ = response.Body.Close()
@@ -141,16 +162,44 @@ func (f *Forwarder) forward(ctx context.Context, payload []sendgrid.Event) error
 	return lastErr
 }
 
-func (f *Forwarder) sign(request *http.Request, body []byte) {
+func (f *Forwarder) sign(request *http.Request, body []byte) error {
 	if !f.signingEnabled {
-		return
+		return nil
+	}
+	if f.signingKey == nil {
+		panic("webhook signing enabled without a private key")
 	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	mac := hmac.New(sha256.New, []byte(f.signingKey))
-	mac.Write([]byte(timestamp))
-	mac.Write(body)
+	digest := sha256.Sum256(append([]byte(timestamp), body...))
+	signature, err := ecdsa.SignASN1(rand.Reader, f.signingKey, digest[:])
+	if err != nil {
+		return err
+	}
 	request.Header.Set("X-Twilio-Email-Event-Webhook-Timestamp", timestamp)
-	request.Header.Set("X-Twilio-Email-Event-Webhook-Signature", base64.StdEncoding.EncodeToString(mac.Sum(nil)))
+	request.Header.Set("X-Twilio-Email-Event-Webhook-Signature", base64.StdEncoding.EncodeToString(signature))
+	return nil
+}
+
+func parseSigningPrivateKeyDER(der []byte) (*ecdsa.PrivateKey, error) {
+	privateKey, err := x509.ParseECPrivateKey(der)
+	if err == nil {
+		if privateKey.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("webhook signing private key must use P-256")
+		}
+		return privateKey, nil
+	}
+	parsedKey, parseErr := x509.ParsePKCS8PrivateKey(der)
+	if parseErr != nil {
+		return nil, err
+	}
+	privateKey, ok := parsedKey.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("webhook signing private key must be an ECDSA key")
+	}
+	if privateKey.Curve != elliptic.P256() {
+		return nil, fmt.Errorf("webhook signing private key must use P-256")
+	}
+	return privateKey, nil
 }
 
 func mapPostalEvent(event string, status string) (string, bool) {

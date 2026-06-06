@@ -3,10 +3,12 @@ package handler
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
+	"crypto/ecdsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -21,7 +23,11 @@ import (
 	"github.com/bvgroup-co/plunk/apps/postal-sendgrid-shim/internal/webhook"
 )
 
-const testSigningKey = "test-webhook-signing-key"
+const testSigningPrivateKeyPEM = `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIEgi3TqYKxxy1SS9cZf/HRW0eWzf97vZ5xAwtkwpLd+koAoGCCqGSM49
+AwEHoUQDQgAEk9OjifEw69U7XPhMsiZU1GH3hk3exFYsW1o7AARFT9I4qL07AU+r
+hZ+6jwERjQ2ehizcP4szwWmZxFifA6C7sQ==
+-----END EC PRIVATE KEY-----`
 
 type fakePostal struct {
 	request postal.SendMessageRequest
@@ -217,7 +223,7 @@ func testServerWithPlunk(t *testing.T, postalClient *fakePostal, plunkURL string
 		t.Fatal(err)
 	}
 	domainService := domain.NewService(store, "postal.example.com", false)
-	forwarder := webhook.NewForwarder(store, plunkURL, http.DefaultClient, 1, time.Millisecond, true, testSigningKey)
+	forwarder := webhook.NewForwarder(store, plunkURL, http.DefaultClient, 1, time.Millisecond, true, testSigningPrivateKey(t))
 	server := NewRouter("test-token", 15*1024*1024, 1024*1024, domainService, postalClient, forwarder, store)
 	return server, store, func() { _ = store.Close() }
 }
@@ -261,13 +267,39 @@ func assertValidSignature(t *testing.T, request *http.Request, body []byte) {
 	if timestamp == "" || signature == "" {
 		t.Fatalf("missing signature headers: %#v", request.Header)
 	}
-	mac := hmac.New(sha256.New, []byte(testSigningKey))
-	mac.Write([]byte(timestamp))
-	mac.Write(body)
-	expected := base64.StdEncoding.EncodeToString(mac.Sum(nil))
-	if signature != expected {
-		t.Fatalf("invalid signature: got %s want %s", signature, expected)
+	rawSignature, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		t.Fatal(err)
 	}
+	digest := sha256.Sum256(append([]byte(timestamp), body...))
+	if !ecdsa.VerifyASN1(&testSigningPrivateKey(t).PublicKey, digest[:], rawSignature) {
+		t.Fatal("signature did not verify against public key")
+	}
+	publicDER, err := x509.MarshalPKIXPublicKey(&testSigningPrivateKey(t).PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsedPublic, err := x509.ParsePKIXPublicKey(publicDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, ok := parsedPublic.(*ecdsa.PublicKey)
+	if !ok || !ecdsa.VerifyASN1(publicKey, digest[:], rawSignature) {
+		t.Fatal("signature did not verify using Plunk-style public key parsing")
+	}
+}
+
+func testSigningPrivateKey(t *testing.T) *ecdsa.PrivateKey {
+	t.Helper()
+	block, _ := pem.Decode([]byte(testSigningPrivateKeyPEM))
+	if block == nil {
+		t.Fatal("test private key PEM did not decode")
+	}
+	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return privateKey
 }
 
 func itoa(value int64) string {

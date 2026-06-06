@@ -41,7 +41,7 @@ Do not configure Plunk with the Postal API key. Only the shim needs `POSTAL_API_
 | `DNS_CHECK_ENABLED` | No | `false` | Enable live CNAME checks during domain validation. |
 | `POSTAL_CNAME_VALUE` | No | `postal.example.invalid` | CNAME target returned in domain auth records. Set this to the Postal tracking/return-path host operators should configure. |
 | `WEBHOOK_SIGNING_ENABLED` | No | `true` | Sign forwarded SendGrid webhook payloads for Plunk. Keep enabled unless Plunk signature verification is explicitly disabled. |
-| `WEBHOOK_SIGNING_KEY` | Yes, when signing enabled | | Shared HMAC key used to generate `X-Twilio-Email-Event-Webhook-*` headers. Configure the same value as `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` in this forked Plunk deployment. |
+| `WEBHOOK_SIGNING_PRIVATE_KEY` | Yes, when signing enabled | | ECDSA P-256 private key (PEM or base64 DER) used to generate SendGrid-compatible asymmetric signatures. Configure the matching public key as `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` in Plunk. |
 
 ## Docker
 
@@ -61,7 +61,7 @@ docker run --rm -p 8080:8080 \
   -e POSTAL_API_KEY=postal-server-api-key \
   -e PLUNK_WEBHOOK_BASE_URL=https://api.example.com \
   -e POSTAL_CNAME_VALUE=postal.example.com \
-  -e WEBHOOK_SIGNING_KEY=shared-webhook-signing-key \
+  -e WEBHOOK_SIGNING_PRIVATE_KEY=-----BEGIN EC PRIVATE KEY-----... \
   postal-sendgrid-shim
 ```
 
@@ -73,7 +73,7 @@ Configure Postal to send message lifecycle webhooks to:
 http://postal-sendgrid-shim:8080/webhooks/postal
 ```
 
-Forwarded events are signed by default with `WEBHOOK_SIGNING_KEY`; configure the same key in Plunk as `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` while leaving `SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED=true`.
+Forwarded events are signed by default with the ECDSA P-256 `WEBHOOK_SIGNING_PRIVATE_KEY`; configure the matching public key (PEM or base64 DER SPKI) in Plunk as `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` while leaving `SENDGRID_EVENT_WEBHOOK_SIGNATURE_REQUIRED=true`.
 
 Mapped events include delivered/sent, bounce, dropped delivery failures, clicks, and opens. The shim deduplicates forwarded events using Postal event IDs when present and deterministic event hashes otherwise.
 
