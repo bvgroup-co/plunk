@@ -29,6 +29,7 @@ import {Contacts} from './controllers/Contacts.js';
 import {Domains} from './controllers/Domains.js';
 import {Events} from './controllers/Events.js';
 import {Oauth} from './controllers/Oauth/index.js';
+import {PostalWebhooks} from './controllers/PostalWebhooks.js';
 import {Projects} from './controllers/Projects.js';
 import {Segments} from './controllers/Segments.js';
 import {SendGridWebhooks} from './controllers/SendGridWebhooks.js';
@@ -56,6 +57,11 @@ const server = new (class extends Server {
       '/webhooks/sendgrid/events',
       raw({type: 'application/json', limit: '5mb'}),
       SendGridWebhooks.receiveEvents,
+    );
+    this.app.post(
+      '/webhooks/postal/events',
+      raw({type: 'application/json', limit: '5mb'}),
+      PostalWebhooks.receiveEvents,
     );
 
     // Set the content-type to JSON for any request coming from AWS SNS
