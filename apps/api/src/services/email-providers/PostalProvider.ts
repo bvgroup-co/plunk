@@ -85,6 +85,9 @@ export class PostalProvider implements OutboundEmailProvider {
     if (input.projectId) {
       headers['X-Plunk-Project-ID'] = input.projectId;
     }
+    if (input.tracking === false) {
+      headers['X-AMP'] = 'skip';
+    }
 
     const body = {
       to: input.to.map(formatPostalAddress),

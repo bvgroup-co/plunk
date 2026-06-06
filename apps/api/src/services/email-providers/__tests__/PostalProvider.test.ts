@@ -47,6 +47,7 @@ describe('PostalProvider', () => {
           contentId: 'file-id',
         },
       ],
+      tracking: false,
       emailId: 'email-id',
       projectId: 'project-id',
     });
@@ -72,6 +73,7 @@ describe('PostalProvider', () => {
         'List-Unsubscribe': '<http://localhost:3000/unsubscribe/contact-id>',
         'X-Plunk-Email-ID': 'email-id',
         'X-Plunk-Project-ID': 'project-id',
+        'X-AMP': 'skip',
       },
       attachments: [
         {
@@ -83,6 +85,24 @@ describe('PostalProvider', () => {
       ],
     });
     expect(result).toEqual({provider: 'postal', messageId: 'postal-message-id'});
+  });
+
+  it('does not disable Postal tracking when tracking is enabled', async () => {
+    const provider = new PostalProvider();
+
+    await provider.sendEmail({
+      from: {email: 'sender@example.com'},
+      to: [{email: 'recipient@example.com'}],
+      subject: 'Subject',
+      html: '<p>Hello</p>',
+      tracking: true,
+    });
+
+    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string)).toEqual(
+      expect.objectContaining({
+        headers: {},
+      }),
+    );
   });
 
   it('escapes display names for RFC5322 address formatting', () => {

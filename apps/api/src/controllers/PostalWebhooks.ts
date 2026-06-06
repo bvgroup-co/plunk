@@ -249,6 +249,57 @@ async function recordEvent({
   }
 }
 
+async function reserveEventProcessing({
+  providerEventId,
+  event,
+  payload,
+  email,
+}: {
+  providerEventId: string;
+  event: string;
+  payload: object;
+  email: {id: string};
+}): Promise<boolean> {
+  try {
+    await prisma.providerWebhookEvent.create({
+      data: {provider: 'POSTAL', providerEventId, event, payload, emailId: email.id, status: WebhookEventStatus.FAILED},
+    });
+    return true;
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+      throw error;
+    }
+
+    const existingEvent = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId}},
+    });
+
+    if (existingEvent.status !== WebhookEventStatus.FAILED) {
+      return false;
+    }
+
+    await prisma.providerWebhookEvent.update({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId}},
+      data: {event, payload, emailId: email.id, status: WebhookEventStatus.FAILED, error: null},
+    });
+    return true;
+  }
+}
+
+async function markEventProcessed(providerEventId: string): Promise<void> {
+  await prisma.providerWebhookEvent.update({
+    where: {provider_providerEventId: {provider: 'POSTAL', providerEventId}},
+    data: {status: WebhookEventStatus.PROCESSED, error: null},
+  });
+}
+
+async function markEventFailed(providerEventId: string, error: string): Promise<void> {
+  await prisma.providerWebhookEvent.update({
+    where: {provider_providerEventId: {provider: 'POSTAL', providerEventId}},
+    data: {status: WebhookEventStatus.FAILED, error},
+  });
+}
+
 async function applyPostalEvent({
   email,
   event,
@@ -360,12 +411,11 @@ export class PostalWebhooks {
         continue;
       }
 
-      const inserted = await recordEvent({
+      const inserted = await reserveEventProcessing({
         providerEventId,
         event: eventType,
         payload: event,
         email,
-        status: WebhookEventStatus.PROCESSED,
       });
 
       if (!inserted) {
@@ -373,13 +423,22 @@ export class PostalWebhooks {
         continue;
       }
 
-      await applyPostalEvent({
-        email,
-        event: eventType,
-        url: event.url ?? event.link,
-        reason: event.reason ?? event.details,
-      });
-      processed += 1;
+      try {
+        await applyPostalEvent({
+          email,
+          event: eventType,
+          url: event.url ?? event.link,
+          reason: event.reason ?? event.details,
+        });
+        await markEventProcessed(providerEventId);
+        processed += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Postal event processing failed';
+        await markEventFailed(providerEventId, message);
+        failed += 1;
+        signale.error(`Failed to process Postal event ${providerEventId}:`, error);
+        throw new HttpException(500, message);
+      }
     }
 
     return res.status(200).json({success: true, processed, duplicate, failed});

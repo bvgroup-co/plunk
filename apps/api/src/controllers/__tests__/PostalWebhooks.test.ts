@@ -5,6 +5,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {factories, getPrismaClient} from '../../../../../test/helpers/index.js';
 import {HttpException} from '../../exceptions/index.js';
+import {EmailService} from '../../services/EmailService.js';
 import {PostalWebhooks} from '../PostalWebhooks.js';
 
 vi.mock('../../app/constants.js', async importOriginal => {
@@ -119,5 +120,46 @@ describe('PostalWebhooks event ingestion', () => {
       .expect(200);
 
     expect(response.body).toEqual({success: true, processed: 0, duplicate: 1, failed: 0});
+  });
+
+  it('does not dedupe a failed side effect before a retry succeeds', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'retry-message-id',
+    });
+    const payload = {id: 'retry-event-id', event: 'delivered', message_id: 'retry-message-id'};
+
+    vi.spyOn(EmailService, 'handleWebhookEvent').mockRejectedValueOnce(new Error('Email update failed'));
+
+    await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send(payload)
+      .expect(500);
+
+    const failedEvent = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'retry-event-id'}},
+    });
+    expect(failedEvent.status).toBe(WebhookEventStatus.FAILED);
+    expect(failedEvent.error).toBe('Email update failed');
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send(payload)
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.DELIVERED);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'retry-event-id'}},
+    });
+    expect(event.status).toBe(WebhookEventStatus.PROCESSED);
   });
 });
