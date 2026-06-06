@@ -38,7 +38,7 @@ export const S3_PUBLIC_URL = validateEnv('S3_PUBLIC_URL', '');
 export const S3_FORCE_PATH_STYLE = validateEnv('S3_FORCE_PATH_STYLE', 'true') === 'true';
 export const S3_ENABLED = S3_ACCESS_KEY_ID !== '' && S3_ACCESS_KEY_SECRET !== '';
 
-export const EMAIL_PROVIDERS = ['ses', 'sendgrid'] as const;
+export const EMAIL_PROVIDERS = ['ses', 'sendgrid', 'postal'] as const;
 export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
 
 function validateEmailProvider(): EmailProvider {
@@ -53,6 +53,7 @@ function validateEmailProvider(): EmailProvider {
 export const EMAIL_PROVIDER = validateEmailProvider();
 export const EMAIL_PROVIDER_IS_SES = EMAIL_PROVIDER === 'ses';
 export const EMAIL_PROVIDER_IS_SENDGRID = EMAIL_PROVIDER === 'sendgrid';
+export const EMAIL_PROVIDER_IS_POSTAL = EMAIL_PROVIDER === 'postal';
 
 function validateSesEnv(key: keyof NodeJS.ProcessEnv): string {
   return EMAIL_PROVIDER_IS_SES ? validateEnv(key) : validateEnv(key, '');
@@ -83,12 +84,37 @@ export const SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = Number.parseIn
   10,
 );
 
+// Postal (required when EMAIL_PROVIDER=postal)
+export const POSTAL_BASE_URL = EMAIL_PROVIDER_IS_POSTAL
+  ? validateEnv('POSTAL_BASE_URL')
+  : validateEnv('POSTAL_BASE_URL', '');
+export const POSTAL_API_KEY = EMAIL_PROVIDER_IS_POSTAL
+  ? validateEnv('POSTAL_API_KEY')
+  : validateEnv('POSTAL_API_KEY', '');
+export const POSTAL_CNAME_VALUE = EMAIL_PROVIDER_IS_POSTAL
+  ? validateEnv('POSTAL_CNAME_VALUE')
+  : validateEnv('POSTAL_CNAME_VALUE', '');
+export const POSTAL_DOMAIN_AUTH_SUBDOMAIN = validateEnv('POSTAL_DOMAIN_AUTH_SUBDOMAIN', 'mail');
+export const POSTAL_DNS_CHECK_ENABLED = validateEnv<string>('POSTAL_DNS_CHECK_ENABLED', 'false') === 'true';
+export const POSTAL_TRACKING_ENABLED = validateEnv<string>('POSTAL_TRACKING_ENABLED', 'true') === 'true';
+export const POSTAL_WEBHOOK_SECRET = validateEnv('POSTAL_WEBHOOK_SECRET', '');
+export const POSTAL_WEBHOOK_SIGNATURE_REQUIRED =
+  validateEnv<string>('POSTAL_WEBHOOK_SIGNATURE_REQUIRED', POSTAL_WEBHOOK_SECRET ? 'true' : 'false') === 'true';
+export const POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = Number.parseInt(
+  validateEnv('POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS', '300'),
+  10,
+);
+
 if (SENDGRID_REGION !== 'global' && SENDGRID_REGION !== 'eu') {
   throw new Error("SENDGRID_REGION must be either 'global' or 'eu'");
 }
 
 if (!Number.isInteger(SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS)) {
   throw new Error('SENDGRID_EVENT_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS must be an integer');
+}
+
+if (!Number.isInteger(POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS)) {
+  throw new Error('POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS must be an integer');
 }
 
 // Optional SES event SQS polling (SNS -> SQS -> worker)
@@ -182,7 +208,9 @@ export const SES_CONFIGURATION_SET_NO_TRACKING = validateEnv(
 // Check if no-tracking configuration set was explicitly provided (not using default)
 export const TRACKING_TOGGLE_ENABLED = EMAIL_PROVIDER_IS_SENDGRID
   ? SENDGRID_TRACKING_ENABLED
-  : process.env.SES_CONFIGURATION_SET_NO_TRACKING !== undefined;
+  : EMAIL_PROVIDER_IS_POSTAL
+    ? POSTAL_TRACKING_ENABLED
+    : process.env.SES_CONFIGURATION_SET_NO_TRACKING !== undefined;
 
 // SMTP Server Configuration (optional)
 // SMTP server can run with or without a domain (runs without TLS in dev mode)

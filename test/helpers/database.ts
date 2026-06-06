@@ -19,6 +19,7 @@ const TRUNCATE_TABLES = [
   'segments',
   'contacts',
   'domains',
+  'api_requests',
   'memberships',
   'projects',
   'users',

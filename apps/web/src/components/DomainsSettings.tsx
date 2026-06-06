@@ -65,14 +65,14 @@ interface DomainsSettingsProps {
   projectId: string;
 }
 
-type DomainProvider = 'ses' | 'sendgrid';
+type DomainProvider = 'ses' | 'sendgrid' | 'postal';
 
 type DomainListItem = {
   id: string;
   domain: string;
   verified: boolean;
   dkimTokens: unknown;
-  provider?: 'SES' | 'SENDGRID';
+  provider?: 'SES' | 'SENDGRID' | 'POSTAL';
   providerRecords?: unknown;
 };
 
@@ -96,7 +96,15 @@ function normalizeRecords(records: unknown): DnsRecord[] {
 }
 
 function normalizeProvider(provider: DomainListItem['provider']): DomainProvider {
-  return provider === 'SENDGRID' ? 'sendgrid' : 'ses';
+  switch (provider) {
+    case 'POSTAL':
+      return 'postal';
+    case 'SENDGRID':
+      return 'sendgrid';
+    case 'SES':
+    case undefined:
+      return 'ses';
+  }
 }
 
 export function DomainsSettings({projectId}: DomainsSettingsProps) {
@@ -379,7 +387,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                 const status = getDomainStatus(domain);
                 const mailFromSubdomain = config?.aws?.mailFromSubdomain ?? 'plunk';
                 const mailFromHost = `${mailFromSubdomain}.${domain.domain}`;
-                const isSendGridDomain = status.provider === 'sendgrid';
+                const usesProviderRecords = status.provider === 'sendgrid' || status.provider === 'postal';
                 return (
                   <div key={domain.id} className="border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -478,7 +486,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-neutral-200">
-                                    {isSendGridDomain
+                                    {usesProviderRecords
                                       ? status.records.map((record, index) => (
                                           <tr
                                             key={`${record.type}-${record.host}-${index}`}
@@ -580,7 +588,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                             </div>
 
                             {/* Optional: Custom MAIL FROM Domain */}
-                            {!isSendGridDomain && config?.aws?.sesRegion && (
+                            {!usesProviderRecords && config?.aws?.sesRegion && (
                               <div>
                                 <div className="flex items-center gap-2 mb-2">
                                   <h4 className="text-xs font-semibold text-neutral-900">Custom MAIL FROM Domain</h4>
@@ -703,7 +711,7 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                             )}
 
                             {/* Optional: Inbound Email */}
-                            {!isSendGridDomain && config?.aws?.sesRegion && (
+                            {!usesProviderRecords && config?.aws?.sesRegion && (
                               <div>
                                 <div className="flex items-center gap-2 mb-2">
                                   <h4 className="text-xs font-semibold text-neutral-900">Inbound Email</h4>

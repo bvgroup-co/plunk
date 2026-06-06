@@ -3,7 +3,7 @@ title: AWS SES Setup
 description: Configure email delivery
 ---
 
-Plunk uses AWS SES by default (`EMAIL_PROVIDER=ses`). If you want to use SendGrid for outbound sending instead, set `EMAIL_PROVIDER=sendgrid` and provide `SENDGRID_API_KEY`. Plunk still uses the existing SES-backed domain verification lifecycle for sender domain ownership, while outbound sending switches to SendGrid. SES inbound email and SNS/SQS event ingestion remain SES-only features.
+Plunk uses AWS SES by default (`EMAIL_PROVIDER=ses`). If you want to use SendGrid for outbound sending instead, set `EMAIL_PROVIDER=sendgrid` and provide `SENDGRID_API_KEY`. To send directly through Postal, set `EMAIL_PROVIDER=postal` and provide the Postal settings below. SES inbound email and SNS/SQS event ingestion remain SES-only features.
 
 ```bash
 EMAIL_PROVIDER="sendgrid"
@@ -13,6 +13,20 @@ SENDGRID_SANDBOX_MODE="false"
 ```
 
 In SendGrid mode, Plunk maps the project tracking decision to SendGrid `tracking_settings` for open and click tracking and stores SendGrid's `x-message-id` response header as the email message ID.
+
+For Postal mode, configure direct sending and direct Postal webhook ingestion:
+
+```bash
+EMAIL_PROVIDER="postal"
+POSTAL_BASE_URL="https://postal.example.com"
+POSTAL_API_KEY="postal-server-api-key"
+POSTAL_CNAME_VALUE="postal.example.com"
+POSTAL_DOMAIN_AUTH_SUBDOMAIN="mail"
+POSTAL_DNS_CHECK_ENABLED="false"
+POSTAL_WEBHOOK_SECRET="shared-secret"
+```
+
+Configure Postal to POST message events directly to `/webhooks/postal/events`. If `POSTAL_WEBHOOK_SECRET` is set, include it in the `X-Plunk-Postal-Webhook-Secret` header or as a `secret` query parameter. Postal domain setup displays a Plunk-owned CNAME record (`mail.your-domain` by default) pointing to `POSTAL_CNAME_VALUE`; when `POSTAL_DNS_CHECK_ENABLED=true`, Plunk verifies that CNAME directly.
 
 ## 1. Create IAM User
 

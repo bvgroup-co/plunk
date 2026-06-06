@@ -16,7 +16,7 @@ export interface DomainVerificationStatus {
   records: DnsRecord[];
   status: string;
   verified: boolean;
-  provider: 'ses' | 'sendgrid';
+  provider: 'ses' | 'sendgrid' | 'postal';
 }
 
 /**

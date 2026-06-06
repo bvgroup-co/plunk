@@ -1,9 +1,14 @@
+import dns from 'node:dns/promises';
+
 import React from 'react';
 import signale from 'signale';
 import {DomainUnverifiedEmail, DomainVerifiedEmail, sendPlatformEmail} from '@plunk/email';
 import {
   DASHBOARD_URI,
   EMAIL_PROVIDER,
+  POSTAL_CNAME_VALUE,
+  POSTAL_DNS_CHECK_ENABLED,
+  POSTAL_DOMAIN_AUTH_SUBDOMAIN,
   SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
   SENDGRID_DOMAIN_AUTH_DEFAULT,
   SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
@@ -96,11 +101,14 @@ export class DomainService {
    * Add a new domain to a project and start verification
    */
   public static async addDomain(projectId: string, domain: string) {
-    if (EMAIL_PROVIDER === 'sendgrid') {
-      return DomainService.addSendGridDomain(projectId, domain);
+    switch (EMAIL_PROVIDER) {
+      case 'postal':
+        return DomainService.addPostalDomain(projectId, domain);
+      case 'sendgrid':
+        return DomainService.addSendGridDomain(projectId, domain);
+      case 'ses':
+        return DomainService.addSesDomain(projectId, domain);
     }
-
-    return DomainService.addSesDomain(projectId, domain);
   }
 
   private static async addSesDomain(projectId: string, domain: string) {
@@ -163,6 +171,54 @@ export class DomainService {
     return newDomain;
   }
 
+  private static getPostalRecords(domain: string): DnsRecord[] {
+    return serializeRecords([
+      {
+        type: 'CNAME',
+        host: `${POSTAL_DOMAIN_AUTH_SUBDOMAIN}.${domain}`,
+        value: POSTAL_CNAME_VALUE,
+      },
+    ]);
+  }
+
+  private static async addPostalDomain(projectId: string, domain: string) {
+    const records = DomainService.getPostalRecords(domain);
+
+    const newDomain = await prisma.domain.create({
+      data: {
+        projectId,
+        domain,
+        provider: 'POSTAL',
+        verified: false,
+        dkimTokens: [],
+        providerSubdomain: POSTAL_DOMAIN_AUTH_SUBDOMAIN,
+        providerRecords: records,
+        providerData: {dnsCheckEnabled: POSTAL_DNS_CHECK_ENABLED},
+      },
+      include: {
+        project: {
+          select: {name: true},
+        },
+      },
+    });
+
+    await NtfyService.notifyDomainAdded(domain, newDomain.project.name, projectId);
+
+    return newDomain;
+  }
+
+  private static async validatePostalRecords(records: DnsRecord[]): Promise<{verified: boolean; error: string | null}> {
+    for (const record of records) {
+      const values = (await dns.resolveCname(record.host)).map(value => value.replace(/\.$/, '').toLowerCase());
+      const expected = record.value.replace(/\.$/, '').toLowerCase();
+      if (!values.includes(expected)) {
+        return {verified: false, error: `Expected ${record.host} CNAME to point to ${record.value}`};
+      }
+    }
+
+    return {verified: true, error: null};
+  }
+
   /**
    * Check verification status for a domain
    */
@@ -171,6 +227,59 @@ export class DomainService {
 
     if (!domain) {
       throw new Error('Domain not found');
+    }
+
+    if (domain.provider === 'POSTAL') {
+      const records = (domain.providerRecords as DnsRecord[] | null) ?? DomainService.getPostalRecords(domain.domain);
+
+      if (!POSTAL_DNS_CHECK_ENABLED) {
+        const updatedDomain = await prisma.domain.update({
+          where: {id: domainId},
+          data: {
+            lastCheckedAt: new Date(),
+            providerRecords: records,
+            providerData: {dnsCheckEnabled: false},
+            providerError: null,
+          },
+        });
+
+        return {
+          domain: updatedDomain.domain,
+          tokens: [],
+          records,
+          status: updatedDomain.verified ? 'Success' : 'Pending',
+          verified: updatedDomain.verified,
+          provider: 'postal',
+        };
+      }
+
+      let validation: {verified: boolean; error: string | null};
+      try {
+        validation = await DomainService.validatePostalRecords(records);
+      } catch (error) {
+        validation = {verified: false, error: error instanceof Error ? error.message : 'Postal DNS validation failed'};
+      }
+
+      const updatedDomain = await prisma.domain.update({
+        where: {id: domainId},
+        data: {
+          verified: validation.verified,
+          lastCheckedAt: new Date(),
+          verifiedAt: validation.verified ? new Date() : null,
+          providerRecords: records,
+          providerData: {dnsCheckEnabled: true},
+          providerError: validation.error,
+        },
+      });
+
+      return {
+        domain: updatedDomain.domain,
+        tokens: [],
+        records,
+        status: validation.verified ? 'Success' : 'Pending',
+        verified: validation.verified,
+        provider: 'postal',
+      };
     }
 
     if (domain.provider === 'SENDGRID') {
@@ -445,7 +554,7 @@ export class DomainService {
             signale.error(`[DOMAIN] Failed to remove SendGrid domain authentication for ${domainName}:`, error);
           }
         }
-      } else {
+      } else if (domain.provider === 'SES') {
         try {
           await deleteIdentity(domainName);
           signale.info(`[DOMAIN] Removed AWS SES identity for ${domainName} (no longer used by any project)`);

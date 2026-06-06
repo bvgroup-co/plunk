@@ -31,20 +31,20 @@ Set your subdomains here. The application automatically derives all internal and
 
 Plunk sends through AWS SES by default. Set `EMAIL_PROVIDER=sendgrid` to send outbound email with SendGrid instead. Plunk still uses the existing SES-backed domain verification lifecycle for sender domain ownership, while outbound sending switches to SendGrid. SES inbound email and SES SNS/SQS event ingestion remain SES-only features.
 
-| Variable         | Required | Description                                             | Example         |
-| ---------------- | -------- | ------------------------------------------------------- | --------------- |
-| `EMAIL_PROVIDER` | No       | Outbound provider. Supported values: `ses`, `sendgrid`. | `ses` (default) |
+| Variable         | Required | Description                                                       | Example         |
+| ---------------- | -------- | ----------------------------------------------------------------- | --------------- |
+| `EMAIL_PROVIDER` | No       | Outbound provider. Supported values: `ses`, `sendgrid`, `postal`. | `ses` (default) |
 
 ### AWS SES
 
-| Variable                            | Required                      | Description                                                                                                                                                                                                                                                                                                                                                          | Example                                         |
-| ----------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Variable                            | Required                                                                                          | Description                                                                                                                                                                                                                                                                                                                                                          | Example                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | `AWS_SES_REGION`                    | Yes when `EMAIL_PROVIDER=ses`; also needed for Plunk-managed domain verification in SendGrid mode | AWS region where SES is configured.                                                                                                                                                                                                                                                                                                                                  | `us-east-1`                                     |
-| `AWS_SES_ACCESS_KEY_ID`             | Yes when `EMAIL_PROVIDER=ses`; also needed for Plunk-managed domain verification in SendGrid mode | AWS access key ID with SES send and identity-verification permissions.                                                                                                                                                                                                                                                                                                                         | `AKIA...`                                       |
+| `AWS_SES_ACCESS_KEY_ID`             | Yes when `EMAIL_PROVIDER=ses`; also needed for Plunk-managed domain verification in SendGrid mode | AWS access key ID with SES send and identity-verification permissions.                                                                                                                                                                                                                                                                                               | `AKIA...`                                       |
 | `AWS_SES_SECRET_ACCESS_KEY`         | Yes when `EMAIL_PROVIDER=ses`; also needed for Plunk-managed domain verification in SendGrid mode | AWS secret access key for SES.                                                                                                                                                                                                                                                                                                                                       | `wJalr...`                                      |
-| `SES_CONFIGURATION_SET`             | No                            | SES configuration set name used for open/click tracking.                                                                                                                                                                                                                                                                                                             | `plunk-configuration-set` (default)             |
-| `SES_CONFIGURATION_SET_NO_TRACKING` | No                            | A second SES configuration set without tracking. When set, projects can toggle email tracking on/off. If omitted, the tracking toggle is hidden.                                                                                                                                                                                                                     | `plunk-no-tracking-configuration-set` (default) |
-| `MAIL_FROM_SUBDOMAIN`               | No                            | Subdomain prefix used when constructing the MAIL FROM hostname for a verified domain (e.g. with default `plunk` and domain `yourdomain.com`, the MAIL FROM is `plunk.yourdomain.com`). Override when the default subdomain is already in use (e.g. by an R2/CDN custom domain), since the MAIL FROM hostname needs MX + TXT records that can't coexist with a CNAME. | `plunk`                                         |
+| `SES_CONFIGURATION_SET`             | No                                                                                                | SES configuration set name used for open/click tracking.                                                                                                                                                                                                                                                                                                             | `plunk-configuration-set` (default)             |
+| `SES_CONFIGURATION_SET_NO_TRACKING` | No                                                                                                | A second SES configuration set without tracking. When set, projects can toggle email tracking on/off. If omitted, the tracking toggle is hidden.                                                                                                                                                                                                                     | `plunk-no-tracking-configuration-set` (default) |
+| `MAIL_FROM_SUBDOMAIN`               | No                                                                                                | Subdomain prefix used when constructing the MAIL FROM hostname for a verified domain (e.g. with default `plunk` and domain `yourdomain.com`, the MAIL FROM is `plunk.yourdomain.com`). Override when the default subdomain is already in use (e.g. by an R2/CDN custom domain), since the MAIL FROM hostname needs MX + TXT records that can't coexist with a CNAME. | `plunk`                                         |
 
 ### SendGrid
 
@@ -53,6 +53,20 @@ Plunk sends through AWS SES by default. Set `EMAIL_PROVIDER=sendgrid` to send ou
 | `SENDGRID_API_KEY`          | Yes when `EMAIL_PROVIDER=sendgrid` | SendGrid API key used for Mail Send.                                                                                                                     | `SG...`           |
 | `SENDGRID_TRACKING_ENABLED` | No                                 | Controls whether Plunk exposes the tracking toggle in SendGrid mode. When enabled, per-email tracking maps to SendGrid open and click tracking settings. | `true` (default)  |
 | `SENDGRID_SANDBOX_MODE`     | No                                 | Enables SendGrid sandbox mode for testing payloads without delivering email.                                                                             | `false` (default) |
+
+### Postal
+
+| Variable                                     | Required                         | Description                                                                                                      | Example                      |
+| -------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `POSTAL_BASE_URL`                            | Yes when `EMAIL_PROVIDER=postal` | Postal server base URL.                                                                                          | `https://postal.example.com` |
+| `POSTAL_API_KEY`                             | Yes when `EMAIL_PROVIDER=postal` | Postal server API key used for `/api/v1/send/message`.                                                           | `postal-key`                 |
+| `POSTAL_CNAME_VALUE`                         | Yes when `EMAIL_PROVIDER=postal` | DNS CNAME target displayed for Postal sender domains.                                                            | `postal.example.com`         |
+| `POSTAL_DOMAIN_AUTH_SUBDOMAIN`               | No                               | Subdomain used for the displayed Postal CNAME record.                                                            | `mail` (default)             |
+| `POSTAL_DNS_CHECK_ENABLED`                   | No                               | When true, Plunk resolves the Postal CNAME and marks matching domains verified. When false, domains stay manual. | `false` (default)            |
+| `POSTAL_TRACKING_ENABLED`                    | No                               | Controls whether Plunk exposes the tracking toggle in Postal mode.                                               | `true` (default)             |
+| `POSTAL_WEBHOOK_SECRET`                      | No                               | Shared secret expected in `X-Plunk-Postal-Webhook-Secret` or the `secret` query parameter.                       | —                            |
+| `POSTAL_WEBHOOK_SIGNATURE_REQUIRED`          | No                               | Defaults to true when `POSTAL_WEBHOOK_SECRET` is set, otherwise false.                                           | auto                         |
+| `POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` | No                               | Reserved timestamp tolerance for timestamped Postal signing.                                                     | `300` (default)              |
 
 ## Storage (Minio)
 
@@ -96,18 +110,18 @@ The optional SMTP relay lets you send emails through Plunk via the SMTP protocol
 
 Dashboard authentication uses OIDC only. Register the redirect URI `${API_URI}/oauth/oidc/callback` with your identity provider.
 
-| Variable                      | Required | Description                                                             | Default                 |
-| ----------------------------- | -------- | ----------------------------------------------------------------------- | ----------------------- |
-| `OIDC_ISSUER`                 | Yes      | OIDC issuer URL. Must match the issuer in discovery and ID tokens.      | -                       |
-| `OIDC_CLIENT_ID`              | Yes      | OIDC client ID.                                                         | -                       |
-| `OIDC_CLIENT_SECRET`          | Yes      | OIDC client secret.                                                     | -                       |
-| `OIDC_SCOPES`                 | No       | Space-separated scopes requested from the identity provider.            | `openid email profile`  |
-| `OIDC_DISPLAY_NAME`           | No       | Label shown on the login button.                                        | `Single Sign-On`        |
-| `OIDC_EMAIL_CLAIM`            | No       | Claim used as the Plunk user email.                                     | `email`                 |
-| `OIDC_EMAIL_VERIFIED_CLAIM`   | No       | Claim used to determine whether the email is verified.                  | `email_verified`        |
-| `OIDC_REQUIRE_EMAIL_VERIFIED` | No       | Require the verified-email claim before creating or signing in a user.  | `true`                  |
-| `OIDC_ALLOW_SIGNUPS`          | No       | Create a local user on first successful OIDC sign-in.                   | `true`                  |
-| `OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL` | No       | Link an existing non-OIDC user by verified email.                       | `false`                 |
+| Variable                               | Required | Description                                                            | Default                |
+| -------------------------------------- | -------- | ---------------------------------------------------------------------- | ---------------------- |
+| `OIDC_ISSUER`                          | Yes      | OIDC issuer URL. Must match the issuer in discovery and ID tokens.     | -                      |
+| `OIDC_CLIENT_ID`                       | Yes      | OIDC client ID.                                                        | -                      |
+| `OIDC_CLIENT_SECRET`                   | Yes      | OIDC client secret.                                                    | -                      |
+| `OIDC_SCOPES`                          | No       | Space-separated scopes requested from the identity provider.           | `openid email profile` |
+| `OIDC_DISPLAY_NAME`                    | No       | Label shown on the login button.                                       | `Single Sign-On`       |
+| `OIDC_EMAIL_CLAIM`                     | No       | Claim used as the Plunk user email.                                    | `email`                |
+| `OIDC_EMAIL_VERIFIED_CLAIM`            | No       | Claim used to determine whether the email is verified.                 | `email_verified`       |
+| `OIDC_REQUIRE_EMAIL_VERIFIED`          | No       | Require the verified-email claim before creating or signing in a user. | `true`                 |
+| `OIDC_ALLOW_SIGNUPS`                   | No       | Create a local user on first successful OIDC sign-in.                  | `true`                 |
+| `OIDC_LINK_EXISTING_BY_VERIFIED_EMAIL` | No       | Link an existing non-OIDC user by verified email.                      | `false`                |
 
 ## Stripe
 
