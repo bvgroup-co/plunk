@@ -3,13 +3,16 @@ package webhook
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,12 +22,14 @@ import (
 )
 
 type Forwarder struct {
-	store      *storage.Store
-	endpoint   string
-	httpClient *http.Client
-	attempts   int
-	backoff    time.Duration
-	sleep      func(time.Duration)
+	store          *storage.Store
+	endpoint       string
+	httpClient     *http.Client
+	attempts       int
+	backoff        time.Duration
+	sleep          func(time.Duration)
+	signingEnabled bool
+	signingKey     string
 }
 
 type Result struct {
@@ -35,14 +40,16 @@ type Result struct {
 	Event     string `json:"event,omitempty"`
 }
 
-func NewForwarder(store *storage.Store, plunkBaseURL string, httpClient *http.Client, attempts int, backoff time.Duration) *Forwarder {
+func NewForwarder(store *storage.Store, plunkBaseURL string, httpClient *http.Client, attempts int, backoff time.Duration, signingEnabled bool, signingKey string) *Forwarder {
 	return &Forwarder{
-		store:      store,
-		endpoint:   strings.TrimRight(plunkBaseURL, "/") + "/webhooks/sendgrid/events",
-		httpClient: httpClient,
-		attempts:   attempts,
-		backoff:    backoff,
-		sleep:      time.Sleep,
+		store:          store,
+		endpoint:       strings.TrimRight(plunkBaseURL, "/") + "/webhooks/sendgrid/events",
+		httpClient:     httpClient,
+		attempts:       attempts,
+		backoff:        backoff,
+		sleep:          time.Sleep,
+		signingEnabled: signingEnabled,
+		signingKey:     signingKey,
 	}
 }
 
@@ -60,7 +67,7 @@ func (f *Forwarder) Handle(ctx context.Context, event postal.WebhookEvent) (Resu
 		return Result{Success: true, Ignored: true}, nil
 	}
 
-	mapping, found, err := f.store.FindMessageMapping(ctx, event.MessageID, firstNonEmpty(event.Message.ID, event.ID), firstNonEmpty(event.Message.Token, event.Token))
+	mapping, found, err := f.store.FindMessageMapping(ctx, event.MessageID, firstNonEmpty(event.Message.MessageID, event.Message.ID, event.ID), firstNonEmpty(event.Message.Token, event.Token))
 	if err != nil {
 		return Result{}, err
 	}
@@ -112,6 +119,7 @@ func (f *Forwarder) forward(ctx context.Context, payload []sendgrid.Event) error
 			return err
 		}
 		request.Header.Set("Content-Type", "application/json")
+		f.sign(request, body)
 		response, err := f.httpClient.Do(request)
 		if err == nil && response.StatusCode >= 200 && response.StatusCode < 300 {
 			_ = response.Body.Close()
@@ -131,6 +139,18 @@ func (f *Forwarder) forward(ctx context.Context, payload []sendgrid.Event) error
 		}
 	}
 	return lastErr
+}
+
+func (f *Forwarder) sign(request *http.Request, body []byte) {
+	if !f.signingEnabled {
+		return
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	mac := hmac.New(sha256.New, []byte(f.signingKey))
+	mac.Write([]byte(timestamp))
+	mac.Write(body)
+	request.Header.Set("X-Twilio-Email-Event-Webhook-Timestamp", timestamp)
+	request.Header.Set("X-Twilio-Email-Event-Webhook-Signature", base64.StdEncoding.EncodeToString(mac.Sum(nil)))
 }
 
 func mapPostalEvent(event string, status string) (string, bool) {

@@ -3,6 +3,9 @@ package handler
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +20,8 @@ import (
 	"github.com/bvgroup-co/plunk/apps/postal-sendgrid-shim/internal/storage"
 	"github.com/bvgroup-co/plunk/apps/postal-sendgrid-shim/internal/webhook"
 )
+
+const testSigningKey = "test-webhook-signing-key"
 
 type fakePostal struct {
 	request postal.SendMessageRequest
@@ -57,26 +62,12 @@ func TestDomainLifecycle(t *testing.T) {
 	}
 }
 
-func TestSendMailMapsPostalAndStoresMapping(t *testing.T) {
+func TestSendMailMapsPlunkProviderJSONAndStoresMapping(t *testing.T) {
 	postalClient := &fakePostal{}
 	server, store, cleanup := testServer(t, postalClient)
 	defer cleanup()
 
-	response := doJSON(t, server, http.MethodPost, "/v3/mail/send", map[string]any{
-		"from":    map[string]string{"email": "sender@example.com", "name": "Sender"},
-		"to":      []map[string]string{{"email": "recipient@example.net", "name": "Recipient"}},
-		"subject": "Hello",
-		"html":    "<p>Hello</p>",
-		"headers": map[string]string{"X-Custom": "value"},
-		"customArgs": map[string]string{
-			"plunk_email_id":   "email_123",
-			"plunk_project_id": "project_123",
-		},
-		"trackingSettings": map[string]any{
-			"clickTracking": map[string]bool{"enable": false, "enableText": false},
-			"openTracking":  map[string]bool{"enable": false},
-		},
-	})
+	response := doJSON(t, server, http.MethodPost, "/v3/mail/send", realPlunkProviderPayload())
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d: %s", response.Code, response.Body.String())
 	}
@@ -87,8 +78,8 @@ func TestSendMailMapsPostalAndStoresMapping(t *testing.T) {
 	if postalClient.request.From != "Sender <sender@example.com>" || postalClient.request.To[0] != "Recipient <recipient@example.net>" {
 		t.Fatalf("unexpected Postal request: %#v", postalClient.request)
 	}
-	if postalClient.request.Headers["X-Shim-Message-ID"] != shimMessageID {
-		t.Fatalf("missing shim message header: %#v", postalClient.request.Headers)
+	if postalClient.request.Headers["X-Shim-Message-ID"] != shimMessageID || postalClient.request.Headers["List-Unsubscribe"] == "" {
+		t.Fatalf("missing mapped headers: %#v", postalClient.request.Headers)
 	}
 
 	mapping, found, err := store.FindMessageMapping(context.Background(), shimMessageID, "", "")
@@ -100,14 +91,50 @@ func TestSendMailMapsPostalAndStoresMapping(t *testing.T) {
 	}
 }
 
-func TestPostalWebhookForwardsSendGridEventAndDeduplicates(t *testing.T) {
+func TestSendMailMapsPersonalizationPayload(t *testing.T) {
+	postalClient := &fakePostal{}
+	server, store, cleanup := testServer(t, postalClient)
+	defer cleanup()
+
+	response := doJSON(t, server, http.MethodPost, "/v3/mail/send", map[string]any{
+		"from":    map[string]string{"email": "sender@example.com"},
+		"subject": "Default subject",
+		"html":    "<p>Hello</p>",
+		"personalizations": []map[string]any{{
+			"to":      []map[string]string{{"email": "recipient@example.net"}},
+			"subject": "Personal subject",
+			"headers": map[string]string{"X-Personal": "value"},
+			"custom_args": map[string]string{
+				"plunk_email_id":   "email_personalized",
+				"plunk_project_id": "project_personalized",
+			},
+		}},
+	})
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", response.Code, response.Body.String())
+	}
+	if postalClient.request.Subject != "Personal subject" || postalClient.request.Headers["X-Personal"] != "value" {
+		t.Fatalf("unexpected Postal personalization mapping: %#v", postalClient.request)
+	}
+	mapping, found, err := store.FindMessageMapping(context.Background(), response.Header().Get("x-message-id"), "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || mapping.PlunkEmailID != "email_personalized" {
+		t.Fatalf("unexpected mapping: %#v", mapping)
+	}
+}
+
+func TestPostalWebhookForwardsSignedSendGridEventAndDeduplicates(t *testing.T) {
 	var forwarded [][]sendgrid.Event
 	plunk := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/webhooks/sendgrid/events" {
 			t.Fatalf("unexpected path: %s", request.URL.Path)
 		}
+		body := readBody(t, request)
+		assertValidSignature(t, request, body)
 		var events []sendgrid.Event
-		if err := json.NewDecoder(request.Body).Decode(&events); err != nil {
+		if err := json.Unmarshal(body, &events); err != nil {
 			t.Fatal(err)
 		}
 		forwarded = append(forwarded, events)
@@ -119,21 +146,22 @@ func TestPostalWebhookForwardsSendGridEventAndDeduplicates(t *testing.T) {
 	server, _, cleanup := testServerWithPlunk(t, postalClient, plunk.URL)
 	defer cleanup()
 
-	sendResponse := doJSON(t, server, http.MethodPost, "/v3/mail/send", map[string]any{
-		"from":    map[string]string{"email": "sender@example.com"},
-		"to":      []map[string]string{{"email": "recipient@example.net"}},
-		"subject": "Hello",
-		"html":    "<p>Hello</p>",
-		"customArgs": map[string]string{
-			"plunk_email_id":   "email_123",
-			"plunk_project_id": "project_123",
-		},
-	})
+	sendResponse := doJSON(t, server, http.MethodPost, "/v3/mail/send", realPlunkProviderPayload())
 	if sendResponse.Code != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d", sendResponse.Code)
 	}
 
-	postalEvent := postal.WebhookEvent{Event: "MessageLoaded", UUID: "event-1", Message: postal.MessagePayload{ID: "postal-message-id", Recipient: "recipient.net"}, Timestamp: 1760000000, URL: "https://example.net"}
+	postalEvent := map[string]any{
+		"event":     "MessageLoaded",
+		"uuid":      "event-1",
+		"timestamp": 1760000000,
+		"url":       "https://example.net",
+		"message": map[string]any{
+			"id":         12345,
+			"message_id": "postal-message-id",
+			"to":         "recipient@example.net",
+		},
+	}
 	webhookResponse := doJSON(t, server, http.MethodPost, "/webhooks/postal", postalEvent)
 	if webhookResponse.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", webhookResponse.Code, webhookResponse.Body.String())
@@ -151,6 +179,30 @@ func TestPostalWebhookForwardsSendGridEventAndDeduplicates(t *testing.T) {
 	}
 }
 
+func realPlunkProviderPayload() map[string]any {
+	return map[string]any{
+		"from":    map[string]string{"email": "sender@example.com", "name": "Sender"},
+		"to":      []map[string]string{{"email": "recipient@example.net", "name": "Recipient"}},
+		"subject": "Hello",
+		"html":    "<p>Hello</p>",
+		"replyTo": map[string]string{"email": "reply@example.com"},
+		"headers": map[string]string{
+			"X-Custom":         "value",
+			"List-Unsubscribe": "<https://example.com/unsubscribe>",
+		},
+		"attachments": []map[string]string{{"content": "SGVsbG8=", "filename": "file.txt", "type": "text/plain", "disposition": "attachment"}},
+		"customArgs": map[string]string{
+			"plunk_email_id":   "email_123",
+			"plunk_project_id": "project_123",
+		},
+		"mailSettings": map[string]any{"sandboxMode": map[string]bool{"enable": false}},
+		"trackingSettings": map[string]any{
+			"clickTracking": map[string]bool{"enable": false, "enableText": false},
+			"openTracking":  map[string]bool{"enable": false},
+		},
+	}
+}
+
 func testServer(t *testing.T, postalClient *fakePostal) (http.Handler, *storage.Store, func()) {
 	return testServerWithPlunk(t, postalClient, "http://plunk.invalid")
 }
@@ -165,7 +217,7 @@ func testServerWithPlunk(t *testing.T, postalClient *fakePostal, plunkURL string
 		t.Fatal(err)
 	}
 	domainService := domain.NewService(store, "postal.example.com", false)
-	forwarder := webhook.NewForwarder(store, plunkURL, http.DefaultClient, 1, time.Millisecond)
+	forwarder := webhook.NewForwarder(store, plunkURL, http.DefaultClient, 1, time.Millisecond, true, testSigningKey)
 	server := NewRouter("test-token", 15*1024*1024, 1024*1024, domainService, postalClient, forwarder, store)
 	return server, store, func() { _ = store.Close() }
 }
@@ -190,6 +242,31 @@ func decodeResponse(t *testing.T, response *httptest.ResponseRecorder, target an
 	t.Helper()
 	if err := json.NewDecoder(response.Body).Decode(target); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func readBody(t *testing.T, request *http.Request) []byte {
+	t.Helper()
+	var body bytes.Buffer
+	if _, err := body.ReadFrom(request.Body); err != nil {
+		t.Fatal(err)
+	}
+	return body.Bytes()
+}
+
+func assertValidSignature(t *testing.T, request *http.Request, body []byte) {
+	t.Helper()
+	timestamp := request.Header.Get("X-Twilio-Email-Event-Webhook-Timestamp")
+	signature := request.Header.Get("X-Twilio-Email-Event-Webhook-Signature")
+	if timestamp == "" || signature == "" {
+		t.Fatalf("missing signature headers: %#v", request.Header)
+	}
+	mac := hmac.New(sha256.New, []byte(testSigningKey))
+	mac.Write([]byte(timestamp))
+	mac.Write(body)
+	expected := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	if signature != expected {
+		t.Fatalf("invalid signature: got %s want %s", signature, expected)
 	}
 }
 

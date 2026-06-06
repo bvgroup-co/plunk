@@ -11,48 +11,53 @@ import (
 )
 
 const (
-	defaultListenAddr       = ":8080"
-	defaultDatabasePath     = "postal-sendgrid-shim.db"
-	defaultMailMaxBytes     = 15 * 1024 * 1024
-	defaultWebhookMaxBytes  = 1 * 1024 * 1024
-	defaultHTTPTimeout      = 10 * time.Second
-	defaultForwardAttempts  = 4
-	defaultForwardBackoff   = 250 * time.Millisecond
-	defaultDNSCheckEnabled  = false
-	defaultPostalCNAMEValue = "postal.example.invalid"
+	defaultListenAddr            = ":8080"
+	defaultDatabasePath          = "postal-sendgrid-shim.db"
+	defaultMailMaxBytes          = 15 * 1024 * 1024
+	defaultWebhookMaxBytes       = 1 * 1024 * 1024
+	defaultHTTPTimeout           = 10 * time.Second
+	defaultForwardAttempts       = 4
+	defaultForwardBackoff        = 250 * time.Millisecond
+	defaultDNSCheckEnabled       = false
+	defaultPostalCNAMEValue      = "postal.example.invalid"
+	defaultWebhookSigningEnabled = true
 )
 
 type Config struct {
-	ListenAddr          string
-	AuthToken           string
-	PostalBaseURL       string
-	PostalAPIKey        string
-	PlunkWebhookBaseURL string
-	DatabasePath        string
-	MailMaxBytes        int64
-	WebhookMaxBytes     int64
-	HTTPTimeout         time.Duration
-	ForwardAttempts     int
-	ForwardBackoff      time.Duration
-	DNSCheckEnabled     bool
-	PostalCNAMEValue    string
+	ListenAddr            string
+	AuthToken             string
+	PostalBaseURL         string
+	PostalAPIKey          string
+	PlunkWebhookBaseURL   string
+	DatabasePath          string
+	MailMaxBytes          int64
+	WebhookMaxBytes       int64
+	HTTPTimeout           time.Duration
+	ForwardAttempts       int
+	ForwardBackoff        time.Duration
+	DNSCheckEnabled       bool
+	PostalCNAMEValue      string
+	WebhookSigningEnabled bool
+	WebhookSigningKey     string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		ListenAddr:          getEnv("LISTEN_ADDR", defaultListenAddr),
-		AuthToken:           os.Getenv("SHIM_AUTH_TOKEN"),
-		PostalBaseURL:       trimTrailingSlash(os.Getenv("POSTAL_BASE_URL")),
-		PostalAPIKey:        os.Getenv("POSTAL_API_KEY"),
-		PlunkWebhookBaseURL: trimTrailingSlash(os.Getenv("PLUNK_WEBHOOK_BASE_URL")),
-		DatabasePath:        getEnv("DATABASE_PATH", defaultDatabasePath),
-		MailMaxBytes:        getEnvInt64("MAIL_MAX_BYTES", defaultMailMaxBytes),
-		WebhookMaxBytes:     getEnvInt64("WEBHOOK_MAX_BYTES", defaultWebhookMaxBytes),
-		HTTPTimeout:         getEnvDuration("HTTP_TIMEOUT", defaultHTTPTimeout),
-		ForwardAttempts:     getEnvInt("FORWARD_ATTEMPTS", defaultForwardAttempts),
-		ForwardBackoff:      getEnvDuration("FORWARD_BACKOFF", defaultForwardBackoff),
-		DNSCheckEnabled:     getEnvBool("DNS_CHECK_ENABLED", defaultDNSCheckEnabled),
-		PostalCNAMEValue:    getEnv("POSTAL_CNAME_VALUE", defaultPostalCNAMEValue),
+		ListenAddr:            getEnv("LISTEN_ADDR", defaultListenAddr),
+		AuthToken:             os.Getenv("SHIM_AUTH_TOKEN"),
+		PostalBaseURL:         trimTrailingSlash(os.Getenv("POSTAL_BASE_URL")),
+		PostalAPIKey:          os.Getenv("POSTAL_API_KEY"),
+		PlunkWebhookBaseURL:   trimTrailingSlash(os.Getenv("PLUNK_WEBHOOK_BASE_URL")),
+		DatabasePath:          getEnv("DATABASE_PATH", defaultDatabasePath),
+		MailMaxBytes:          getEnvInt64("MAIL_MAX_BYTES", defaultMailMaxBytes),
+		WebhookMaxBytes:       getEnvInt64("WEBHOOK_MAX_BYTES", defaultWebhookMaxBytes),
+		HTTPTimeout:           getEnvDuration("HTTP_TIMEOUT", defaultHTTPTimeout),
+		ForwardAttempts:       getEnvInt("FORWARD_ATTEMPTS", defaultForwardAttempts),
+		ForwardBackoff:        getEnvDuration("FORWARD_BACKOFF", defaultForwardBackoff),
+		DNSCheckEnabled:       getEnvBool("DNS_CHECK_ENABLED", defaultDNSCheckEnabled),
+		PostalCNAMEValue:      getEnv("POSTAL_CNAME_VALUE", defaultPostalCNAMEValue),
+		WebhookSigningEnabled: getEnvBool("WEBHOOK_SIGNING_ENABLED", defaultWebhookSigningEnabled),
+		WebhookSigningKey:     os.Getenv("WEBHOOK_SIGNING_KEY"),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -102,6 +107,9 @@ func (c Config) Validate() error {
 	}
 	if c.PostalCNAMEValue == "" {
 		return errors.New("POSTAL_CNAME_VALUE must not be empty")
+	}
+	if c.WebhookSigningEnabled && c.WebhookSigningKey == "" {
+		return errors.New("WEBHOOK_SIGNING_KEY is required when WEBHOOK_SIGNING_ENABLED is true")
 	}
 	return nil
 }
