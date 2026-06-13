@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/bvgroup-co/plunk/compare/v0.15.1...v0.16.0) (2026-06-06)
+
+
+### Features
+
+* add Postal SendGrid shim ([#49](https://github.com/bvgroup-co/plunk/issues/49)) ([7408c7d](https://github.com/bvgroup-co/plunk/commit/7408c7d1a0d3674f954367db049f48943ec23474))
+* **email:** add Postal provider ([#53](https://github.com/bvgroup-co/plunk/issues/53)) ([5216bfb](https://github.com/bvgroup-co/plunk/commit/5216bfb39aea30d178d23d36c115fc61e86afcfd))
+
 ## [0.15.1](https://github.com/bvgroup-co/plunk/compare/v0.15.0...v0.15.1) (2026-06-03)
 
 
