@@ -8,6 +8,11 @@ export interface DnsRecord {
   type: string;
   host: string;
   value: string;
+  priority?: number;
+  required?: boolean;
+  purpose?: string;
+  status?: string | null;
+  error?: string | null;
 }
 
 export interface DomainVerificationStatus {

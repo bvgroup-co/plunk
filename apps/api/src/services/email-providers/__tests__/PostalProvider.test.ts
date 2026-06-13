@@ -9,7 +9,7 @@ vi.mock('../../../app/constants.js', async importOriginal => {
   process.env.EMAIL_PROVIDER = 'postal';
   process.env.POSTAL_BASE_URL = 'https://postal.example.com/';
   process.env.POSTAL_API_KEY = 'postal-key';
-  process.env.POSTAL_CNAME_VALUE = 'postal-cname.example.com';
+  process.env.POSTAL_DOMAIN_API_BASE_URL = 'https://postal-domains.example.com';
   const actual = await importOriginal<typeof import('../../../app/constants.js')>();
   return {
     ...actual,

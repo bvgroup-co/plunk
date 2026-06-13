@@ -107,6 +107,17 @@ function normalizeProvider(provider: DomainListItem['provider']): DomainProvider
   }
 }
 
+function formatRecordDetails(record: DnsRecord): string {
+  const details = [
+    record.purpose,
+    record.required === undefined ? undefined : record.required ? 'required' : 'optional',
+    record.status ?? undefined,
+    record.error ?? undefined,
+  ].filter((detail): detail is string => typeof detail === 'string' && detail.length > 0);
+
+  return details.join(' / ');
+}
+
 export function DomainsSettings({projectId}: DomainsSettingsProps) {
   const {domains, mutate: mutateDomains, isLoading} = useDomains(projectId);
   const {addDomain} = useAddDomain();
@@ -388,6 +399,12 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                 const mailFromSubdomain = config?.aws?.mailFromSubdomain ?? 'plunk';
                 const mailFromHost = `${mailFromSubdomain}.${domain.domain}`;
                 const usesProviderRecords = status.provider === 'sendgrid' || status.provider === 'postal';
+                const providerRecordsTitle =
+                  status.provider === 'postal' ? 'DNS records required by Postal' : 'Required for Sending';
+                const providerRecordsDescription =
+                  status.provider === 'postal'
+                    ? 'Add the DNS records returned by Postal. DNS changes can take up to 48 hours to propagate.'
+                    : 'Add these DKIM records to verify your domain and send emails. DNS changes can take up to 48 hours to propagate.';
                 return (
                   <div key={domain.id} className="border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -455,19 +472,16 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
 
                         {expandedDomains[domain.id] && (
                           <div className="mt-3 space-y-4">
-                            {/* Required DKIM Records for Sending */}
+                            {/* Required DNS Records for Sending */}
                             <div>
                               <div className="flex items-center gap-2 mb-2">
-                                <h4 className="text-xs font-semibold text-neutral-900">Required for Sending</h4>
+                                <h4 className="text-xs font-semibold text-neutral-900">{providerRecordsTitle}</h4>
                                 <Badge variant="default" className="text-[10px] px-1.5 py-0">
                                   REQUIRED
                                 </Badge>
                               </div>
                               {!status.verified && (
-                                <p className="text-xs text-neutral-600 mb-2">
-                                  Add these DKIM records to verify your domain and send emails. DNS changes can take up
-                                  to 48 hours to propagate.
-                                </p>
+                                <p className="text-xs text-neutral-600 mb-2">{providerRecordsDescription}</p>
                               )}
 
                               <div className="overflow-x-auto">
@@ -483,6 +497,16 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                       <th className="text-left py-2 px-3 font-medium text-neutral-700 bg-neutral-50">
                                         Value
                                       </th>
+                                      {usesProviderRecords && (
+                                        <>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-700 bg-neutral-50">
+                                            Priority
+                                          </th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-700 bg-neutral-50">
+                                            Details
+                                          </th>
+                                        </>
+                                      )}
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-neutral-200">
@@ -530,6 +554,16 @@ export function DomainsSettings({projectId}: DomainsSettingsProps) {
                                                   />
                                                 </Button>
                                               </div>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <code className="text-xs font-mono text-neutral-700">
+                                                {record.priority ?? '-'}
+                                              </code>
+                                            </td>
+                                            <td className="py-3 px-3">
+                                              <span className="text-xs text-neutral-600">
+                                                {formatRecordDetails(record) || '-'}
+                                              </span>
                                             </td>
                                           </tr>
                                         ))

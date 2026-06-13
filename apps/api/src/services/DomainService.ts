@@ -1,14 +1,9 @@
-import dns from 'node:dns/promises';
-
 import React from 'react';
 import signale from 'signale';
 import {DomainUnverifiedEmail, DomainVerifiedEmail, sendPlatformEmail} from '@plunk/email';
 import {
   DASHBOARD_URI,
   EMAIL_PROVIDER,
-  POSTAL_CNAME_VALUE,
-  POSTAL_DNS_CHECK_ENABLED,
-  POSTAL_DOMAIN_AUTH_SUBDOMAIN,
   SENDGRID_DOMAIN_AUTH_AUTOMATIC_SECURITY,
   SENDGRID_DOMAIN_AUTH_DEFAULT,
   SENDGRID_DOMAIN_AUTH_SUBDOMAIN,
@@ -20,6 +15,7 @@ import {sendGridRequest} from '../utils/sendgrid.js';
 import {Keys} from './keys.js';
 import {MembershipService} from './MembershipService.js';
 import {NtfyService} from './NtfyService.js';
+import {checkPostalDomain, createPostalDomain, deletePostalDomain, type PostalDomainResponse} from './PostalDomainClient.js';
 import {
   deleteIdentity,
   disableFeedbackForwarding,
@@ -31,6 +27,11 @@ type DnsRecord = {
   type: string;
   host: string;
   value: string;
+  priority?: number;
+  required?: boolean;
+  purpose?: string;
+  status?: string | null;
+  error?: string | null;
 };
 
 type SendGridDnsRecord = {
@@ -58,6 +59,11 @@ function serializeRecords(records: DnsRecord[]): DnsRecord[] {
     type: record.type.toUpperCase(),
     host: record.host,
     value: record.value,
+    ...(record.priority !== undefined ? {priority: record.priority} : {}),
+    ...(record.required !== undefined ? {required: record.required} : {}),
+    ...(record.purpose !== undefined ? {purpose: record.purpose} : {}),
+    ...(record.status !== undefined ? {status: record.status} : {}),
+    ...(record.error !== undefined ? {error: record.error} : {}),
   }));
 }
 
@@ -69,6 +75,18 @@ function recordsFromSendGrid(response: SendGridDomainResponse): DnsRecord[] {
       value: record.data,
     })),
   );
+}
+
+function postalProviderData(response: PostalDomainResponse) {
+  return {
+    id: response.id,
+    ...(response.uuid ? {uuid: response.uuid} : {}),
+    name: response.name,
+    verified: response.verified,
+    records: response.records,
+    ...(response.statuses ? {statuses: response.statuses} : {}),
+    raw: response.raw,
+  };
 }
 
 async function parseSendGridJson<T>(response: Response): Promise<T> {
@@ -171,29 +189,20 @@ export class DomainService {
     return newDomain;
   }
 
-  private static getPostalRecords(domain: string): DnsRecord[] {
-    return serializeRecords([
-      {
-        type: 'CNAME',
-        host: `${POSTAL_DOMAIN_AUTH_SUBDOMAIN}.${domain}`,
-        value: POSTAL_CNAME_VALUE,
-      },
-    ]);
-  }
-
   private static async addPostalDomain(projectId: string, domain: string) {
-    const records = DomainService.getPostalRecords(domain);
+    const postalDomain = await createPostalDomain(domain);
+    const records = serializeRecords(postalDomain.records);
 
     const newDomain = await prisma.domain.create({
       data: {
         projectId,
         domain,
         provider: 'POSTAL',
-        verified: false,
+        verified: postalDomain.verified,
         dkimTokens: [],
-        providerSubdomain: POSTAL_DOMAIN_AUTH_SUBDOMAIN,
+        providerDomainId: postalDomain.id,
         providerRecords: records,
-        providerData: {dnsCheckEnabled: POSTAL_DNS_CHECK_ENABLED},
+        providerData: postalProviderData(postalDomain),
       },
       include: {
         project: {
@@ -207,18 +216,6 @@ export class DomainService {
     return newDomain;
   }
 
-  private static async validatePostalRecords(records: DnsRecord[]): Promise<{verified: boolean; error: string | null}> {
-    for (const record of records) {
-      const values = (await dns.resolveCname(record.host)).map(value => value.replace(/\.$/, '').toLowerCase());
-      const expected = record.value.replace(/\.$/, '').toLowerCase();
-      if (!values.includes(expected)) {
-        return {verified: false, error: `Expected ${record.host} CNAME to point to ${record.value}`};
-      }
-    }
-
-    return {verified: true, error: null};
-  }
-
   /**
    * Check verification status for a domain
    */
@@ -230,45 +227,22 @@ export class DomainService {
     }
 
     if (domain.provider === 'POSTAL') {
-      const records = (domain.providerRecords as DnsRecord[] | null) ?? DomainService.getPostalRecords(domain.domain);
-
-      if (!POSTAL_DNS_CHECK_ENABLED) {
-        const updatedDomain = await prisma.domain.update({
-          where: {id: domainId},
-          data: {
-            lastCheckedAt: new Date(),
-            providerRecords: records,
-            providerData: {dnsCheckEnabled: false},
-            providerError: null,
-          },
-        });
-
-        return {
-          domain: updatedDomain.domain,
-          tokens: [],
-          records,
-          status: updatedDomain.verified ? 'Success' : 'Pending',
-          verified: updatedDomain.verified,
-          provider: 'postal',
-        };
+      if (!domain.providerDomainId) {
+        throw new Error('Postal domain is missing provider domain ID');
       }
 
-      let validation: {verified: boolean; error: string | null};
-      try {
-        validation = await DomainService.validatePostalRecords(records);
-      } catch (error) {
-        validation = {verified: false, error: error instanceof Error ? error.message : 'Postal DNS validation failed'};
-      }
+      const postalDomain = await checkPostalDomain(domain.providerDomainId);
+      const records = serializeRecords(postalDomain.records);
 
       const updatedDomain = await prisma.domain.update({
         where: {id: domainId},
         data: {
-          verified: validation.verified,
+          verified: postalDomain.verified,
           lastCheckedAt: new Date(),
-          verifiedAt: validation.verified ? new Date() : null,
+          verifiedAt: postalDomain.verified ? new Date() : null,
           providerRecords: records,
-          providerData: {dnsCheckEnabled: true},
-          providerError: validation.error,
+          providerData: postalProviderData(postalDomain),
+          providerError: null,
         },
       });
 
@@ -276,8 +250,8 @@ export class DomainService {
         domain: updatedDomain.domain,
         tokens: [],
         records,
-        status: validation.verified ? 'Success' : 'Pending',
-        verified: validation.verified,
+        status: postalDomain.verified ? 'Success' : 'Pending',
+        verified: postalDomain.verified,
         provider: 'postal',
       };
     }
@@ -535,12 +509,11 @@ export class DomainService {
       );
     }
 
-    await prisma.domain.delete({where: {id: domainId}});
-
     // Check if this domain is still attached to another project
     const domainExistsElsewhere = await prisma.domain.findFirst({
       where: {
         domain: domainName,
+        id: {not: domainId},
       },
     });
 
@@ -553,6 +526,28 @@ export class DomainService {
           } catch (error) {
             signale.error(`[DOMAIN] Failed to remove SendGrid domain authentication for ${domainName}:`, error);
           }
+        }
+      } else if (domain.provider === 'POSTAL') {
+        if (domain.providerDomainId) {
+          try {
+            await deletePostalDomain(domain.providerDomainId);
+            signale.info(`[DOMAIN] Removed Postal domain for ${domainName}`);
+          } catch (error) {
+            const cleanupError = error instanceof Error ? error.message : 'Postal domain cleanup failed';
+            await prisma.domain.update({
+              where: {id: domainId},
+              data: {
+                providerError: cleanupError,
+              },
+            });
+            signale.error(
+              `[DOMAIN] Failed to remove Postal domain for ${domainName}; manual cleanup may be required:`,
+              error,
+            );
+            throw new HttpException(502, cleanupError);
+          }
+        } else {
+          signale.warn(`[DOMAIN] Postal domain ${domainName} is missing provider ID; manual cleanup may be required`);
         }
       } else if (domain.provider === 'SES') {
         try {
@@ -567,6 +562,8 @@ export class DomainService {
         `[DOMAIN] Keeping provider domain identity for ${domainName} (still used by project ${domainExistsElsewhere.projectId})`,
       );
     }
+
+    await prisma.domain.delete({where: {id: domainId}});
 
     // Send notification about domain removal
     await NtfyService.notifyDomainRemoved(domainName, domain.project.name, domain.project.id);
