@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/bvgroup-co/plunk/compare/v0.16.1...v0.16.2) (2026-06-13)
+
+
+### Bug Fixes
+
+* **postal:** disable domain management API ([246c240](https://github.com/bvgroup-co/plunk/commit/246c240da4337ff54259467469c0c2750fd8686a))
+
 ## [0.16.1](https://github.com/bvgroup-co/plunk/compare/v0.16.0...v0.16.1) (2026-06-13)
 
 
