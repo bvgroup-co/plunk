@@ -12,6 +12,12 @@ You can verify a domain by adding it in the domain tab of the project settings. 
 
 Once you have added the DNS records, it may take some time for the changes to propagate. You can check the verification status in the domain tab of the project settings.
 
+<Callout title="Postal self-hosting" type="warn">
+  Stock Postal does not provide a supported API for Plunk to create or verify domains automatically. When
+  `EMAIL_PROVIDER=postal`, create and verify sender domains in Postal first and use the DNS records shown in Postal.
+  Plunk will fail domain add instead of showing synthetic DNS records.
+</Callout>
+
 ## DNS Records
 
 Domain verification requires adding several DNS records to your domain. Each record serves a specific purpose in email authentication and delivery.
@@ -41,7 +47,11 @@ You'll need to add **1 TXT record** that lists the authorized sending servers.
 - Works together with DKIM for complete authentication
 
 <Callout title="Already have an SPF record?" type="warn">
-A domain can only have **one** SPF TXT record. If you already use another email provider (Google Workspace, Microsoft 365, another sending platform), you must **merge** Plunk's SPF mechanism into your existing record — don't add a second SPF record. For example, if your existing record is `v=spf1 include:_spf.google.com ~all`, the merged version is `v=spf1 include:_spf.google.com include:&lt;Plunk's include from the dashboard&gt; ~all`. Two separate SPF records will cause both to fail.
+  A domain can only have **one** SPF TXT record. If you already use another email provider (Google Workspace, Microsoft
+  365, another sending platform), you must **merge** Plunk's SPF mechanism into your existing record — don't add a
+  second SPF record. For example, if your existing record is `v=spf1 include:_spf.google.com ~all`, the merged version
+  is `v=spf1 include:_spf.google.com include:&lt;Plunk's include from the dashboard&gt; ~all`. Two separate SPF records
+  will cause both to fail.
 </Callout>
 
 ### Bounce Handling (1 MX record)
@@ -56,7 +66,9 @@ This **MX record** allows Plunk to receive bounce notifications and spam complai
 - Required for deliverability monitoring
 
 <Callout title="Bounce MX vs inbound MX" type="info">
-This MX record handles delivery feedback (bounces, complaints) for emails Plunk sends out — it's separate from the [inbound MX record](/guides/receiving-emails) used to **receive** emails sent to your domain. They serve different purposes; you can have either one or both.
+  This MX record handles delivery feedback (bounces, complaints) for emails Plunk sends out — it's separate from the
+  [inbound MX record](/guides/receiving-emails) used to **receive** emails sent to your domain. They serve different
+  purposes; you can have either one or both.
 </Callout>
 
 ### DMARC (optional, recommended)
