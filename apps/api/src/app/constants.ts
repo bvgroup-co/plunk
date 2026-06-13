@@ -91,11 +91,12 @@ export const POSTAL_BASE_URL = EMAIL_PROVIDER_IS_POSTAL
 export const POSTAL_API_KEY = EMAIL_PROVIDER_IS_POSTAL
   ? validateEnv('POSTAL_API_KEY')
   : validateEnv('POSTAL_API_KEY', '');
-export const POSTAL_CNAME_VALUE = EMAIL_PROVIDER_IS_POSTAL
-  ? validateEnv('POSTAL_CNAME_VALUE')
-  : validateEnv('POSTAL_CNAME_VALUE', '');
-export const POSTAL_DOMAIN_AUTH_SUBDOMAIN = validateEnv('POSTAL_DOMAIN_AUTH_SUBDOMAIN', 'mail');
-export const POSTAL_DNS_CHECK_ENABLED = validateEnv<string>('POSTAL_DNS_CHECK_ENABLED', 'false') === 'true';
+export const POSTAL_DOMAIN_API_BASE_URL = EMAIL_PROVIDER_IS_POSTAL
+  ? validateEnv('POSTAL_DOMAIN_API_BASE_URL')
+  : validateEnv('POSTAL_DOMAIN_API_BASE_URL', '');
+export const POSTAL_DOMAIN_API_KEY = validateEnv('POSTAL_DOMAIN_API_KEY', '');
+export const POSTAL_DOMAIN_SERVER_ID = validateEnv('POSTAL_DOMAIN_SERVER_ID', '');
+export const POSTAL_DOMAIN_SERVER_PERMALINK = validateEnv('POSTAL_DOMAIN_SERVER_PERMALINK', '');
 export const POSTAL_TRACKING_ENABLED = validateEnv<string>('POSTAL_TRACKING_ENABLED', 'true') === 'true';
 export const POSTAL_WEBHOOK_SECRET = validateEnv('POSTAL_WEBHOOK_SECRET', '');
 export const POSTAL_WEBHOOK_SIGNATURE_REQUIRED =

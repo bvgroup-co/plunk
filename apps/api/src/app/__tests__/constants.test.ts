@@ -56,7 +56,7 @@ describe('email provider env validation', () => {
       EMAIL_PROVIDER: 'postal',
       POSTAL_BASE_URL: 'https://postal.example.com',
       POSTAL_API_KEY: 'postal-key',
-      POSTAL_CNAME_VALUE: 'postal.example.com',
+      POSTAL_DOMAIN_API_BASE_URL: 'https://postal-domains.example.com',
       SENDGRID_API_KEY: undefined,
     });
 
@@ -72,7 +72,7 @@ describe('email provider env validation', () => {
       EMAIL_PROVIDER: 'postal',
       POSTAL_BASE_URL: 'https://postal.example.com',
       POSTAL_API_KEY: 'postal-key',
-      POSTAL_CNAME_VALUE: 'postal.example.com',
+      POSTAL_DOMAIN_API_BASE_URL: 'https://postal-domains.example.com',
       POSTAL_WEBHOOK_SECRET: 'secret',
     });
 
