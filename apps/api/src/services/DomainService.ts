@@ -533,16 +533,18 @@ export class DomainService {
             await deletePostalDomain(domain.providerDomainId);
             signale.info(`[DOMAIN] Removed Postal domain for ${domainName}`);
           } catch (error) {
+            const cleanupError = error instanceof Error ? error.message : 'Postal domain cleanup failed';
             await prisma.domain.update({
               where: {id: domainId},
               data: {
-                providerError: error instanceof Error ? error.message : 'Postal domain cleanup failed',
+                providerError: cleanupError,
               },
             });
             signale.error(
               `[DOMAIN] Failed to remove Postal domain for ${domainName}; manual cleanup may be required:`,
               error,
             );
+            throw new HttpException(502, cleanupError);
           }
         } else {
           signale.warn(`[DOMAIN] Postal domain ${domainName} is missing provider ID; manual cleanup may be required`);

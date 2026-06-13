@@ -1,5 +1,14 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+vi.hoisted(() => {
+  process.env.API_URI = 'http://localhost:8080';
+  process.env.DASHBOARD_URI = 'http://localhost:3000';
+  process.env.JWT_SECRET = 'test';
+  process.env.REDIS_URL = 'redis://localhost:6379';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+  process.env.DIRECT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+});
+
 import {factories} from '../../../../../test/helpers/index.js';
 import {prisma} from '../../database/prisma.js';
 import {NtfyService} from '../NtfyService.js';
@@ -10,6 +19,9 @@ vi.mock('../../app/constants.js', async importOriginal => {
   process.env.API_URI = 'http://localhost:8080';
   process.env.DASHBOARD_URI = 'http://localhost:3000';
   process.env.JWT_SECRET = 'test';
+  process.env.REDIS_URL = 'redis://localhost:6379';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+  process.env.DIRECT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/plunk_test';
   process.env.EMAIL_PROVIDER = 'postal';
   process.env.POSTAL_BASE_URL = 'https://postal.example.com';
   process.env.POSTAL_API_KEY = 'postal-key';
@@ -170,5 +182,19 @@ describe('DomainService Postal domains', () => {
       'https://postal-domains.example.com/api/v1/domains/postal-domain-123',
       expect.objectContaining({method: 'DELETE'}),
     );
+  });
+
+  it('keeps the local Postal domain when provider cleanup fails', async () => {
+    const {project} = await factories.createUserWithProject({}, {name: 'Postal Project'});
+    const domain = await DomainService.addDomain(project.id, 'example.com');
+    global.fetch = vi.fn(async () => new Response('Postal delete failed', {status: 503}));
+
+    await expect(DomainService.removeDomain(domain.id)).rejects.toThrow('Postal delete failed');
+
+    await expect(prisma.domain.findUniqueOrThrow({where: {id: domain.id}})).resolves.toMatchObject({
+      provider: 'POSTAL',
+      providerDomainId: 'postal-domain-123',
+      providerError: 'Postal delete failed',
+    });
   });
 });
