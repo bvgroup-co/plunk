@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/bvgroup-co/plunk/compare/v0.16.0...v0.16.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **postal:** provision domains via integration ([05555e7](https://github.com/bvgroup-co/plunk/commit/05555e7f32cf200a1f5b26592b28d35012de2b78))
+
 ## [0.16.0](https://github.com/bvgroup-co/plunk/compare/v0.15.1...v0.16.0) (2026-06-06)
 
 
