@@ -15,7 +15,6 @@ import {sendGridRequest} from '../utils/sendgrid.js';
 import {Keys} from './keys.js';
 import {MembershipService} from './MembershipService.js';
 import {NtfyService} from './NtfyService.js';
-import {checkPostalDomain, createPostalDomain, deletePostalDomain, type PostalDomainResponse} from './PostalDomainClient.js';
 import {
   deleteIdentity,
   disableFeedbackForwarding,
@@ -54,6 +53,9 @@ type SendGridValidateResponse = {
   validation_results?: Record<string, {valid: boolean; reason?: string}>;
 };
 
+const POSTAL_DOMAIN_MANAGEMENT_UNAVAILABLE =
+  'Automatic Postal domain management is not supported with stock Postal. Create and verify the domain in Postal first, then use the DNS records shown in Postal, or configure a real supported Postal admin/companion integration before adding Postal domains in Plunk.';
+
 function serializeRecords(records: DnsRecord[]): DnsRecord[] {
   return records.map(record => ({
     type: record.type.toUpperCase(),
@@ -75,18 +77,6 @@ function recordsFromSendGrid(response: SendGridDomainResponse): DnsRecord[] {
       value: record.data,
     })),
   );
-}
-
-function postalProviderData(response: PostalDomainResponse) {
-  return {
-    id: response.id,
-    ...(response.uuid ? {uuid: response.uuid} : {}),
-    name: response.name,
-    verified: response.verified,
-    records: response.records,
-    ...(response.statuses ? {statuses: response.statuses} : {}),
-    raw: response.raw,
-  };
 }
 
 async function parseSendGridJson<T>(response: Response): Promise<T> {
@@ -189,31 +179,8 @@ export class DomainService {
     return newDomain;
   }
 
-  private static async addPostalDomain(projectId: string, domain: string) {
-    const postalDomain = await createPostalDomain(domain);
-    const records = serializeRecords(postalDomain.records);
-
-    const newDomain = await prisma.domain.create({
-      data: {
-        projectId,
-        domain,
-        provider: 'POSTAL',
-        verified: postalDomain.verified,
-        dkimTokens: [],
-        providerDomainId: postalDomain.id,
-        providerRecords: records,
-        providerData: postalProviderData(postalDomain),
-      },
-      include: {
-        project: {
-          select: {name: true},
-        },
-      },
-    });
-
-    await NtfyService.notifyDomainAdded(domain, newDomain.project.name, projectId);
-
-    return newDomain;
+  private static async addPostalDomain(_projectId: string, _domain: string) {
+    throw new HttpException(501, POSTAL_DOMAIN_MANAGEMENT_UNAVAILABLE);
   }
 
   /**
@@ -227,33 +194,15 @@ export class DomainService {
     }
 
     if (domain.provider === 'POSTAL') {
-      if (!domain.providerDomainId) {
-        throw new Error('Postal domain is missing provider domain ID');
-      }
-
-      const postalDomain = await checkPostalDomain(domain.providerDomainId);
-      const records = serializeRecords(postalDomain.records);
-
-      const updatedDomain = await prisma.domain.update({
+      await prisma.domain.update({
         where: {id: domainId},
         data: {
-          verified: postalDomain.verified,
           lastCheckedAt: new Date(),
-          verifiedAt: postalDomain.verified ? new Date() : null,
-          providerRecords: records,
-          providerData: postalProviderData(postalDomain),
-          providerError: null,
+          providerError: POSTAL_DOMAIN_MANAGEMENT_UNAVAILABLE,
         },
       });
 
-      return {
-        domain: updatedDomain.domain,
-        tokens: [],
-        records,
-        status: postalDomain.verified ? 'Success' : 'Pending',
-        verified: postalDomain.verified,
-        provider: 'postal',
-      };
+      throw new HttpException(501, POSTAL_DOMAIN_MANAGEMENT_UNAVAILABLE);
     }
 
     if (domain.provider === 'SENDGRID') {
@@ -528,27 +477,9 @@ export class DomainService {
           }
         }
       } else if (domain.provider === 'POSTAL') {
-        if (domain.providerDomainId) {
-          try {
-            await deletePostalDomain(domain.providerDomainId);
-            signale.info(`[DOMAIN] Removed Postal domain for ${domainName}`);
-          } catch (error) {
-            const cleanupError = error instanceof Error ? error.message : 'Postal domain cleanup failed';
-            await prisma.domain.update({
-              where: {id: domainId},
-              data: {
-                providerError: cleanupError,
-              },
-            });
-            signale.error(
-              `[DOMAIN] Failed to remove Postal domain for ${domainName}; manual cleanup may be required:`,
-              error,
-            );
-            throw new HttpException(502, cleanupError);
-          }
-        } else {
-          signale.warn(`[DOMAIN] Postal domain ${domainName} is missing provider ID; manual cleanup may be required`);
-        }
+        signale.info(
+          `[DOMAIN] Removed local Postal domain for ${domainName}; no stock Postal API cleanup was attempted`,
+        );
       } else if (domain.provider === 'SES') {
         try {
           await deleteIdentity(domainName);
