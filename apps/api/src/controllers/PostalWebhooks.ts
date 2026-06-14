@@ -12,6 +12,43 @@ import {EmailService} from '../services/EmailService.js';
 
 const actionableEvents = new Set(['sent', 'delivered', 'bounced', 'failed', 'held', 'opened', 'loaded', 'clicked']);
 
+const canonicalPostalEvents: Record<string, string> = {
+  messagedeliveryfailed: 'failed',
+  messagebounced: 'bounced',
+  messageheld: 'held',
+  messagelinkclicked: 'clicked',
+  messageloaded: 'loaded',
+  messagesent: 'sent',
+};
+
+const postalMessageSchema = z
+  .object({
+    id: z.union([z.string(), z.number()]).optional(),
+    message_id: z.union([z.string(), z.number()]).optional(),
+    token: z.string().optional(),
+    headers: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+const postalWebhookPayloadSchema = z
+  .object({
+    status: z.string().min(1).optional(),
+    type: z.string().min(1).optional(),
+    id: z.union([z.string(), z.number()]).optional(),
+    token: z.string().optional(),
+    message_id: z.union([z.string(), z.number()]).optional(),
+    message: postalMessageSchema.optional(),
+    headers: z.record(z.string(), z.unknown()).optional(),
+    url: z.string().optional(),
+    link: z.string().optional(),
+    details: z.string().optional(),
+    reason: z.string().optional(),
+    output: z.string().optional(),
+    ip_address: z.string().optional(),
+    user_agent: z.string().optional(),
+  })
+  .passthrough();
+
 const postalWebhookEventSchema = z
   .object({
     event: z.string().min(1).optional(),
@@ -21,26 +58,22 @@ const postalWebhookEventSchema = z
     uuid: z.union([z.string(), z.number()]).optional(),
     token: z.string().optional(),
     message_id: z.union([z.string(), z.number()]).optional(),
-    message: z
-      .object({
-        id: z.union([z.string(), z.number()]).optional(),
-        message_id: z.union([z.string(), z.number()]).optional(),
-        token: z.string().optional(),
-        headers: z.record(z.string(), z.unknown()).optional(),
-      })
-      .passthrough()
-      .optional(),
-    payload: z.unknown().optional(),
+    message: postalMessageSchema.optional(),
+    payload: postalWebhookPayloadSchema.optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     url: z.string().optional(),
     link: z.string().optional(),
     details: z.string().optional(),
     reason: z.string().optional(),
+    output: z.string().optional(),
+    ip_address: z.string().optional(),
+    user_agent: z.string().optional(),
   })
   .passthrough();
 
 const postalWebhookEventsSchema = z.union([postalWebhookEventSchema, z.array(postalWebhookEventSchema)]);
 type PostalWebhookEvent = z.infer<typeof postalWebhookEventSchema>;
+type PostalWebhookPayload = z.infer<typeof postalWebhookPayloadSchema>;
 type EmailWithContact = NonNullable<Awaited<ReturnType<typeof findEmail>>>;
 
 const statusRank: Record<EmailStatus, number> = {
@@ -105,13 +138,19 @@ function deterministicEventId(payload: object): string {
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
+function getPayload(event: PostalWebhookEvent): PostalWebhookPayload {
+  return event.payload ?? event;
+}
+
 function eventName(event: PostalWebhookEvent): string {
-  const name = event.event ?? event.status ?? event.type;
+  const payload = getPayload(event);
+  const name = event.event ?? event.status ?? event.type ?? payload.status ?? payload.type;
   if (!name) {
     throw new Error('Postal event does not include an event name');
   }
 
-  return name.toLowerCase();
+  const normalized = name.toLowerCase();
+  return canonicalPostalEvents[normalized] ?? normalized;
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -132,7 +171,8 @@ function headerValue(headers: Record<string, unknown> | undefined, name: string)
 }
 
 function getHeaders(event: PostalWebhookEvent): Record<string, unknown> | undefined {
-  return event.headers ?? event.message?.headers;
+  const payload = getPayload(event);
+  return event.headers ?? event.message?.headers ?? payload.headers ?? payload.message?.headers;
 }
 
 function getPlunkEmailId(event: PostalWebhookEvent): string | undefined {
@@ -140,17 +180,56 @@ function getPlunkEmailId(event: PostalWebhookEvent): string | undefined {
 }
 
 function getPostalMessageId(event: PostalWebhookEvent): string | undefined {
+  const payload = getPayload(event);
   return (
     stringValue(event.message_id) ??
     stringValue(event.message?.message_id) ??
     stringValue(event.message?.id) ??
     stringValue(event.token) ??
-    stringValue(event.message?.token)
+    stringValue(event.message?.token) ??
+    stringValue(payload.message_id) ??
+    stringValue(payload.message?.message_id) ??
+    stringValue(payload.message?.id) ??
+    stringValue(payload.token) ??
+    stringValue(payload.message?.token)
   );
 }
 
 function getProviderEventId(event: PostalWebhookEvent): string {
   return stringValue(event.id) ?? stringValue(event.uuid) ?? deterministicEventId(event);
+}
+
+function getEventUrl(event: PostalWebhookEvent): string | undefined {
+  const payload = getPayload(event);
+  return event.url ?? event.link ?? payload.url ?? payload.link;
+}
+
+function getEventReason(event: PostalWebhookEvent): string | undefined {
+  const payload = getPayload(event);
+  return (
+    event.reason ??
+    event.details ??
+    event.output ??
+    event.status ??
+    payload.reason ??
+    payload.details ??
+    payload.output ??
+    payload.status
+  );
+}
+
+function getEventMetadata(event: PostalWebhookEvent): Record<string, unknown> {
+  const payload = getPayload(event);
+  const metadata = {
+    provider: 'postal',
+    url: getEventUrl(event),
+    reason: getEventReason(event),
+    token: payload.token ?? event.token,
+    ipAddress: payload.ip_address ?? event.ip_address,
+    userAgent: payload.user_agent ?? event.user_agent,
+  };
+
+  return Object.fromEntries(Object.entries(metadata).filter(([, value]) => value !== undefined));
 }
 
 function statusForEvent(event: string): EmailStatus {
@@ -303,18 +382,14 @@ async function markEventFailed(providerEventId: string, error: string): Promise<
 async function applyPostalEvent({
   email,
   event,
-  url,
-  reason,
+  metadata,
 }: {
   email: EmailWithContact;
   event: string;
-  url?: string;
-  reason?: string;
+  metadata: Record<string, unknown>;
 }): Promise<void> {
   const nextStatus = statusForEvent(event);
-  if (!nextStatus) {
-    throw new Error(`Unsupported Postal event: ${event}`);
-  }
+  const reason = typeof metadata.reason === 'string' ? metadata.reason : undefined;
 
   if (nextStatus === EmailStatus.FAILED) {
     if (shouldUpdateStatus(email.status, nextStatus)) {
@@ -330,11 +405,7 @@ async function applyPostalEvent({
       });
     }
   } else if (nextStatus !== EmailStatus.SENT && shouldUpdateStatus(email.status, nextStatus)) {
-    await EmailService.handleWebhookEvent(email.id, webhookEventForStatus(nextStatus), {
-      provider: 'postal',
-      url,
-      reason,
-    });
+    await EmailService.handleWebhookEvent(email.id, webhookEventForStatus(nextStatus), metadata);
   }
 
   if (reason) {
@@ -427,8 +498,7 @@ export class PostalWebhooks {
         await applyPostalEvent({
           email,
           event: eventType,
-          url: event.url ?? event.link,
-          reason: event.reason ?? event.details,
+          metadata: getEventMetadata(event),
         });
         await markEventProcessed(providerEventId);
         processed += 1;

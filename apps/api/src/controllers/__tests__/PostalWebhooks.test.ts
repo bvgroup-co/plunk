@@ -12,6 +12,10 @@ vi.mock('../../app/constants.js', async importOriginal => {
   process.env.API_URI = 'http://localhost:8080';
   process.env.DASHBOARD_URI = 'http://localhost:3000';
   process.env.JWT_SECRET = 'test';
+  process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/plunk_test';
+  process.env.DIRECT_DATABASE_URL =
+    process.env.DIRECT_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/plunk_test';
   process.env.EMAIL_PROVIDER = 'postal';
   process.env.POSTAL_BASE_URL = 'https://postal.example.com';
   process.env.POSTAL_API_KEY = 'postal-key';
@@ -119,6 +123,199 @@ describe('PostalWebhooks event ingestion', () => {
       .expect(200);
 
     expect(response.body).toEqual({success: true, processed: 0, duplicate: 1, failed: 0});
+  });
+
+  it('processes Postal MessageSent wrappers using nested message ids and wrapper uuid dedupe', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: '1fd8d665-b936-4a0d-8f99-a184d0a4e18e@rp.mailserver.bvgroup.co',
+    });
+    const payload = {
+      event: 'MessageSent',
+      timestamp: 1781470966.8299234,
+      uuid: 'postal-wrapper-sent-uuid',
+      payload: {
+        message: {
+          id: 1,
+          token: 'cjr2N4G6oexfUxG3',
+          direction: 'outgoing',
+          message_id: '1fd8d665-b936-4a0d-8f99-a184d0a4e18e@rp.mailserver.bvgroup.co',
+          to: 'vitalii@bvgroup.co',
+          from: 'hello@agyn.org',
+          subject: '[TEST] Update',
+          timestamp: 1781470963.4924512,
+          spam_status: 'NotChecked',
+          tag: null,
+        },
+        status: 'Sent',
+        details: 'Message for vitalii@bvgroup.co accepted by 91.99.251.254:25 (mail.bvgroup.co) (from 49.13.110.99)',
+        output: '250 2.0.0 Ok: queued as 639EFC002B',
+        sent_with_ssl: true,
+        timestamp: 1781470966.8299234,
+        time: 0.91,
+      },
+    };
+
+    const firstResponse = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send(payload)
+      .expect(200);
+    const secondResponse = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send(payload)
+      .expect(200);
+
+    expect(firstResponse.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+    expect(secondResponse.body).toEqual({success: true, processed: 0, duplicate: 1, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.DELIVERED);
+    expect(updatedEmail.deliveredAt).toBeInstanceOf(Date);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-wrapper-sent-uuid'}},
+    });
+    expect(event.event).toBe('sent');
+    expect(event.status).toBe(WebhookEventStatus.PROCESSED);
+  });
+
+  it('processes Postal MessageLoaded wrappers as opened events', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.DELIVERED,
+      messageId: 'loaded-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageLoaded',
+        uuid: 'postal-wrapper-loaded-uuid',
+        payload: {
+          message: {message_id: 'loaded-message-id'},
+          token: 'loaded-tracking-token',
+          ip_address: '203.0.113.10',
+          user_agent: 'Mozilla/5.0 Postal test',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.OPENED);
+    expect(updatedEmail.opens).toBe(1);
+    expect(updatedEmail.openedAt).toBeInstanceOf(Date);
+
+    const event = await prisma.event.findFirstOrThrow({where: {emailId: email.id, name: 'email.opened'}});
+    expect(event.data).toEqual({
+      provider: 'postal',
+      token: 'loaded-tracking-token',
+      ipAddress: '203.0.113.10',
+      userAgent: 'Mozilla/5.0 Postal test',
+    });
+  });
+
+  it('processes Postal MessageLinkClicked wrappers with nested click metadata', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.OPENED,
+      messageId: 'clicked-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageLinkClicked',
+        uuid: 'postal-wrapper-clicked-uuid',
+        payload: {
+          message: {id: 'clicked-message-id'},
+          url: 'https://example.com/newsletter',
+          token: 'clicked-tracking-token',
+          ip_address: '203.0.113.11',
+          user_agent: 'Mozilla/5.0 Postal click test',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.CLICKED);
+    expect(updatedEmail.clicks).toBe(1);
+    expect(updatedEmail.clickedAt).toBeInstanceOf(Date);
+
+    const event = await prisma.event.findFirstOrThrow({where: {emailId: email.id, name: 'email.clicked'}});
+    expect(event.data).toEqual({
+      provider: 'postal',
+      url: 'https://example.com/newsletter',
+      token: 'clicked-tracking-token',
+      ipAddress: '203.0.113.11',
+      userAgent: 'Mozilla/5.0 Postal click test',
+    });
+  });
+
+  it('maps Postal MessageDeliveryFailed MessageBounced and MessageHeld wrappers to failure statuses', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const failedEmail = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'failed-message-id',
+    });
+    const bouncedEmail = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'bounced-message-id',
+    });
+    const heldEmail = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'held-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send([
+        {
+          event: 'MessageDeliveryFailed',
+          uuid: 'postal-wrapper-failed-uuid',
+          payload: {message: {message_id: 'failed-message-id'}, details: 'SMTP timeout', output: '451 timeout'},
+        },
+        {
+          event: 'MessageBounced',
+          uuid: 'postal-wrapper-bounced-uuid',
+          payload: {message: {message_id: 'bounced-message-id'}, status: 'HardFail', details: 'User unknown'},
+        },
+        {
+          event: 'MessageHeld',
+          uuid: 'postal-wrapper-held-uuid',
+          payload: {message: {message_id: 'held-message-id'}, status: 'Held', details: 'Message held for review'},
+        },
+      ])
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 3, duplicate: 0, failed: 0});
+
+    const updatedFailedEmail = await prisma.email.findUniqueOrThrow({where: {id: failedEmail.id}});
+    const updatedBouncedEmail = await prisma.email.findUniqueOrThrow({where: {id: bouncedEmail.id}});
+    const updatedHeldEmail = await prisma.email.findUniqueOrThrow({where: {id: heldEmail.id}});
+    expect(updatedFailedEmail.status).toBe(EmailStatus.FAILED);
+    expect(updatedFailedEmail.error).toBe('SMTP timeout');
+    expect(updatedBouncedEmail.status).toBe(EmailStatus.BOUNCED);
+    expect(updatedBouncedEmail.bouncedAt).toBeInstanceOf(Date);
+    expect(updatedHeldEmail.status).toBe(EmailStatus.FAILED);
+    expect(updatedHeldEmail.error).toBe('Message held for review');
   });
 
   it('does not dedupe a failed side effect before a retry succeeds', async () => {
