@@ -140,6 +140,19 @@ describe('DomainService Postal domains', () => {
     await expect(prisma.domain.count({where: {projectId: project.id}})).resolves.toBe(0);
   });
 
+  it('does not create a local domain when Postal returns an unsupported verification status', async () => {
+    const {project} = await factories.createUserWithProject({}, {name: 'Postal Project'});
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify(postalResponse({verified: 'true'})), {status: 200}),
+    );
+
+    await expect(DomainService.addDomain(project.id, 'example.com')).rejects.toThrow(
+      'Postal domain response did not include a supported verification status',
+    );
+
+    await expect(prisma.domain.count({where: {projectId: project.id}})).resolves.toBe(0);
+  });
+
   it('refreshes Postal verification status and records from Postal', async () => {
     const {project} = await factories.createUserWithProject({}, {name: 'Postal Project'});
     const domain = await DomainService.addDomain(project.id, 'example.com');
@@ -186,6 +199,20 @@ describe('DomainService Postal domains', () => {
       'https://postal-domains.example.com/api/v1/domains/postal-domain-123',
       expect.objectContaining({method: 'DELETE'}),
     );
+    const deleteRequest = vi.mocked(global.fetch).mock.calls[0]?.[1];
+    const deleteHeaders = new Headers(deleteRequest?.headers);
+    expect(deleteHeaders.has('Content-Type')).toBe(false);
+  });
+
+  it('removes a Postal domain after a successful cleanup retry with a stale cleanup error', async () => {
+    const {project} = await factories.createUserWithProject({}, {name: 'Postal Project'});
+    const domain = await DomainService.addDomain(project.id, 'example.com');
+    await prisma.domain.update({where: {id: domain.id}, data: {providerError: 'Postal delete failed'}});
+    global.fetch = vi.fn(async () => new Response('', {status: 200}));
+
+    await DomainService.removeDomain(domain.id);
+
+    await expect(prisma.domain.findUnique({where: {id: domain.id}})).resolves.toBeNull();
   });
 
   it('keeps the local Postal domain when provider cleanup fails', async () => {

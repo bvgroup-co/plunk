@@ -536,6 +536,10 @@ export class DomainService {
         if (domain.providerDomainId) {
           try {
             await deletePostalDomain(domain.providerDomainId);
+            await prisma.domain.update({
+              where: {id: domainId},
+              data: {providerError: null},
+            });
             signale.info(`[DOMAIN] Removed Postal domain for ${domainName}`);
           } catch (error) {
             const cleanupError = error instanceof Error ? error.message : 'Postal domain cleanup failed';

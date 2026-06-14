@@ -209,10 +209,16 @@ function normalizeVerified(value: unknown): boolean {
 
   if (typeof value === 'string') {
     const status = value.toLowerCase();
-    return status === 'verified' || status === 'success' || status === 'ok';
+    if (status === 'verified' || status === 'success' || status === 'ok') {
+      return true;
+    }
+
+    if (status === 'pending' || status === 'unverified' || status === 'missing' || status === 'invalid') {
+      return false;
+    }
   }
 
-  return false;
+  throw new HttpException(502, 'Postal domain response did not include a supported verification status');
 }
 
 function normalizePostalDomainResponse(raw: unknown): PostalDomainResponse {
@@ -256,7 +262,9 @@ async function parsePostalDomainJson(response: Response): Promise<PostalDomainRe
 async function postalDomainRequest(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set('X-Server-API-Key', getPostalDomainApiKey());
-  headers.set('Content-Type', 'application/json');
+  if (init.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   const response = await fetch(`${getPostalDomainBaseUrl()}${path}`, {...init, headers});
   if (!response.ok) {
