@@ -50,11 +50,12 @@ const POSTAL_RECORD_PURPOSES = [
 ] as const;
 
 function getPostalDomainBaseUrl(): string {
-  if (!POSTAL_DOMAIN_API_BASE_URL) {
+  const baseUrl = POSTAL_DOMAIN_API_BASE_URL;
+  if (!baseUrl) {
     throw new HttpException(503, 'Postal domain management is not configured');
   }
 
-  return POSTAL_DOMAIN_API_BASE_URL.replace(/\/$/, '');
+  return baseUrl.replace(/\/$/, '');
 }
 
 function getPostalDomainApiKey(): string {
