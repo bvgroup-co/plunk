@@ -48,7 +48,7 @@ describe('email provider env validation', () => {
     expect(constants.AWS_SES_REGION).toBe('');
   });
 
-  it('requires Postal env without SES or SendGrid credentials in Postal mode', async () => {
+  it('requires Postal send env without SES or SendGrid credentials in Postal mode', async () => {
     const constants = await importConstants({
       AWS_SES_ACCESS_KEY_ID: undefined,
       AWS_SES_REGION: undefined,
@@ -56,6 +56,7 @@ describe('email provider env validation', () => {
       EMAIL_PROVIDER: 'postal',
       POSTAL_BASE_URL: 'https://postal.example.com',
       POSTAL_API_KEY: 'postal-key',
+      POSTAL_DOMAIN_API_BASE_URL: undefined,
       SENDGRID_API_KEY: undefined,
     });
 
@@ -63,6 +64,7 @@ describe('email provider env validation', () => {
     expect(constants.EMAIL_PROVIDER_IS_POSTAL).toBe(true);
     expect(constants.AWS_SES_REGION).toBe('');
     expect(constants.SENDGRID_API_KEY).toBe('');
+    expect(constants.POSTAL_DOMAIN_API_BASE_URL).toBe('');
     expect(constants.POSTAL_WEBHOOK_SIGNATURE_REQUIRED).toBe(false);
   });
 
@@ -71,6 +73,7 @@ describe('email provider env validation', () => {
       EMAIL_PROVIDER: 'postal',
       POSTAL_BASE_URL: 'https://postal.example.com',
       POSTAL_API_KEY: 'postal-key',
+      POSTAL_DOMAIN_API_BASE_URL: 'https://postal.example.com',
       POSTAL_WEBHOOK_SECRET: 'secret',
     });
 
