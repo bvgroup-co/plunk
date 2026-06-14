@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.4](https://github.com/bvgroup-co/plunk/compare/v0.16.3...v0.16.4) (2026-06-14)
+
+
+### Bug Fixes
+
+* **postal:** type domain API config ([db14d57](https://github.com/bvgroup-co/plunk/commit/db14d57d47777068bfad0f129fe06b3c10e472b3))
+
 ## [0.16.3](https://github.com/bvgroup-co/plunk/compare/v0.16.2...v0.16.3) (2026-06-14)
 
 
