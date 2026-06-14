@@ -12,10 +12,9 @@ You can verify a domain by adding it in the domain tab of the project settings. 
 
 Once you have added the DNS records, it may take some time for the changes to propagate. You can check the verification status in the domain tab of the project settings.
 
-<Callout title="Postal self-hosting" type="warn">
-  Stock Postal does not provide a supported API for Plunk to create or verify domains automatically. When
-  `EMAIL_PROVIDER=postal`, create and verify sender domains in Postal first and use the DNS records shown in Postal.
-  Plunk will fail domain add instead of showing synthetic DNS records.
+<Callout title="Postal self-hosting" type="info">
+  When `EMAIL_PROVIDER=postal`, Plunk creates and refreshes domains through Postal's legacy domain API. Configure
+  `POSTAL_DOMAIN_API_BASE_URL` and add the DNS records returned by Postal in the dashboard.
 </Callout>
 
 ## DNS Records

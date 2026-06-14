@@ -29,7 +29,7 @@ Set your subdomains here. The application automatically derives all internal and
 
 ## Outbound Email Provider
 
-Plunk sends through AWS SES by default. Set `EMAIL_PROVIDER=sendgrid` to send outbound email with SendGrid, or `EMAIL_PROVIDER=postal` to send through Postal. Stock Postal is send/webhook only in Plunk: it does not provide a supported domain-management API, so sender domains must be created and verified in Postal outside Plunk. SES inbound email and SES SNS/SQS event ingestion remain SES-only features.
+Plunk sends through AWS SES by default. Set `EMAIL_PROVIDER=sendgrid` to send outbound email with SendGrid, or `EMAIL_PROVIDER=postal` to send through Postal. Postal mode requires Postal's legacy send API and domain API endpoints so Plunk can provision, verify, and delete sender domains. SES inbound email and SES SNS/SQS event ingestion remain SES-only features.
 
 | Variable         | Required | Description                                                       | Example         |
 | ---------------- | -------- | ----------------------------------------------------------------- | --------------- |
@@ -56,16 +56,20 @@ Plunk sends through AWS SES by default. Set `EMAIL_PROVIDER=sendgrid` to send ou
 
 ### Postal
 
-| Variable                                     | Required                         | Description                                                                                | Example                      |
-| -------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
-| `POSTAL_BASE_URL`                            | Yes when `EMAIL_PROVIDER=postal` | Postal server base URL.                                                                    | `https://postal.example.com` |
-| `POSTAL_API_KEY`                             | Yes when `EMAIL_PROVIDER=postal` | Postal server API key used for `/api/v1/send/message`.                                     | `postal-key`                 |
-| `POSTAL_TRACKING_ENABLED`                    | No                               | Controls whether Plunk exposes the tracking toggle in Postal mode.                         | `true` (default)             |
+| Variable                                     | Required                         | Description                                                                             | Example                      |
+| -------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| `POSTAL_BASE_URL`                            | Yes when `EMAIL_PROVIDER=postal` | Postal server base URL.                                                                 | `https://postal.example.com` |
+| `POSTAL_API_KEY`                             | Yes when `EMAIL_PROVIDER=postal` | Postal server API key used for `/api/v1/send/message`.                                  | `postal-key`                 |
+| `POSTAL_DOMAIN_API_BASE_URL`                 | Yes when `EMAIL_PROVIDER=postal` | Postal base URL exposing `/api/v1/domains` domain-management endpoints.                 | `https://postal.example.com` |
+| `POSTAL_DOMAIN_API_KEY`                      | No                               | Optional Postal API key for domain management. Defaults to `POSTAL_API_KEY`.            | `postal-domain-key`          |
+| `POSTAL_DOMAIN_SERVER_ID`                    | No                               | Optional server ID included in Postal domain create requests.                           | `server-123`                 |
+| `POSTAL_DOMAIN_SERVER_PERMALINK`             | No                               | Optional server permalink included when a domain API requires explicit server selection. | `mail-server`                |
+| `POSTAL_TRACKING_ENABLED`                    | No                               | Controls whether Plunk exposes the tracking toggle in Postal mode.                      | `true` (default)             |
 | `POSTAL_WEBHOOK_SECRET`                      | No                               | Shared secret expected in `X-Plunk-Postal-Webhook-Secret` or the `secret` query parameter. | —                            |
-| `POSTAL_WEBHOOK_SIGNATURE_REQUIRED`          | No                               | Defaults to true when `POSTAL_WEBHOOK_SECRET` is set, otherwise false.                     | auto                         |
-| `POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` | No                               | Reserved timestamp tolerance for timestamped Postal signing.                               | `300` (default)              |
+| `POSTAL_WEBHOOK_SIGNATURE_REQUIRED`          | No                               | Defaults to true when `POSTAL_WEBHOOK_SECRET` is set, otherwise false.                  | auto                         |
+| `POSTAL_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` | No                               | Reserved timestamp tolerance for timestamped Postal signing.                            | `300` (default)              |
 
-Postal mode does not provision sender domains in stock Postal. Add the domain and copy DNS records from Postal's admin UI before sending from that domain in Plunk.
+Postal mode provisions sender domains through Postal's legacy domain API and displays the DNS records returned by Postal in the dashboard.
 
 ## Storage (Minio)
 
