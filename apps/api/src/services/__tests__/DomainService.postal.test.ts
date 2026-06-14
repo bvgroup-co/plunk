@@ -4,9 +4,6 @@ vi.hoisted(() => {
   process.env.API_URI = 'http://localhost:8080';
   process.env.DASHBOARD_URI = 'http://localhost:3000';
   process.env.JWT_SECRET = 'test';
-  process.env.REDIS_URL = 'redis://localhost:56379';
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:55432/plunk_test';
-  process.env.DIRECT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:55432/plunk_test';
 });
 
 import {factories} from '../../../../../test/helpers/index.js';
@@ -19,9 +16,6 @@ vi.mock('../../app/constants.js', async importOriginal => {
   process.env.API_URI = 'http://localhost:8080';
   process.env.DASHBOARD_URI = 'http://localhost:3000';
   process.env.JWT_SECRET = 'test';
-  process.env.REDIS_URL = 'redis://localhost:56379';
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:55432/plunk_test';
-  process.env.DIRECT_DATABASE_URL = 'postgresql://postgres:postgres@localhost:55432/plunk_test';
   process.env.EMAIL_PROVIDER = 'postal';
   process.env.POSTAL_BASE_URL = 'https://postal.example.com';
   process.env.POSTAL_API_KEY = 'postal-key';
