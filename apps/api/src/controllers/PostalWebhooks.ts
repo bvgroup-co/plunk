@@ -11,9 +11,11 @@ import {HttpException} from '../exceptions/index.js';
 import {EmailService} from '../services/EmailService.js';
 
 const actionableEvents = new Set(['sent', 'delivered', 'bounced', 'failed', 'held', 'opened', 'loaded', 'clicked']);
+const ignoredEvents = new Set(['delayed']);
 
 const canonicalPostalEvents: Record<string, string> = {
   messagedeliveryfailed: 'failed',
+  messagedelayed: 'delayed',
   messagebounced: 'bounced',
   messageheld: 'held',
   messagelinkclicked: 'clicked',
@@ -444,7 +446,7 @@ export class PostalWebhooks {
 
       const providerEventId = getProviderEventId(event);
 
-      if (!actionableEvents.has(eventType)) {
+      if (ignoredEvents.has(eventType) || !actionableEvents.has(eventType)) {
         const inserted = await recordEvent({
           providerEventId,
           event: eventType,

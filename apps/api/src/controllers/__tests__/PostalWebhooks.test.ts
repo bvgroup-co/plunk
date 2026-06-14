@@ -318,6 +318,42 @@ describe('PostalWebhooks event ingestion', () => {
     expect(updatedHeldEmail.error).toBe('Message held for review');
   });
 
+  it('explicitly records Postal MessageDelayed wrappers as ignored events', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'delayed-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageDelayed',
+        uuid: 'postal-wrapper-delayed-uuid',
+        payload: {
+          message: {message_id: 'delayed-message-id'},
+          status: 'Held',
+          details: 'Message delivery was delayed and will be retried by Postal',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 0, duplicate: 0, failed: 0});
+
+    const unchangedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(unchangedEmail.status).toBe(EmailStatus.SENT);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-wrapper-delayed-uuid'}},
+    });
+    expect(event.event).toBe('delayed');
+    expect(event.emailId).toBeNull();
+    expect(event.status).toBe(WebhookEventStatus.IGNORED);
+  });
+
   it('does not dedupe a failed side effect before a retry succeeds', async () => {
     const prisma = getPrismaClient();
     const {project} = await factories.createUserWithProject();
