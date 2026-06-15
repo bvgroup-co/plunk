@@ -178,7 +178,14 @@ function headerValue(headers: Record<string, unknown> | undefined, name: string)
 
 function getHeaders(event: PostalWebhookEvent): Record<string, unknown> | undefined {
   const payload = getPayload(event);
-  return event.headers ?? event.message?.headers ?? payload.headers ?? payload.message?.headers;
+  return (
+    event.headers ??
+    event.message?.headers ??
+    event.original_message?.headers ??
+    payload.headers ??
+    payload.message?.headers ??
+    payload.original_message?.headers
+  );
 }
 
 function getPlunkEmailId(event: PostalWebhookEvent): string | undefined {

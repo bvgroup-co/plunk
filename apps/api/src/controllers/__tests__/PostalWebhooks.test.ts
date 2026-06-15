@@ -341,6 +341,46 @@ describe('PostalWebhooks event ingestion', () => {
     expect(event.error).toBe('Could not correlate Postal event to a Plunk email');
   });
 
+  it('uses legacy original message headers after Postal bounce provider id correlation fails', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'legacy-bounce-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageBounced',
+        uuid: 'postal-wrapper-legacy-bounced-uuid',
+        payload: {
+          original_message: {
+            message_id: 'missing-original-message-id',
+            headers: {'X-Plunk-Email-ID': email.id},
+          },
+          bounce: {message_id: 'legacy-bounce-notification-message-id'},
+          status: 'HardFail',
+          details: 'Legacy bounce',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.BOUNCED);
+    expect(updatedEmail.bouncedAt).toBeInstanceOf(Date);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-wrapper-legacy-bounced-uuid'}},
+    });
+    expect(event.emailId).toBe(email.id);
+    expect(event.status).toBe(WebhookEventStatus.PROCESSED);
+  });
+
   it('maps Postal MessageDeliveryFailed MessageBounced and MessageHeld wrappers to failure statuses', async () => {
     const prisma = getPrismaClient();
     const {project} = await factories.createUserWithProject();
