@@ -9,6 +9,7 @@ import {
   IconSpinner,
   Input,
   Label,
+  Textarea,
   StickySaveBar,
 } from '@plunk/ui';
 import type {Template} from '@plunk/db';
@@ -52,6 +53,9 @@ export default function TemplateEditorPage() {
         fromName: template.fromName || '',
         replyTo: template.replyTo || '',
         type: template.type,
+        mode: template.mode,
+        cssMode: template.cssMode,
+        customCss: template.customCss || '',
       });
     }
   }, [template, editedTemplate]);
@@ -66,7 +70,10 @@ export default function TemplateEditorPage() {
       editedTemplate.from !== template.from ||
       (editedTemplate.fromName || '') !== (template.fromName || '') ||
       (editedTemplate.replyTo || '') !== (template.replyTo || '') ||
-      editedTemplate.type !== template.type
+      editedTemplate.type !== template.type ||
+      editedTemplate.mode !== template.mode ||
+      editedTemplate.cssMode !== template.cssMode ||
+      (editedTemplate.customCss || '') !== (template.customCss || '')
     );
   }, [editedTemplate, template]);
 
@@ -87,6 +94,9 @@ export default function TemplateEditorPage() {
         fromName: editedTemplate.fromName || null,
         replyTo: editedTemplate.replyTo || null,
         type: editedTemplate.type,
+        mode: editedTemplate.mode,
+        cssMode: editedTemplate.cssMode,
+        customCss: editedTemplate.customCss || null,
       });
 
       // Silent save - no toast notification
@@ -136,6 +146,78 @@ export default function TemplateEditorPage() {
                   ? <span className="text-amber-600">Unsaved changes</span>
                   : 'All changes saved'}
             </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Template Mode</CardTitle>
+                <CardDescription>Choose HTML styling or native plain text delivery</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  {([
+                    {value: 'HTML', label: 'HTML', description: 'Use the existing Plunk HTML wrapper and CSS'},
+                    {value: 'PLAIN_TEXT', label: 'Plain text', description: 'Send as text/plain without HTML or CSS'},
+                  ] as const).map(({value, label, description}) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditedTemplate({...editedTemplate, mode: value})}
+                      className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                        editedTemplate.mode === value
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                      <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Email CSS</CardTitle>
+                <CardDescription>Use project CSS or override CSS for this template</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  {([
+                    {value: 'GLOBAL', label: 'Project CSS', description: 'Inherit global email CSS'},
+                    {value: 'CUSTOM', label: 'Custom CSS', description: 'Use CSS saved on this template'},
+                  ] as const).map(({value, label, description}) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditedTemplate({...editedTemplate, cssMode: value})}
+                      disabled={editedTemplate.mode === 'PLAIN_TEXT'}
+                      className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors disabled:opacity-50 ${
+                        editedTemplate.cssMode === value
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                      <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                    </button>
+                  ))}
+                </div>
+                {editedTemplate.cssMode === 'CUSTOM' && editedTemplate.mode !== 'PLAIN_TEXT' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customCss">Custom CSS</Label>
+                    <Textarea
+                      id="customCss"
+                      value={editedTemplate.customCss || ''}
+                      onChange={e => setEditedTemplate({...editedTemplate, customCss: e.target.value})}
+                      className="min-h-48 font-mono text-xs"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -267,6 +349,8 @@ export default function TemplateEditorPage() {
               <EmailEditor
                 value={editedTemplate.body || ''}
                 onChange={body => setEditedTemplate({...editedTemplate, body})}
+                templateMode={editedTemplate.mode}
+                emailCss={editedTemplate.cssMode === 'CUSTOM' ? editedTemplate.customCss || '' : activeProject?.globalEmailCss}
               />
             </CardContent>
           </Card>

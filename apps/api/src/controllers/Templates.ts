@@ -1,5 +1,5 @@
 import {Controller, Delete, Get, Middleware, Patch, Post} from '@overnightjs/core';
-import {TemplateType} from '@plunk/db';
+import {TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
 import type {NextFunction, Request, Response} from 'express';
 import {requireAuth, requireEmailVerified} from '../middleware/auth.js';
 import {DomainService} from '../services/DomainService.js';
@@ -56,7 +56,7 @@ export class Templates {
   @CatchAsync
   public async create(req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
-    const {name, description, subject, body, from, fromName, replyTo, type} = req.body;
+    const {name, description, subject, body, from, fromName, replyTo, type, mode, cssMode, customCss} = req.body;
 
     if (!name) {
       return res.status(400).json({error: 'Name is required'});
@@ -74,6 +74,14 @@ export class Templates {
       return res.status(400).json({error: 'From address is required'});
     }
 
+    if (mode && !Object.values(TemplateMode).includes(mode)) {
+      return res.status(400).json({error: 'Invalid template mode'});
+    }
+
+    if (cssMode && !Object.values(TemplateCssMode).includes(cssMode)) {
+      return res.status(400).json({error: 'Invalid template CSS mode'});
+    }
+
     // Verify domain ownership and verification
     await DomainService.verifyEmailDomain(from, auth.projectId!);
 
@@ -86,6 +94,9 @@ export class Templates {
       fromName,
       replyTo,
       type,
+      mode,
+      cssMode,
+      customCss,
     });
 
     return res.status(201).json(template);
@@ -101,7 +112,7 @@ export class Templates {
   public async update(req: Request, res: Response, _next: NextFunction) {
     const auth = res.locals.auth;
     const templateId = req.params.id;
-    const {name, description, subject, body, from, fromName, replyTo, type} = req.body;
+    const {name, description, subject, body, from, fromName, replyTo, type, mode, cssMode, customCss} = req.body;
 
     if (!templateId) {
       return res.status(400).json({error: 'Template ID is required'});
@@ -110,6 +121,14 @@ export class Templates {
     // Verify domain ownership and verification if 'from' is being updated
     if (from) {
       await DomainService.verifyEmailDomain(from, auth.projectId!);
+    }
+
+    if (mode && !Object.values(TemplateMode).includes(mode)) {
+      return res.status(400).json({error: 'Invalid template mode'});
+    }
+
+    if (cssMode && !Object.values(TemplateCssMode).includes(cssMode)) {
+      return res.status(400).json({error: 'Invalid template CSS mode'});
     }
 
     const template = await TemplateService.update(auth.projectId!, templateId, {
@@ -121,6 +140,9 @@ export class Templates {
       fromName,
       replyTo,
       type,
+      mode,
+      cssMode,
+      customCss,
     });
 
     return res.status(200).json(template);

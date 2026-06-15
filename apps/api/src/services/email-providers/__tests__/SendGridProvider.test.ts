@@ -38,7 +38,7 @@ describe('SendGridProvider', () => {
       from: {name: 'Sender', email: 'sender@example.com'},
       to: [{name: 'Recipient', email: 'recipient@example.com'}],
       subject: 'Subject',
-      html: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>',
+      content: {mode: 'HTML', body: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>'},
       reply: 'reply@example.com',
       headers: {'X-Custom': 'value'},
       attachments: [
@@ -107,7 +107,7 @@ describe('SendGridProvider', () => {
       from: {email: 'sender@example.com'},
       to: [{email: 'recipient@example.com'}],
       subject: 'Subject',
-      html: '<p>Hello</p>',
+      content: {mode: 'HTML', body: '<p>Hello</p>'},
       tracking: true,
     });
 
@@ -124,5 +124,20 @@ describe('SendGridProvider', () => {
         },
       }),
     );
+  });
+
+  it('uses SendGrid text field for plain-text email input', async () => {
+    const provider = new SendGridProvider();
+
+    await provider.sendEmail({
+      from: {email: 'sender@example.com'},
+      to: [{email: 'recipient@example.com'}],
+      subject: 'Subject',
+      content: {mode: 'PLAIN_TEXT', body: 'Hello text'},
+    });
+
+    const sendGridPayload = JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string);
+    expect(sendGridPayload).toEqual(expect.objectContaining({text: 'Hello text'}));
+    expect(sendGridPayload).not.toHaveProperty('html');
   });
 });

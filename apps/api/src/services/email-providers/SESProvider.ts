@@ -11,7 +11,8 @@ export class SESProvider implements OutboundEmailProvider {
       to: input.to,
       content: {
         subject: input.subject,
-        html: input.html,
+        mode: input.content.mode,
+        body: input.content.body,
       },
       reply: input.reply,
       headers: input.headers,

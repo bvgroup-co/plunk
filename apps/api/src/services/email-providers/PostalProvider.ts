@@ -74,7 +74,8 @@ export class PostalProvider implements OutboundEmailProvider {
   public readonly provider = 'postal' as const;
 
   public async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-    const headers = addListUnsubscribeHeader(input.headers, input.html) ?? {};
+    const headers =
+      input.content.mode === 'HTML' ? addListUnsubscribeHeader(input.headers, input.content.body) ?? {} : input.headers ?? {};
     if (input.tracking === false) {
       headers['X-AMP'] = 'skip';
     }
@@ -83,7 +84,7 @@ export class PostalProvider implements OutboundEmailProvider {
       to: input.to.map(formatPostalAddress),
       from: formatPostalAddress(input.from),
       subject: input.subject,
-      html_body: input.html,
+      ...(input.content.mode === 'HTML' ? {html_body: input.content.body} : {plain_body: input.content.body}),
       headers,
       ...(input.reply ? {reply_to: input.reply} : {}),
       ...(input.attachments?.length ? {attachments: input.attachments.map(formatAttachment)} : {}),

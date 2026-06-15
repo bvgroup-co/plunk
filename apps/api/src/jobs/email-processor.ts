@@ -92,7 +92,7 @@ export async function createEmailWorker() {
         include: {
           contact: true,
           project: true,
-          template: {select: {type: true}},
+          template: {select: {type: true, mode: true, cssMode: true, customCss: true}},
           campaign: {select: {type: true}},
         },
       });
@@ -148,7 +148,9 @@ export async function createEmailWorker() {
 
         // Compile HTML with unsubscribe footer and badge
         // TRANSACTIONAL and HEADLESS emails don't get the Plunk unsubscribe footer
-        const compiledHtml = EmailService.compile({
+        const templateRendering = EmailService.getTemplateRenderingSelection(email.template);
+        const selectedCss = EmailService.selectEmailCss(templateRendering, email.project);
+        const compiledBody = EmailService.compile({
           content: formattedEmail.body,
           contact: email.contact,
           project: email.project,
@@ -156,6 +158,8 @@ export async function createEmailWorker() {
             email.sourceType !== EmailSourceType.TRANSACTIONAL &&
             email.template?.type !== 'HEADLESS' &&
             email.campaign?.type !== 'HEADLESS',
+          mode: templateRendering.mode,
+          css: selectedCss,
         });
 
         // Use fromName from database if available, otherwise fall back to project name
@@ -192,7 +196,7 @@ export async function createEmailWorker() {
           email.project.name,
           email.from,
           formattedEmail.subject,
-          compiledHtml,
+          compiledBody,
         );
 
         if (phishingCheck.shouldDisable) {
@@ -224,7 +228,7 @@ export async function createEmailWorker() {
           },
           to: typeof recipient === 'string' ? [{email: recipient}] : [{name: recipient.name, email: recipient.email}],
           subject: formattedEmail.subject,
-          html: compiledHtml,
+          content: {mode: templateRendering.mode, body: compiledBody},
           reply: email.replyTo || undefined,
           headers: publicHeaders,
           tracking: shouldTrack,

@@ -36,6 +36,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
 } from '@plunk/ui';
 import {AnimatePresence, motion} from 'framer-motion';
 import {NextSeo} from 'next-seo';
@@ -100,6 +101,8 @@ export default function Settings() {
   const [isLoadingBilling, setIsLoadingBilling] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('auto');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [globalEmailCss, setGlobalEmailCss] = useState(activeProject?.globalEmailCss || '');
+  const [isSavingGlobalEmailCss, setIsSavingGlobalEmailCss] = useState(false);
 
   // Fetch current user's membership for the active project
   const {data: membershipData} = useSWR<{
@@ -185,8 +188,35 @@ export default function Settings() {
         tracking: activeProject.tracking ?? TrackingMode.ENABLED,
         language: activeProject.language || 'en',
       });
+      setGlobalEmailCss(activeProject.globalEmailCss || '');
     }
   }, [activeProject, form]);
+
+  const handleGlobalEmailCssSave = async () => {
+    if (!activeProject) return;
+
+    try {
+      setIsSavingGlobalEmailCss(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      const response = await network.fetch<{globalEmailCss: string}, typeof ProjectSchemas.update>(
+        'PUT',
+        `/users/@me/projects/${activeProject.id}/global-email-css`,
+        {globalEmailCss},
+      );
+      const updatedProject = {...activeProject, globalEmailCss: response.globalEmailCss};
+
+      updateActiveProject(updatedProject);
+      await projectsMutate();
+      setSuccessMessage('Global email CSS updated successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to update global email CSS');
+    } finally {
+      setIsSavingGlobalEmailCss(false);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof ProjectSchemas.update>) => {
     if (!activeProject) return;
@@ -523,6 +553,29 @@ export default function Settings() {
                       </div>
                     </form>
                   </Form>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Global Email CSS</CardTitle>
+                  <CardDescription>Default CSS used by HTML templates that inherit project styling</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Textarea
+                    value={globalEmailCss}
+                    onChange={event => setGlobalEmailCss(event.target.value)}
+                    className="min-h-72 font-mono text-xs"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleGlobalEmailCssSave}
+                      disabled={isSavingGlobalEmailCss || globalEmailCss === (activeProject.globalEmailCss || '')}
+                    >
+                      {isSavingGlobalEmailCss ? 'Saving...' : 'Save Global CSS'}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 

@@ -715,7 +715,7 @@ export class CampaignService {
       },
       to: [{email: testEmail}],
       subject: `[TEST] ${campaign.subject}`,
-      html: campaign.body,
+      content: {mode: 'HTML', body: campaign.body},
       reply: campaign.replyTo || undefined,
       headers: {
         'X-Plunk-Test': 'true',

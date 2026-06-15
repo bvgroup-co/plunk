@@ -1,4 +1,4 @@
-import type {Contact, Email, Prisma, Project} from '@plunk/db';
+import type {Contact, Email, Prisma, Project, TemplateCssMode, TemplateMode} from '@plunk/db';
 import {EmailSourceType, EmailStatus, TrackingMode} from '@plunk/db';
 import {toPrismaJson} from '@plunk/types';
 import signale from 'signale';
@@ -6,7 +6,7 @@ import signale from 'signale';
 import {DASHBOARD_URI, STRIPE_ENABLED} from '../app/constants.js';
 import {prisma} from '../database/prisma.js';
 import {HttpException} from '../exceptions/index.js';
-import {createTranslatorSync, renderTemplate} from '@plunk/shared';
+import {createTranslatorSync, DEFAULT_EMAIL_CSS, renderTemplate} from '@plunk/shared';
 
 import {BillingLimitService} from './BillingLimitService.js';
 import {DomainService} from './DomainService.js';
@@ -40,6 +40,12 @@ interface SendEmailParams {
   recipientEmail?: string; // Optional custom recipient email (overrides contact.email)
   isTransactional?: boolean; // Override source type to TRANSACTIONAL (e.g. for transactional campaigns)
 }
+
+type TemplateRenderingSelection = {
+  mode: TemplateMode;
+  cssMode: TemplateCssMode;
+  customCss: string | null;
+};
 
 /**
  * Email Service
@@ -293,7 +299,7 @@ export class EmailService {
       include: {
         contact: true,
         project: true,
-        template: {select: {type: true}},
+        template: {select: {type: true, mode: true, cssMode: true, customCss: true}},
         campaign: {select: {type: true}},
       },
     });
@@ -355,9 +361,9 @@ export class EmailService {
         },
       });
 
-      // Compile HTML with unsubscribe footer and badge
-      // TRANSACTIONAL and HEADLESS emails don't get the Plunk unsubscribe footer
-      const compiledHtml = this.compile({
+      const templateRendering = this.getTemplateRenderingSelection(email.template);
+      const selectedCss = this.selectEmailCss(templateRendering, email.project);
+      const compiledBody = this.compile({
         content: formattedEmail.body,
         contact: email.contact,
         project: email.project,
@@ -365,6 +371,8 @@ export class EmailService {
           email.sourceType !== EmailSourceType.TRANSACTIONAL &&
           email.template?.type !== 'HEADLESS' &&
           email.campaign?.type !== 'HEADLESS',
+        mode: templateRendering.mode,
+        css: selectedCss,
       });
 
       // Use explicit fromName if provided, otherwise fall back to project name
@@ -409,7 +417,7 @@ export class EmailService {
         },
         to: email.toName ? [{name: email.toName, email: recipientEmail}] : [{email: recipientEmail}],
         subject: formattedEmail.subject,
-        html: compiledHtml,
+        content: {mode: templateRendering.mode, body: compiledBody},
         reply: email.replyTo || undefined,
         headers: publicHeaders,
         attachments: attachments,
@@ -656,6 +664,22 @@ export class EmailService {
     }
   }
 
+  public static getTemplateRenderingSelection(template: TemplateRenderingSelection | null | undefined): TemplateRenderingSelection {
+    return {
+      mode: template?.mode ?? 'HTML',
+      cssMode: template?.cssMode ?? 'GLOBAL',
+      customCss: template?.customCss ?? null,
+    };
+  }
+
+  public static selectEmailCss(template: TemplateRenderingSelection, project: Pick<Project, 'globalEmailCss'>): string {
+    if (template.cssMode === 'CUSTOM') {
+      return template.customCss ?? '';
+    }
+
+    return project.globalEmailCss;
+  }
+
   /**
    * Detects if HTML contains custom patterns that indicate it was written in the HTML editor
    * rather than the visual editor. Mirrors the same logic in apps/web/src/lib/emailStyles.ts.
@@ -705,323 +729,14 @@ export class EmailService {
    * Mirrors wrapEmailWithStyles() in apps/web/src/lib/emailStyles.ts so sent emails
    * match the preview modal exactly.
    */
-  private static wrapWithEmailStyles(htmlBody: string): string {
+  private static wrapWithEmailStyles(htmlBody: string, css = DEFAULT_EMAIL_CSS): string {
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* Base reset */
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 16px;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.5;
-      color: #111827;
-    }
-
-    /* Tailwind Typography (prose) base styles */
-    .prose {
-      color: #374151;
-      max-width: 600px;
-    }
-    .prose [class~="lead"] {
-      color: #4b5563;
-      font-size: 1.25em;
-      line-height: 1.6;
-      margin-top: 1.2em;
-      margin-bottom: 1.2em;
-    }
-    .prose a {
-      color: #3b82f6;
-      text-decoration: underline;
-      font-weight: 500;
-    }
-    .prose strong {
-      color: #111827;
-      font-weight: 600;
-    }
-    .prose ol, .prose ul {
-      margin-top: 1.25em;
-      margin-bottom: 1.25em;
-      padding-left: 1.625em;
-    }
-    .prose li {
-      margin-top: 0.5em;
-      margin-bottom: 0.5em;
-    }
-    .prose ol > li {
-      padding-left: 0.375em;
-    }
-    .prose ul > li {
-      padding-left: 0.375em;
-    }
-    .prose > ul > li p {
-      margin-top: 0.75em;
-      margin-bottom: 0.75em;
-    }
-    .prose > ul > li > *:first-child {
-      margin-top: 1.25em;
-    }
-    .prose > ul > li > *:last-child {
-      margin-bottom: 1.25em;
-    }
-    .prose > ol > li > *:first-child {
-      margin-top: 1.25em;
-    }
-    .prose > ol > li > *:last-child {
-      margin-bottom: 1.25em;
-    }
-    .prose ul ul, .prose ul ol, .prose ol ul, .prose ol ol {
-      margin-top: 0.75em;
-      margin-bottom: 0.75em;
-    }
-    .prose hr {
-      border: none;
-      border-top: 1px solid #e5e7eb;
-      margin-top: 3em;
-      margin-bottom: 3em;
-    }
-    .prose blockquote {
-      font-weight: 500;
-      font-style: italic;
-      color: #111827;
-      border-left-width: 0.25rem;
-      border-left-color: #e5e7eb;
-      quotes: "\\201C""\\201D""\\2018""\\2019";
-      margin-top: 1.6em;
-      margin-bottom: 1.6em;
-      padding-left: 1em;
-    }
-    .prose h1 {
-      color: #111827;
-      font-weight: 800;
-      font-size: 2.25em;
-      margin-top: 0;
-      margin-bottom: 0.8888889em;
-      line-height: 1.1111111;
-    }
-    .prose h2 {
-      color: #111827;
-      font-weight: 700;
-      font-size: 1.5em;
-      margin-top: 2em;
-      margin-bottom: 1em;
-      line-height: 1.3333333;
-    }
-    .prose h3 {
-      color: #111827;
-      font-weight: 600;
-      font-size: 1.25em;
-      margin-top: 1.6em;
-      margin-bottom: 0.6em;
-      line-height: 1.6;
-    }
-    .prose h4 {
-      color: #111827;
-      font-weight: 600;
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
-      line-height: 1.5;
-    }
-    .prose img {
-      margin-top: 2em;
-      margin-bottom: 2em;
-    }
-    .prose figure {
-      margin-top: 2em;
-      margin-bottom: 2em;
-    }
-    .prose figure > * {
-      margin-top: 0;
-      margin-bottom: 0;
-    }
-    .prose code {
-      color: #111827;
-      font-weight: 600;
-      font-size: 0.875em;
-    }
-    .prose code::before {
-      content: "\`";
-    }
-    .prose code::after {
-      content: "\`";
-    }
-    .prose pre {
-      color: #e5e7eb;
-      background-color: #1f2937;
-      overflow-x: auto;
-      font-size: 0.875em;
-      line-height: 1.7142857;
-      margin-top: 1.7142857em;
-      margin-bottom: 1.7142857em;
-      border-radius: 0.375rem;
-      padding-top: 0.8571429em;
-      padding-right: 1.1428571em;
-      padding-bottom: 0.8571429em;
-      padding-left: 1.1428571em;
-    }
-    .prose pre code {
-      background-color: transparent;
-      border-width: 0;
-      border-radius: 0;
-      padding: 0;
-      font-weight: 400;
-      color: inherit;
-      font-size: inherit;
-      font-family: inherit;
-      line-height: inherit;
-    }
-    .prose pre code::before {
-      content: none;
-    }
-    .prose pre code::after {
-      content: none;
-    }
-    .prose table {
-      width: 100%;
-      table-layout: auto;
-      text-align: left;
-      margin-top: 2em;
-      margin-bottom: 2em;
-      font-size: 0.875em;
-      line-height: 1.7142857;
-      border-collapse: collapse;
-    }
-    .prose thead {
-      border-bottom-width: 1px;
-      border-bottom-color: #d1d5db;
-    }
-    .prose thead th {
-      color: #111827;
-      font-weight: 600;
-      vertical-align: bottom;
-      padding-right: 0.5714286em;
-      padding-bottom: 0.5714286em;
-      padding-left: 0.5714286em;
-    }
-    .prose tbody tr {
-      border-bottom-width: 1px;
-      border-bottom-color: #e5e7eb;
-    }
-    .prose tbody tr:last-child {
-      border-bottom-width: 0;
-    }
-    .prose tbody td {
-      vertical-align: top;
-      padding-top: 0.5714286em;
-      padding-right: 0.5714286em;
-      padding-bottom: 0.5714286em;
-      padding-left: 0.5714286em;
-    }
-    .prose p {
-      margin-top: 1.25em;
-      margin-bottom: 1.25em;
-    }
-
-    /* prose-sm modifier */
-    .prose-sm {
-      font-size: 0.875rem;
-      line-height: 1.7142857;
-    }
-    .prose-sm p {
-      margin-top: 1.1428571em;
-      margin-bottom: 1.1428571em;
-    }
-    .prose-sm h1 {
-      font-size: 2.1428571em;
-      margin-top: 0;
-      margin-bottom: 0.8em;
-      line-height: 1.2;
-    }
-    .prose-sm h2 {
-      font-size: 1.4285714em;
-      margin-top: 1.6em;
-      margin-bottom: 0.8em;
-      line-height: 1.4;
-    }
-    .prose-sm h3 {
-      font-size: 1.2857143em;
-      margin-top: 1.5555556em;
-      margin-bottom: 0.4444444em;
-      line-height: 1.5555556;
-    }
-    .prose-sm h4 {
-      margin-top: 1.4285714em;
-      margin-bottom: 0.5714286em;
-      line-height: 1.4285714;
-    }
-    .prose-sm img {
-      margin-top: 1.7142857em;
-      margin-bottom: 1.7142857em;
-    }
-    .prose-sm ol, .prose-sm ul {
-      margin-top: 1.1428571em;
-      margin-bottom: 1.1428571em;
-      padding-left: 1.5714286em;
-    }
-    .prose-sm li {
-      margin-top: 0.2857143em;
-      margin-bottom: 0.2857143em;
-    }
-
-    /* max-w-none utility */
-    .max-w-none {
-      max-width: none;
-    }
-
-    /* Custom editor styles */
-    .variable-highlight, .variable-placeholder, .variable-mention {
-      background-color: #dbeafe;
-      color: #1e40af;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
-      display: inline;
-    }
-
-    .prose table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 16px 0;
-    }
-
-    .prose th, .prose td {
-      border: 1px solid #e5e7eb;
-      padding: 8px 12px;
-      text-align: left;
-      min-width: 100px;
-    }
-
-    .prose th {
-      background-color: #f3f4f6;
-      font-weight: 600;
-    }
-
-    .prose img {
-      max-width: 100%;
-      height: auto;
-      display: block;
-      margin: 16px 0;
-    }
-
-    .prose .resizable-image-wrapper {
-      display: block;
-      margin: 16px 0;
-    }
-
-    .prose .resizable-image-container {
-      display: inline-block;
-      position: relative;
-      max-width: 100%;
-    }
-
-    .prose .resizable-image-container img {
-      margin: 0;
-    }
+${css}
   </style>
 </head>
 <body>
@@ -1041,15 +756,23 @@ export class EmailService {
     contact,
     project,
     includeUnsubscribe = true,
+    mode = 'HTML',
+    css = DEFAULT_EMAIL_CSS,
   }: {
     content: string;
     contact: Contact;
     project: Project;
     includeUnsubscribe?: boolean;
+    mode?: TemplateMode;
+    css?: string;
   }): string {
+    if (mode === 'PLAIN_TEXT') {
+      return this.compilePlainText({content, contact, project, includeUnsubscribe});
+    }
+
     // Wrap visual editor content with prose styles so the sent email matches the preview modal.
     // Custom HTML (from the HTML editor) already carries its own styles and is used as-is.
-    let html = this.detectCustomHtmlPatterns(content) ? content : this.wrapWithEmailStyles(content);
+    let html = this.detectCustomHtmlPatterns(content) ? content : this.wrapWithEmailStyles(content, css);
 
     const unsubscribeHtml = includeUnsubscribe
       ? (() => {
@@ -1131,6 +854,42 @@ export class EmailService {
     }
 
     return html;
+  }
+
+  private static compilePlainText({
+    content,
+    contact,
+    project,
+    includeUnsubscribe,
+  }: {
+    content: string;
+    contact: Contact;
+    project: Project;
+    includeUnsubscribe: boolean;
+  }): string {
+    const unsubscribeText = includeUnsubscribe ? this.getPlainTextUnsubscribeFooter(contact, project) : '';
+    const badgeText = STRIPE_ENABLED && project.subscription === null ? `\n\nPowered by Plunk: ${DASHBOARD_URI}` : '';
+
+    return `${content}${unsubscribeText}${badgeText}`;
+  }
+
+  private static getPlainTextUnsubscribeFooter(contact: Contact, project: Project): string {
+    const contactLocale =
+      contact.data &&
+      typeof contact.data === 'object' &&
+      !Array.isArray(contact.data) &&
+      'locale' in contact.data &&
+      typeof contact.data.locale === 'string'
+        ? contact.data.locale
+        : null;
+
+    const translator = createTranslatorSync(contactLocale || project.language || 'en');
+    const unsubscribeText = translator.t('email.footer.unsubscribeText', {
+      projectName: project.name,
+    });
+    const updatePreferencesText = translator.t('email.footer.updatePreferences');
+
+    return `\n\n---\n${unsubscribeText} ${updatePreferencesText}: ${DASHBOARD_URI}/unsubscribe/${contact.id}.`;
   }
 
   /**

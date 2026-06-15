@@ -12,6 +12,7 @@ import {isAuthenticated, requireEmailVerified} from '../middleware/auth.js';
 import {BillingLimitService} from '../services/BillingLimitService.js';
 import {MembershipService} from '../services/MembershipService.js';
 import {NtfyService} from '../services/NtfyService.js';
+import {ProjectService} from '../services/ProjectService.js';
 import {SecurityService} from '../services/SecurityService.js';
 import {UserService} from '../services/UserService.js';
 import {CatchAsync} from '../utils/asyncHandler.js';
@@ -118,6 +119,35 @@ export class Users {
     });
 
     return res.status(200).json(project);
+  }
+
+  @Get('@me/projects/:id/global-email-css')
+  @Middleware([isAuthenticated, requireEmailVerified])
+  @CatchAsync
+  public async getProjectGlobalEmailCss(req: Request, res: Response, _next: NextFunction) {
+    const auth = res.locals.auth;
+    const {id} = UtilitySchemas.id.parse(req.params);
+
+    await MembershipService.requireAdminAccess(auth.userId!, id);
+
+    const globalEmailCss = await ProjectService.getGlobalEmailCss(id);
+
+    return res.status(200).json({globalEmailCss});
+  }
+
+  @Put('@me/projects/:id/global-email-css')
+  @Middleware([isAuthenticated, requireEmailVerified])
+  @CatchAsync
+  public async updateProjectGlobalEmailCss(req: Request, res: Response, _next: NextFunction) {
+    const auth = res.locals.auth;
+    const {id} = UtilitySchemas.id.parse(req.params);
+    const {globalEmailCss} = ProjectSchemas.update.pick({globalEmailCss: true}).required().parse(req.body);
+
+    await MembershipService.requireAdminAccess(auth.userId!, id);
+
+    const updatedGlobalEmailCss = await ProjectService.updateGlobalEmailCss(id, globalEmailCss);
+
+    return res.status(200).json({globalEmailCss: updatedGlobalEmailCss});
   }
 
   @Post('@me/projects/:id/regenerate-keys')

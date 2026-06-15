@@ -35,7 +35,7 @@ describe('PostalProvider', () => {
       from: {name: 'Sender', email: 'sender@example.com'},
       to: [{name: 'Recipient', email: 'recipient@example.com'}],
       subject: 'Subject',
-      html: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>',
+      content: {mode: 'HTML', body: '<p>Hello</p><a href="http://localhost:3000/unsubscribe/contact-id">unsubscribe</a>'},
       reply: 'reply@example.com',
       headers: {'X-Custom': 'value'},
       attachments: [
@@ -97,11 +97,26 @@ describe('PostalProvider', () => {
       from: {email: 'sender@example.com'},
       to: [{email: 'recipient@example.com'}],
       subject: 'Subject',
-      html: '<p>Hello</p>',
+      content: {mode: 'HTML', body: '<p>Hello</p>'},
       emailId: 'plunk-email-id',
     });
 
     expect(result).toEqual({provider: 'postal', messageId: 'wrapped-postal-id'});
+  });
+
+  it('uses Postal plain body for plain-text email input', async () => {
+    const provider = new PostalProvider();
+
+    await provider.sendEmail({
+      from: {email: 'sender@example.com'},
+      to: [{email: 'recipient@example.com'}],
+      subject: 'Subject',
+      content: {mode: 'PLAIN_TEXT', body: 'Hello text'},
+    });
+
+    const postalPayload = JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string);
+    expect(postalPayload).toEqual(expect.objectContaining({plain_body: 'Hello text'}));
+    expect(postalPayload).not.toHaveProperty('html_body');
   });
 
   it('fails when Postal response does not include a provider message id', async () => {
@@ -113,7 +128,7 @@ describe('PostalProvider', () => {
         from: {email: 'sender@example.com'},
         to: [{email: 'recipient@example.com'}],
         subject: 'Subject',
-        html: '<p>Hello</p>',
+        content: {mode: 'HTML', body: '<p>Hello</p>'},
         emailId: 'plunk-email-id',
       }),
     ).rejects.toThrow('Postal response did not include a message ID');
@@ -126,7 +141,7 @@ describe('PostalProvider', () => {
       from: {email: 'sender@example.com'},
       to: [{email: 'recipient@example.com'}],
       subject: 'Subject',
-      html: '<p>Hello</p>',
+      content: {mode: 'HTML', body: '<p>Hello</p>'},
       tracking: true,
     });
 

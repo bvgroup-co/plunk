@@ -1,4 +1,12 @@
-import {CampaignAudienceType, TemplateType, TrackingMode, WorkflowStepType, WorkflowTriggerType} from '@plunk/db';
+import {
+  CampaignAudienceType,
+  TemplateCssMode,
+  TemplateMode,
+  TemplateType,
+  TrackingMode,
+  WorkflowStepType,
+  WorkflowTriggerType,
+} from '@plunk/db';
 import type {FilterCondition, FilterGroup} from '@plunk/types';
 import {z} from 'zod';
 
@@ -83,6 +91,7 @@ export const ProjectSchemas = {
   update: z.object({
     name: projectName.optional(),
     tracking: z.nativeEnum(TrackingMode).optional(),
+    globalEmailCss: z.string().optional(),
     language: z
       .string()
       .regex(/^[a-z]{2}(-[A-Z]{2})?$/)
@@ -192,6 +201,9 @@ export const TemplateSchemas = {
     fromName: z.string().max(100).nullish(),
     replyTo: email.nullish(),
     type: z.nativeEnum(TemplateType).default('MARKETING'),
+    mode: z.nativeEnum(TemplateMode).default('HTML'),
+    cssMode: z.nativeEnum(TemplateCssMode).default('GLOBAL'),
+    customCss: z.string().nullish(),
   }),
   update: z.object({
     name: z.string().min(1).max(100).optional(),
@@ -202,6 +214,9 @@ export const TemplateSchemas = {
     fromName: z.string().max(100).nullish(),
     replyTo: email.nullish(),
     type: z.nativeEnum(TemplateType).optional(),
+    mode: z.nativeEnum(TemplateMode).optional(),
+    cssMode: z.nativeEnum(TemplateCssMode).optional(),
+    customCss: z.string().nullish(),
   }),
 };
 

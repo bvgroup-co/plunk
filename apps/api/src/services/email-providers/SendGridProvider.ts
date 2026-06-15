@@ -24,12 +24,12 @@ export class SendGridProvider implements OutboundEmailProvider {
   public readonly provider = 'sendgrid' as const;
 
   public async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-    const headers = addListUnsubscribeHeader(input.headers, input.html);
+    const headers = input.content.mode === 'HTML' ? addListUnsubscribeHeader(input.headers, input.content.body) : input.headers;
     const message: MailDataRequired = {
       from: formatAddress(input.from),
       to: input.to.map(formatAddress),
       subject: input.subject,
-      html: input.html,
+      ...(input.content.mode === 'HTML' ? {html: input.content.body} : {text: input.content.body}),
       headers: headers ?? undefined,
       attachments: input.attachments?.map(attachment => ({
         content: attachment.content,
