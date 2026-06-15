@@ -46,7 +46,7 @@ function getPostalBaseUrl(): string {
   return POSTAL_BASE_URL.replace(/\/$/, '');
 }
 
-function getPostalMessageId(response: PostalSendResponse, emailId: string | undefined): string {
+function getPostalMessageId(response: PostalSendResponse): string {
   const messageId = response.message_id ?? response.data?.message_id;
   if (messageId) {
     return String(messageId);
@@ -57,10 +57,6 @@ function getPostalMessageId(response: PostalSendResponse, emailId: string | unde
   const firstMessageId = firstMessage?.id ?? firstMessage?.token;
   if (firstMessageId) {
     return String(firstMessageId);
-  }
-
-  if (emailId) {
-    return emailId;
   }
 
   throw new Error('Postal response did not include a message ID');
@@ -79,12 +75,6 @@ export class PostalProvider implements OutboundEmailProvider {
 
   public async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
     const headers = addListUnsubscribeHeader(input.headers, input.html) ?? {};
-    if (input.emailId) {
-      headers['X-Plunk-Email-ID'] = input.emailId;
-    }
-    if (input.projectId) {
-      headers['X-Plunk-Project-ID'] = input.projectId;
-    }
     if (input.tracking === false) {
       headers['X-AMP'] = 'skip';
     }
@@ -117,7 +107,7 @@ export class PostalProvider implements OutboundEmailProvider {
 
     return {
       provider: this.provider,
-      messageId: getPostalMessageId(result, input.emailId),
+      messageId: getPostalMessageId(result),
     };
   }
 }

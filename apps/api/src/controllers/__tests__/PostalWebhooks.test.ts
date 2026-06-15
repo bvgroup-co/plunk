@@ -62,13 +62,17 @@ describe('PostalWebhooks event ingestion', () => {
     expect(response.body).toEqual({error: 'Invalid Postal webhook secret'});
   });
 
-  it('correlates by Plunk email header and records delivered event', async () => {
+  it('correlates by Postal provider message id and records delivered event', async () => {
     const prisma = getPrismaClient();
     const {project} = await factories.createUserWithProject();
     const contact = await factories.createContact({projectId: project.id});
     const email = await factories.createEmail(project.id, contact.id, {
       status: EmailStatus.SENT,
       messageId: 'postal-message-id',
+    });
+    const legacyHeaderEmail = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'legacy-header-message-id',
     });
 
     const response = await request(app)
@@ -78,8 +82,8 @@ describe('PostalWebhooks event ingestion', () => {
         id: 'postal-event-id',
         event: 'delivered',
         message: {
-          id: 'postal-message-id',
-          headers: {'X-Plunk-Email-ID': email.id},
+          message_id: 'postal-message-id',
+          headers: {'X-Plunk-Email-ID': legacyHeaderEmail.id},
         },
       })
       .expect(200);
@@ -89,10 +93,46 @@ describe('PostalWebhooks event ingestion', () => {
     const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
     expect(updatedEmail.status).toBe(EmailStatus.DELIVERED);
     expect(updatedEmail.deliveredAt).toBeInstanceOf(Date);
+    const unchangedLegacyHeaderEmail = await prisma.email.findUniqueOrThrow({where: {id: legacyHeaderEmail.id}});
+    expect(unchangedLegacyHeaderEmail.status).toBe(EmailStatus.SENT);
 
     const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
       where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-event-id'}},
     });
+    expect(event.status).toBe(WebhookEventStatus.PROCESSED);
+  });
+
+  it('uses legacy Plunk email header only after provider message id correlation fails', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'legacy-postal-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        id: 'postal-legacy-event-id',
+        event: 'delivered',
+        message: {
+          message_id: 'missing-provider-message-id',
+          headers: {'X-Plunk-Email-ID': email.id},
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.DELIVERED);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-legacy-event-id'}},
+    });
+    expect(event.emailId).toBe(email.id);
     expect(event.status).toBe(WebhookEventStatus.PROCESSED);
   });
 
@@ -240,7 +280,7 @@ describe('PostalWebhooks event ingestion', () => {
         event: 'MessageLinkClicked',
         uuid: 'postal-wrapper-clicked-uuid',
         payload: {
-          message: {id: 'clicked-message-id'},
+          message: {token: 'clicked-message-id'},
           url: 'https://example.com/newsletter',
           token: 'clicked-tracking-token',
           ip_address: '203.0.113.11',
@@ -264,6 +304,81 @@ describe('PostalWebhooks event ingestion', () => {
       ipAddress: '203.0.113.11',
       userAgent: 'Mozilla/5.0 Postal click test',
     });
+  });
+
+  it('does not use top-level Postal click tokens for email correlation', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.OPENED,
+      messageId: 'clicked-link-token',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageLinkClicked',
+        uuid: 'postal-wrapper-clicked-link-token-uuid',
+        payload: {
+          token: 'clicked-link-token',
+          url: 'https://example.com/newsletter',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 0, duplicate: 0, failed: 1});
+
+    const unchangedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(unchangedEmail.status).toBe(EmailStatus.OPENED);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-wrapper-clicked-link-token-uuid'}},
+    });
+    expect(event.emailId).toBeNull();
+    expect(event.status).toBe(WebhookEventStatus.FAILED);
+    expect(event.error).toBe('Could not correlate Postal event to a Plunk email');
+  });
+
+  it('uses legacy original message headers after Postal bounce provider id correlation fails', async () => {
+    const prisma = getPrismaClient();
+    const {project} = await factories.createUserWithProject();
+    const contact = await factories.createContact({projectId: project.id});
+    const email = await factories.createEmail(project.id, contact.id, {
+      status: EmailStatus.SENT,
+      messageId: 'legacy-bounce-message-id',
+    });
+
+    const response = await request(app)
+      .post('/webhooks/postal/events')
+      .set('X-Plunk-Postal-Webhook-Secret', 'postal-secret')
+      .send({
+        event: 'MessageBounced',
+        uuid: 'postal-wrapper-legacy-bounced-uuid',
+        payload: {
+          original_message: {
+            message_id: 'missing-original-message-id',
+            headers: {'X-Plunk-Email-ID': email.id},
+          },
+          bounce: {message_id: 'legacy-bounce-notification-message-id'},
+          status: 'HardFail',
+          details: 'Legacy bounce',
+        },
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({success: true, processed: 1, duplicate: 0, failed: 0});
+
+    const updatedEmail = await prisma.email.findUniqueOrThrow({where: {id: email.id}});
+    expect(updatedEmail.status).toBe(EmailStatus.BOUNCED);
+    expect(updatedEmail.bouncedAt).toBeInstanceOf(Date);
+
+    const event = await prisma.providerWebhookEvent.findUniqueOrThrow({
+      where: {provider_providerEventId: {provider: 'POSTAL', providerEventId: 'postal-wrapper-legacy-bounced-uuid'}},
+    });
+    expect(event.emailId).toBe(email.id);
+    expect(event.status).toBe(WebhookEventStatus.PROCESSED);
   });
 
   it('maps Postal MessageDeliveryFailed MessageBounced and MessageHeld wrappers to failure statuses', async () => {
@@ -295,7 +410,12 @@ describe('PostalWebhooks event ingestion', () => {
         {
           event: 'MessageBounced',
           uuid: 'postal-wrapper-bounced-uuid',
-          payload: {message: {message_id: 'bounced-message-id'}, status: 'HardFail', details: 'User unknown'},
+          payload: {
+            original_message: {message_id: 'bounced-message-id'},
+            bounce: {message_id: 'bounce-notification-message-id'},
+            status: 'HardFail',
+            details: 'User unknown',
+          },
         },
         {
           event: 'MessageHeld',
