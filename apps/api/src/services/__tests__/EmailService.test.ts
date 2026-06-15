@@ -1108,10 +1108,16 @@ describe('SES MIME Boundary Structure', () => {
     const mixedMatch = rawMessage.match(/Content-Type: multipart\/mixed; boundary="([^"]+)"/);
     const mixedBoundary = mixedMatch ? mixedMatch[1] : 'NOT_FOUND_MIXED';
 
-    expect(rawMessage).toContain(`--${mixedBoundary}\nContent-Type: text/plain; charset=utf-8`);
-    expect(rawMessage).toContain(`Hello plain text\n\n--${mixedBoundary}\nContent-Type: text/plain`);
-    expect(rawMessage).toContain('Content-Disposition: attachment; filename="test.txt"');
-    expect(rawMessage).toContain(`--${mixedBoundary}--`);
+    const textPart = `--${mixedBoundary}\nContent-Type: text/plain; charset=utf-8\nContent-Transfer-Encoding: 7bit\n\nHello plain text\n`;
+    const attachmentPart = `--${mixedBoundary}\nContent-Type: text/plain\nContent-Transfer-Encoding: base64\nContent-Disposition: attachment; filename="test.txt"\n\nSGVsbG8=`;
+    const textPartIndex = rawMessage.indexOf(textPart);
+    const attachmentPartIndex = rawMessage.indexOf(attachmentPart);
+    const closingBoundaryIndex = rawMessage.indexOf(`\n--${mixedBoundary}--`);
+
+    expect(textPartIndex).toBeGreaterThan(-1);
+    expect(attachmentPartIndex).toBeGreaterThan(textPartIndex);
+    expect(closingBoundaryIndex).toBeGreaterThan(attachmentPartIndex);
+    expect(rawMessage.slice(textPartIndex, attachmentPartIndex)).toBe(`${textPart}\n`);
     expect(rawMessage).not.toContain('Content-Type: text/html');
   });
 
