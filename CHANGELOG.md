@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.5](https://github.com/bvgroup-co/plunk/compare/v0.16.4...v0.16.5) (2026-06-14)
+
+
+### Bug Fixes
+
+* **api:** support Postal webhook wrappers ([0ec1591](https://github.com/bvgroup-co/plunk/commit/0ec15912430d0972eb7a56303c29f7cc60496aa7))
+
 ## [0.16.4](https://github.com/bvgroup-co/plunk/compare/v0.16.3...v0.16.4) (2026-06-14)
 
 
