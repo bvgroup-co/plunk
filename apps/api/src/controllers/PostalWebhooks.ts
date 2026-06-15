@@ -40,6 +40,8 @@ const postalWebhookPayloadSchema = z
     token: z.string().optional(),
     message_id: z.union([z.string(), z.number()]).optional(),
     message: postalMessageSchema.optional(),
+    original_message: postalMessageSchema.optional(),
+    bounce: postalMessageSchema.optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     url: z.string().optional(),
     link: z.string().optional(),
@@ -61,6 +63,8 @@ const postalWebhookEventSchema = z
     token: z.string().optional(),
     message_id: z.union([z.string(), z.number()]).optional(),
     message: postalMessageSchema.optional(),
+    original_message: postalMessageSchema.optional(),
+    bounce: postalMessageSchema.optional(),
     payload: postalWebhookPayloadSchema.optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     url: z.string().optional(),
@@ -183,16 +187,24 @@ function getPlunkEmailId(event: PostalWebhookEvent): string | undefined {
 
 function getPostalMessageId(event: PostalWebhookEvent): string | undefined {
   const payload = getPayload(event);
+  const originalMessageId = stringValue(event.original_message?.message_id) ?? stringValue(payload.original_message?.message_id);
+
+  if (originalMessageId) {
+    return originalMessageId;
+  }
+
+  if (eventName(event) === 'bounced' && (event.bounce || payload.bounce)) {
+    return undefined;
+  }
+
   return (
     stringValue(event.message_id) ??
     stringValue(event.message?.message_id) ??
     stringValue(event.message?.id) ??
-    stringValue(event.token) ??
     stringValue(event.message?.token) ??
     stringValue(payload.message_id) ??
     stringValue(payload.message?.message_id) ??
     stringValue(payload.message?.id) ??
-    stringValue(payload.token) ??
     stringValue(payload.message?.token)
   );
 }
@@ -279,6 +291,16 @@ function webhookEventForStatus(status: EmailStatus): 'delivered' | 'opened' | 'c
 }
 
 async function findEmail(plunkEmailId: string | undefined, providerMessageId: string | undefined) {
+  if (providerMessageId) {
+    const email = await prisma.email.findUnique({
+      where: {messageId: providerMessageId},
+      include: {contact: true, project: true},
+    });
+    if (email) {
+      return email;
+    }
+  }
+
   if (plunkEmailId) {
     const email = await prisma.email.findUnique({where: {id: plunkEmailId}, include: {contact: true, project: true}});
     if (email) {
@@ -286,20 +308,7 @@ async function findEmail(plunkEmailId: string | undefined, providerMessageId: st
     }
   }
 
-  if (!providerMessageId) {
-    throw new Error('Postal event does not contain a provider message ID');
-  }
-
-  const email = await prisma.email.findUnique({
-    where: {messageId: providerMessageId},
-    include: {contact: true, project: true},
-  });
-
-  if (!email) {
-    throw new Error('Could not correlate Postal event to a Plunk email');
-  }
-
-  return email;
+  throw new Error('Could not correlate Postal event to a Plunk email');
 }
 
 async function recordEvent({

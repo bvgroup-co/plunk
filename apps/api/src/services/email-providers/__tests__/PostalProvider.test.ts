@@ -61,7 +61,8 @@ describe('PostalProvider', () => {
         },
       }),
     );
-    expect(JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string)).toEqual({
+    const postalPayload = JSON.parse(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body as string);
+    expect(postalPayload).toEqual({
       to: ['"Recipient" <recipient@example.com>'],
       from: '"Sender" <sender@example.com>',
       subject: 'Subject',
@@ -70,8 +71,6 @@ describe('PostalProvider', () => {
       headers: {
         'X-Custom': 'value',
         'List-Unsubscribe': '<http://localhost:3000/unsubscribe/contact-id>',
-        'X-Plunk-Email-ID': 'email-id',
-        'X-Plunk-Project-ID': 'project-id',
         'X-AMP': 'skip',
       },
       attachments: [
@@ -83,7 +82,41 @@ describe('PostalProvider', () => {
         },
       ],
     });
+    expect(postalPayload.headers).not.toHaveProperty('X-Plunk-Email-ID');
+    expect(postalPayload.headers).not.toHaveProperty('X-Plunk-Project-ID');
     expect(result).toEqual({provider: 'postal', messageId: 'postal-message-id'});
+  });
+
+  it('returns Postal data.message_id from wrapped send responses', async () => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({status: 'success', data: {message_id: 'wrapped-postal-id'}}), {status: 200}),
+    );
+    const provider = new PostalProvider();
+
+    const result = await provider.sendEmail({
+      from: {email: 'sender@example.com'},
+      to: [{email: 'recipient@example.com'}],
+      subject: 'Subject',
+      html: '<p>Hello</p>',
+      emailId: 'plunk-email-id',
+    });
+
+    expect(result).toEqual({provider: 'postal', messageId: 'wrapped-postal-id'});
+  });
+
+  it('fails when Postal response does not include a provider message id', async () => {
+    global.fetch = vi.fn(async () => new Response(JSON.stringify({status: 'success', data: {}}), {status: 200}));
+    const provider = new PostalProvider();
+
+    await expect(
+      provider.sendEmail({
+        from: {email: 'sender@example.com'},
+        to: [{email: 'recipient@example.com'}],
+        subject: 'Subject',
+        html: '<p>Hello</p>',
+        emailId: 'plunk-email-id',
+      }),
+    ).rejects.toThrow('Postal response did not include a message ID');
   });
 
   it('does not disable Postal tracking when tracking is enabled', async () => {
