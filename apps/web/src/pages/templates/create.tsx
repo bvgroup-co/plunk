@@ -89,7 +89,9 @@ export default function CreateTemplatePage() {
                 Create a reusable email template for campaigns and workflows
               </p>
             </div>
+          </div>
 
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -157,9 +159,7 @@ export default function CreateTemplatePage() {
                 </CardContent>
               </Card>
             </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Row 1: Basic Info + Template Type */}
             <div className="grid gap-6 md:grid-cols-2">
               <Card>

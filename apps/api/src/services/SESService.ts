@@ -142,14 +142,10 @@ Content-Type: ${rootContentType}${extraHeaders}
 
 `;
 
-  if (content.mode === 'PLAIN_TEXT' && !mixedBoundary && !relatedBoundary) {
-    rawMessage += breakLongLines(content.body, 500);
-  }
-
   // building the body
   if (mixedBoundary) {
     rawMessage += `--${mixedBoundary}\n`;
-    if (relatedBoundary) {
+    if (relatedBoundary && content.mode === 'HTML') {
       rawMessage += `Content-Type: multipart/related; boundary="${relatedBoundary}"\n\n`;
       rawMessage += `--${relatedBoundary}\n`;
     }
@@ -157,15 +153,11 @@ Content-Type: ${rootContentType}${extraHeaders}
     rawMessage += `--${relatedBoundary}\n`;
   }
 
-  // If we are nested, we need to specify that this next part is the alternative container
-  if (mixedBoundary || relatedBoundary) {
-    rawMessage +=
-      content.mode === 'HTML'
-        ? `Content-Type: multipart/alternative; boundary="${altBoundary}"\n\n`
-        : `Content-Type: text/plain; charset=utf-8\nContent-Transfer-Encoding: 7bit\n\n${breakLongLines(content.body, 500)}\n`;
-  }
-
   if (content.mode === 'HTML') {
+    if (mixedBoundary || relatedBoundary) {
+      rawMessage += `Content-Type: multipart/alternative; boundary="${altBoundary}"\n\n`;
+    }
+
     rawMessage += `--${altBoundary}
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: 7bit
@@ -173,6 +165,12 @@ Content-Transfer-Encoding: 7bit
 ${breakLongLines(content.body, 500)}
 --${altBoundary}--
 `;
+  } else {
+    rawMessage += mixedBoundary || relatedBoundary ? `Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+${breakLongLines(content.body, 500)}
+` : breakLongLines(content.body, 500);
   }
 
   // Add inline attachments to the related container

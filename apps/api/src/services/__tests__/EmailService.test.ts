@@ -1085,6 +1085,36 @@ describe('SES MIME Boundary Structure', () => {
     expect(rawMessage).not.toContain('Content-Type: text/html');
   });
 
+  it('should correctly structure MIME boundaries for plain-text content with attachments', async () => {
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
+
+    await realSendRawEmail({
+      from: {name: 'Sender', email: 'sender@example.com'},
+      to: ['recipient@example.com'],
+      content: {subject: 'Test Subject', mode: 'PLAIN_TEXT', body: 'Hello plain text'},
+      attachments: [
+        {
+          filename: 'test.txt',
+          content: 'SGVsbG8=',
+          contentType: 'text/plain',
+          disposition: 'attachment' as const,
+        },
+      ],
+    });
+
+    const callArgs = (ses.sendRawEmail as Mock).mock.calls[0][0];
+    const rawMessage = new TextDecoder().decode(callArgs.RawMessage.Data);
+    const mixedMatch = rawMessage.match(/Content-Type: multipart\/mixed; boundary="([^"]+)"/);
+    const mixedBoundary = mixedMatch ? mixedMatch[1] : 'NOT_FOUND_MIXED';
+
+    expect(rawMessage).toContain(`--${mixedBoundary}\nContent-Type: text/plain; charset=utf-8`);
+    expect(rawMessage).toContain(`Hello plain text\n\n--${mixedBoundary}\nContent-Type: text/plain`);
+    expect(rawMessage).toContain('Content-Disposition: attachment; filename="test.txt"');
+    expect(rawMessage).toContain(`--${mixedBoundary}--`);
+    expect(rawMessage).not.toContain('Content-Type: text/html');
+  });
+
   it('should correctly structure MIME boundaries for related content (inline images)', async () => {
     const {sendRawEmail: realSendRawEmail, ses} =
       await vi.importActual<typeof import('../SESService')>('../SESService');
