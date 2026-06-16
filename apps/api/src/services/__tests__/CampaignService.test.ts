@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {CampaignAudienceType, CampaignStatus} from '@plunk/db';
+import {CampaignAudienceType, CampaignStatus, TemplateCssMode, TemplateMode} from '@plunk/db';
 import {CampaignService} from '../CampaignService';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 
@@ -36,6 +36,37 @@ describe('CampaignService', () => {
       expect(campaign.name).toBe('Test Campaign');
       expect(campaign.status).toBe(CampaignStatus.DRAFT);
       expect(campaign.audienceType).toBe(CampaignAudienceType.ALL);
+    });
+
+    it('should persist campaign rendering settings', async () => {
+      const campaign = await CampaignService.create(projectId, {
+        name: 'Plain Campaign',
+        subject: 'Test Subject',
+        body: 'Test Body',
+        from: 'test@example.com',
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: red; }',
+        audienceType: CampaignAudienceType.ALL,
+      });
+
+      expect(campaign.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(campaign.cssMode).toBe(TemplateCssMode.CUSTOM);
+      expect(campaign.customCss).toBe('.custom { color: red; }');
+    });
+
+    it('should default campaign rendering settings', async () => {
+      const campaign = await CampaignService.create(projectId, {
+        name: 'Default Campaign',
+        subject: 'Test Subject',
+        body: '<p>Test Body</p>',
+        from: 'test@example.com',
+        audienceType: CampaignAudienceType.ALL,
+      });
+
+      expect(campaign.mode).toBe(TemplateMode.HTML);
+      expect(campaign.cssMode).toBe(TemplateCssMode.GLOBAL);
+      expect(campaign.customCss).toBeNull();
     });
 
     it('should create a campaign with SEGMENT audience type', async () => {
@@ -96,6 +127,23 @@ describe('CampaignService', () => {
       expect(updated.subject).toBe('Updated Subject');
     });
 
+    it('should update rendering settings for draft campaigns', async () => {
+      const campaign = await factories.createCampaign({
+        projectId,
+        status: CampaignStatus.DRAFT,
+      });
+
+      const updated = await CampaignService.update(projectId, campaign.id, {
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+
+      expect(updated.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(updated.cssMode).toBe(TemplateCssMode.CUSTOM);
+      expect(updated.customCss).toBe('.custom { color: blue; }');
+    });
+
     it('should throw error when updating non-draft campaign', async () => {
       const campaign = await factories.createCampaign({
         projectId,
@@ -145,6 +193,21 @@ describe('CampaignService', () => {
       expect(duplicate.body).toBe(original.body);
       expect(duplicate.status).toBe(CampaignStatus.DRAFT);
       expect(duplicate.id).not.toBe(original.id);
+    });
+
+    it('should preserve rendering settings when duplicating a campaign', async () => {
+      const original = await factories.createCampaign({
+        projectId,
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: green; }',
+      });
+
+      const duplicate = await CampaignService.duplicate(projectId, original.id);
+
+      expect(duplicate.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(duplicate.cssMode).toBe(TemplateCssMode.CUSTOM);
+      expect(duplicate.customCss).toBe('.custom { color: green; }');
     });
   });
 

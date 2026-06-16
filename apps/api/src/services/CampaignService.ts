@@ -60,6 +60,9 @@ export class CampaignService {
         fromName: data.fromName,
         replyTo: data.replyTo,
         type: data.type ?? TemplateType.MARKETING,
+        mode: data.mode ?? 'HTML',
+        cssMode: data.cssMode ?? 'GLOBAL',
+        customCss: data.customCss ?? null,
         audienceType: data.audienceType,
         audienceCondition: toPrismaJson(data.audienceCondition || null),
         segmentId: data.segmentId,
@@ -103,6 +106,18 @@ export class CampaignService {
     // Handle campaign-specific fields
     if (data.type !== undefined) {
       updateData.type = data.type;
+    }
+
+    if (data.mode !== undefined) {
+      updateData.mode = data.mode;
+    }
+
+    if (data.cssMode !== undefined) {
+      updateData.cssMode = data.cssMode;
+    }
+
+    if (data.customCss !== undefined) {
+      updateData.customCss = data.customCss;
     }
 
     if (data.audienceType !== undefined) {
@@ -278,6 +293,9 @@ export class CampaignService {
         fromName: campaign.fromName,
         replyTo: campaign.replyTo,
         type: campaign.type,
+        mode: campaign.mode,
+        cssMode: campaign.cssMode,
+        customCss: campaign.customCss,
         audienceType: campaign.audienceType,
         audienceCondition: campaign.audienceCondition as Prisma.InputJsonValue,
         segmentId: campaign.segmentId,
@@ -707,6 +725,23 @@ export class CampaignService {
       throw new HttpException(404, 'Project not found');
     }
 
+    const compiledBody = EmailService.compile({
+      content: campaign.body,
+      contact: {
+        id: membership.user.id,
+        email: membership.user.email,
+        data: {},
+        subscribed: true,
+        projectId,
+        createdAt: membership.user.createdAt,
+        updatedAt: membership.user.updatedAt,
+      },
+      project,
+      includeUnsubscribe: false,
+      mode: campaign.mode,
+      css: EmailService.selectEmailCss(EmailService.getTemplateRenderingSelection(campaign), project),
+    });
+
     const provider = getOutboundEmailProvider();
     await provider.sendEmail({
       from: {
@@ -715,7 +750,7 @@ export class CampaignService {
       },
       to: [{email: testEmail}],
       subject: `[TEST] ${campaign.subject}`,
-      content: {mode: 'HTML', body: campaign.body},
+      content: {mode: campaign.mode, body: compiledBody},
       reply: campaign.replyTo || undefined,
       headers: {
         'X-Plunk-Test': 'true',

@@ -17,6 +17,7 @@ import {EmptyState} from '@plunk/ui';
 import {DashboardLayout} from '../../components/DashboardLayout';
 import {TemplateSelectionDialog} from '../../components/TemplateSelectionDialog';
 import {CampaignSelectionDialog} from '../../components/CampaignSelectionDialog';
+import {buildTemplateCampaignQuery} from '../../lib/campaignRendering';
 import {network} from '../../lib/network';
 import {formatRelativeTime} from '../../lib/dateUtils';
 import {Ban, Calendar, ChevronDown, Copy, Edit, FileText, Mail, Plus, RefreshCw, Search, Trash2, X} from 'lucide-react';
@@ -114,29 +115,7 @@ export default function CampaignsPage() {
       replyTo: boolean;
     },
   ) => {
-    // Navigate to create page with template data as query params
-    const query: Record<string, string> = {
-      name: `${template.name}`,
-    };
-
-    // Only include templateId if body is selected (needed to fetch body content)
-    if (selectedFields.body) {
-      query.templateId = template.id;
-    }
-
-    // Add selected fields to query params
-    if (selectedFields.subject) {
-      query.subject = template.subject;
-    }
-    if (selectedFields.from) {
-      query.from = template.from;
-    }
-    if (selectedFields.fromName && template.fromName) {
-      query.fromName = template.fromName;
-    }
-    if (selectedFields.replyTo && template.replyTo) {
-      query.replyTo = template.replyTo;
-    }
+    const query = buildTemplateCampaignQuery(template, selectedFields);
 
     void router.push({
       pathname: '/campaigns/create',
