@@ -17,7 +17,10 @@ export interface SendEmailInput {
   from: EmailAddress;
   to: EmailAddress[];
   subject: string;
-  html: string;
+  content: {
+    mode: 'HTML' | 'PLAIN_TEXT';
+    body: string;
+  };
   reply?: string;
   headers?: Record<string, string> | null;
   attachments?: EmailAttachment[] | null;

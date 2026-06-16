@@ -39,6 +39,7 @@ export interface ProjectFactoryOptions {
   billingLimitWorkflows?: number | null;
   billingLimitCampaigns?: number | null;
   billingLimitTransactional?: number | null;
+  globalEmailCss?: string;
 }
 
 export interface ContactFactoryOptions {
@@ -56,6 +57,9 @@ export interface TemplateFactoryOptions {
   from?: string;
   fromName?: string;
   type?: TemplateType;
+  mode?: 'HTML' | 'PLAIN_TEXT';
+  cssMode?: 'GLOBAL' | 'CUSTOM';
+  customCss?: string | null;
 }
 
 export interface CampaignFactoryOptions {
@@ -135,6 +139,7 @@ export class TestFactories {
         billingLimitWorkflows: options.billingLimitWorkflows,
         billingLimitCampaigns: options.billingLimitCampaigns,
         billingLimitTransactional: options.billingLimitTransactional,
+        globalEmailCss: options.globalEmailCss,
       },
     });
   }
@@ -209,6 +214,9 @@ export class TestFactories {
         from: options.from || 'test@example.com',
         fromName: options.fromName || 'Test Sender',
         type: options.type || TemplateType.MARKETING,
+        mode: options.mode ?? 'HTML',
+        cssMode: options.cssMode ?? 'GLOBAL',
+        customCss: options.customCss,
       },
     });
   }

@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
-import {EmailSourceType, EmailStatus, TemplateType} from '@plunk/db';
-import {ActionSchemas} from '@plunk/shared';
+import {EmailSourceType, EmailStatus, TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
+import {ActionSchemas, DEFAULT_EMAIL_CSS} from '@plunk/shared';
 import {EmailService} from '../EmailService';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 
@@ -56,6 +56,60 @@ describe('EmailService', () => {
     sendEmailMock.mockResolvedValue({
       provider: 'ses',
       messageId: 'ses-message-123',
+    });
+  });
+
+  describe('Template Rendering Options', () => {
+    it('selects project global CSS for default HTML templates', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      const template = await factories.createTemplate({projectId: project.id});
+
+      const selection = EmailService.getTemplateRenderingSelection(template);
+      const css = EmailService.selectEmailCss(selection, project);
+
+      expect(selection.mode).toBe(TemplateMode.HTML);
+      expect(selection.cssMode).toBe(TemplateCssMode.GLOBAL);
+      expect(css).toBe('.global { color: red; }');
+    });
+
+    it('uses custom template CSS instead of global CSS', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      const template = await factories.createTemplate({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+
+      const css = EmailService.selectEmailCss(EmailService.getTemplateRenderingSelection(template), project);
+
+      expect(css).toBe('.custom { color: blue; }');
+    });
+
+    it('keeps existing hardcoded CSS as the project default', async () => {
+      const {project} = await factories.createUserWithProject();
+
+      expect(project.globalEmailCss).toContain('/* Base reset */');
+      expect(project.globalEmailCss).toContain('.prose');
+      expect(DEFAULT_EMAIL_CSS).toContain(project.globalEmailCss.slice(0, 80));
+    });
+
+    it('does not wrap or style plain-text templates', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      const contact = await factories.createContact({projectId: project.id});
+
+      const compiled = EmailService.compile({
+        content: 'Hello {{firstName}}',
+        contact,
+        project,
+        includeUnsubscribe: false,
+        mode: TemplateMode.PLAIN_TEXT,
+        css: '.custom { color: blue; }',
+      });
+
+      expect(compiled).toBe('Hello {{firstName}}');
+      expect(compiled).not.toContain('<style>');
+      expect(compiled).not.toContain('prose prose-sm');
+      expect(compiled).not.toContain('.custom');
     });
   });
 
@@ -985,7 +1039,7 @@ describe('SES MIME Boundary Structure', () => {
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
       to: ['recipient@example.com'],
-      content: {subject: 'Test Subject', html: '<p>Hello world</p>'},
+      content: {subject: 'Test Subject', mode: 'HTML', body: '<p>Hello world</p>'},
       attachments: [
         {
           filename: 'test.txt',
@@ -1013,6 +1067,60 @@ describe('SES MIME Boundary Structure', () => {
     expect(rawMessage).toContain(`--${mixedBoundary}--`);
   });
 
+  it('should emit text/plain MIME for plain-text email content', async () => {
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
+
+    await realSendRawEmail({
+      from: {name: 'Sender', email: 'sender@example.com'},
+      to: ['recipient@example.com'],
+      content: {subject: 'Test Subject', mode: 'PLAIN_TEXT', body: 'Hello plain text'},
+    });
+
+    const callArgs = (ses.sendRawEmail as Mock).mock.calls[0][0];
+    const rawMessage = new TextDecoder().decode(callArgs.RawMessage.Data);
+
+    expect(rawMessage).toContain('Content-Type: text/plain; charset=utf-8');
+    expect(rawMessage).toContain('Hello plain text');
+    expect(rawMessage).not.toContain('Content-Type: text/html');
+  });
+
+  it('should correctly structure MIME boundaries for plain-text content with attachments', async () => {
+    const {sendRawEmail: realSendRawEmail, ses} =
+      await vi.importActual<typeof import('../SESService')>('../SESService');
+
+    await realSendRawEmail({
+      from: {name: 'Sender', email: 'sender@example.com'},
+      to: ['recipient@example.com'],
+      content: {subject: 'Test Subject', mode: 'PLAIN_TEXT', body: 'Hello plain text'},
+      attachments: [
+        {
+          filename: 'test.txt',
+          content: 'SGVsbG8=',
+          contentType: 'text/plain',
+          disposition: 'attachment' as const,
+        },
+      ],
+    });
+
+    const callArgs = (ses.sendRawEmail as Mock).mock.calls[0][0];
+    const rawMessage = new TextDecoder().decode(callArgs.RawMessage.Data);
+    const mixedMatch = rawMessage.match(/Content-Type: multipart\/mixed; boundary="([^"]+)"/);
+    const mixedBoundary = mixedMatch ? mixedMatch[1] : 'NOT_FOUND_MIXED';
+
+    const textPart = `--${mixedBoundary}\nContent-Type: text/plain; charset=utf-8\nContent-Transfer-Encoding: 7bit\n\nHello plain text\n`;
+    const attachmentPart = `--${mixedBoundary}\nContent-Type: text/plain\nContent-Transfer-Encoding: base64\nContent-Disposition: attachment; filename="test.txt"\n\nSGVsbG8=`;
+    const textPartIndex = rawMessage.indexOf(textPart);
+    const attachmentPartIndex = rawMessage.indexOf(attachmentPart);
+    const closingBoundaryIndex = rawMessage.indexOf(`\n--${mixedBoundary}--`);
+
+    expect(textPartIndex).toBeGreaterThan(-1);
+    expect(attachmentPartIndex).toBeGreaterThan(textPartIndex);
+    expect(closingBoundaryIndex).toBeGreaterThan(attachmentPartIndex);
+    expect(rawMessage.slice(textPartIndex, attachmentPartIndex)).toBe(`${textPart}\n`);
+    expect(rawMessage).not.toContain('Content-Type: text/html');
+  });
+
   it('should correctly structure MIME boundaries for related content (inline images)', async () => {
     const {sendRawEmail: realSendRawEmail, ses} =
       await vi.importActual<typeof import('../SESService')>('../SESService');
@@ -1020,7 +1128,7 @@ describe('SES MIME Boundary Structure', () => {
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
       to: ['recipient@example.com'],
-      content: {subject: 'Test Subject', html: '<p>Hello world <img src="cid:image1"></p>'},
+      content: {subject: 'Test Subject', mode: 'HTML', body: '<p>Hello world <img src="cid:image1"></p>'},
       attachments: [
         {
           filename: 'image.png',
@@ -1055,7 +1163,7 @@ describe('SES MIME Boundary Structure', () => {
     const params = {
       from: {name: 'Sender', email: 'sender@example.com'},
       to: ['recipient@example.com'],
-      content: {subject: 'Test Subject', html: '<p>Hello world <img src="cid:image1"></p>'},
+      content: {subject: 'Test Subject', mode: 'HTML', body: '<p>Hello world <img src="cid:image1"></p>'},
       attachments: [
         {
           filename: 'test.txt',

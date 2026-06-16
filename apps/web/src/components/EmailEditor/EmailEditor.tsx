@@ -42,6 +42,8 @@ interface EmailEditorProps {
   subject?: string;
   from?: string;
   replyTo?: string;
+  templateMode?: 'HTML' | 'PLAIN_TEXT';
+  emailCss?: string;
 }
 
 const commonVariables = [
@@ -52,7 +54,7 @@ const commonVariables = [
   {name: 'manageUrl', description: 'Manage link'},
 ];
 
-export function EmailEditor({value, onChange, placeholder, subject, from, replyTo}: EmailEditorProps) {
+export function EmailEditor({value, onChange, placeholder, subject, from, replyTo, templateMode = 'HTML', emailCss}: EmailEditorProps) {
   // Detect if initial value has custom HTML and start in appropriate mode
   const initialMode = detectCustomHtmlPatterns(value) ? 'html' : 'visual';
 
@@ -257,6 +259,16 @@ export function EmailEditor({value, onChange, placeholder, subject, from, replyT
     return replaceVariables(currentHtml, contactData);
   };
 
+  const getPreviewContent = () => {
+    const currentContent = getPreviewHtml();
+
+    if (templateMode === 'PLAIN_TEXT') {
+      return currentContent;
+    }
+
+    return wrapEmailWithStyles(currentContent, emailCss);
+  };
+
   const getPreviewSubject = () => {
     if (!subject || !selectedContactId) return subject || '';
 
@@ -299,8 +311,7 @@ export function EmailEditor({value, onChange, placeholder, subject, from, replyT
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
 
       if (iframeDoc) {
-        const previewContent = getPreviewHtml();
-        const fullHtml = wrapEmailWithStyles(previewContent);
+        const fullHtml = getPreviewContent();
 
         iframeDoc.open();
         iframeDoc.write(fullHtml);
@@ -334,7 +345,7 @@ export function EmailEditor({value, onChange, placeholder, subject, from, replyT
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedContactId, htmlContent, mode, previewDevice, previewUpdateTrigger]);
+  }, [selectedContactId, htmlContent, mode, previewDevice, previewUpdateTrigger, templateMode, emailCss]);
 
   return (
     <div className="border border-neutral-200 rounded-lg bg-white">

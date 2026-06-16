@@ -7,6 +7,7 @@ import {
   CardTitle,
   Input,
   Label,
+  Textarea,
 } from '@plunk/ui';
 import {NextSeo} from 'next-seo';
 import {DashboardLayout} from '../../components/DashboardLayout';
@@ -33,6 +34,9 @@ export default function CreateTemplatePage() {
   const [fromName, setFromName] = useState('');
   const [replyTo, setReplyTo] = useState('');
   const [type, setType] = useState<'MARKETING' | 'TRANSACTIONAL' | 'HEADLESS'>('MARKETING');
+  const [mode, setMode] = useState<'HTML' | 'PLAIN_TEXT'>('HTML');
+  const [cssMode, setCssMode] = useState<'GLOBAL' | 'CUSTOM'>('GLOBAL');
+  const [customCss, setCustomCss] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +60,9 @@ export default function CreateTemplatePage() {
         fromName: fromName || null,
         replyTo: replyTo || null,
         type,
+        mode,
+        cssMode,
+        customCss: customCss || null,
       });
 
       toast.success('Template created successfully');
@@ -85,6 +92,74 @@ export default function CreateTemplatePage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Template Mode</CardTitle>
+                  <CardDescription>Choose HTML styling or native plain text delivery</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-2">
+                    {([
+                      {value: 'HTML', label: 'HTML', description: 'Use the existing Plunk HTML wrapper and CSS'},
+                      {value: 'PLAIN_TEXT', label: 'Plain text', description: 'Send as text/plain without HTML or CSS'},
+                    ] as const).map(({value, label, description}) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setMode(value)}
+                        className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                          mode === value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                        <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email CSS</CardTitle>
+                  <CardDescription>Use project CSS or override CSS for this template</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    {([
+                      {value: 'GLOBAL', label: 'Project CSS', description: 'Inherit global email CSS'},
+                      {value: 'CUSTOM', label: 'Custom CSS', description: 'Use CSS saved on this template'},
+                    ] as const).map(({value, label, description}) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setCssMode(value)}
+                        disabled={mode === 'PLAIN_TEXT'}
+                        className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors disabled:opacity-50 ${
+                          cssMode === value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                        <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {cssMode === 'CUSTOM' && mode !== 'PLAIN_TEXT' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="customCss">Custom CSS</Label>
+                      <Textarea
+                        id="customCss"
+                        value={customCss}
+                        onChange={e => setCustomCss(e.target.value)}
+                        className="min-h-48 font-mono text-xs"
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Row 1: Basic Info + Template Type */}
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
@@ -209,7 +284,12 @@ export default function CreateTemplatePage() {
                 <CardDescription>Create your email using the visual editor or paste custom HTML</CardDescription>
               </CardHeader>
               <CardContent>
-                <EmailEditor value={body} onChange={setBody} />
+                <EmailEditor
+                  value={body}
+                  onChange={setBody}
+                  templateMode={mode}
+                  emailCss={cssMode === 'CUSTOM' ? customCss : activeProject?.globalEmailCss}
+                />
               </CardContent>
             </Card>
 

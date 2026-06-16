@@ -40,7 +40,8 @@ export const ses: SesClient = new SES(createSesClientConfig());
 type SendRawEmailParams = Omit<SendEmailInput, 'emailId' | 'projectId' | 'subject' | 'html'> & {
   content: {
     subject: string;
-    html: string;
+    mode: 'HTML' | 'PLAIN_TEXT';
+    body: string;
   };
 };
 
@@ -113,7 +114,7 @@ export async function sendRawEmail({
   const destinations = to.map(recipient => (typeof recipient === 'string' ? recipient : recipient.email));
 
   // Determine root content type
-  let rootContentType = `multipart/alternative; boundary="${altBoundary}"`;
+  let rootContentType = content.mode === 'HTML' ? `multipart/alternative; boundary="${altBoundary}"` : 'text/plain; charset=utf-8';
   if (mixedBoundary) {
     rootContentType = `multipart/mixed; boundary="${mixedBoundary}"`;
   } else if (relatedBoundary) {
@@ -125,7 +126,9 @@ export async function sendRawEmail({
   // Per RFC 5322 §2.1, a blank line terminates the header section, so any blank
   // line here would push subsequent headers (notably List-Unsubscribe) into the body.
   const extraHeaderLines = [
-    ...Object.entries(addListUnsubscribeHeader(headers, content.html) ?? {}).map(([key, value]) => `${key}: ${value}`),
+    ...Object.entries(content.mode === 'HTML' ? addListUnsubscribeHeader(headers, content.body) ?? {} : headers ?? {}).map(
+      ([key, value]) => `${key}: ${value}`,
+    ),
   ];
   const extraHeaders = extraHeaderLines.length > 0 ? `\n${extraHeaderLines.join('\n')}` : '';
 
@@ -142,7 +145,7 @@ Content-Type: ${rootContentType}${extraHeaders}
   // building the body
   if (mixedBoundary) {
     rawMessage += `--${mixedBoundary}\n`;
-    if (relatedBoundary) {
+    if (relatedBoundary && content.mode === 'HTML') {
       rawMessage += `Content-Type: multipart/related; boundary="${relatedBoundary}"\n\n`;
       rawMessage += `--${relatedBoundary}\n`;
     }
@@ -150,19 +153,25 @@ Content-Type: ${rootContentType}${extraHeaders}
     rawMessage += `--${relatedBoundary}\n`;
   }
 
-  // If we are nested, we need to specify that this next part is the alternative container
-  if (mixedBoundary || relatedBoundary) {
-    rawMessage += `Content-Type: multipart/alternative; boundary="${altBoundary}"\n\n`;
-  }
+  if (content.mode === 'HTML') {
+    if (mixedBoundary || relatedBoundary) {
+      rawMessage += `Content-Type: multipart/alternative; boundary="${altBoundary}"\n\n`;
+    }
 
-  // The alternative part content (always contains HTML)
-  rawMessage += `--${altBoundary}
+    rawMessage += `--${altBoundary}
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: 7bit
 
-${breakLongLines(content.html, 500)}
+${breakLongLines(content.body, 500)}
 --${altBoundary}--
 `;
+  } else {
+    rawMessage += mixedBoundary || relatedBoundary ? `Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+${breakLongLines(content.body, 500)}
+` : breakLongLines(content.body, 500);
+  }
 
   // Add inline attachments to the related container
   if (relatedBoundary) {

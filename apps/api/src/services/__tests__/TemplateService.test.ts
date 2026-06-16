@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {TemplateType} from '@plunk/db';
+import {TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
 import {TemplateService} from '../TemplateService';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 
@@ -36,6 +36,8 @@ describe('TemplateService', () => {
       expect(template.fromName).toBe('Company Team');
       expect(template.replyTo).toBe('support@example.com');
       expect(template.type).toBe(TemplateType.TRANSACTIONAL);
+      expect(template.mode).toBe(TemplateMode.HTML);
+      expect(template.cssMode).toBe(TemplateCssMode.GLOBAL);
       expect(template.projectId).toBe(projectId);
     });
 
@@ -52,6 +54,25 @@ describe('TemplateService', () => {
       expect(template.description).toBeNull();
       expect(template.fromName).toBeNull();
       expect(template.replyTo).toBeNull();
+      expect(template.mode).toBe(TemplateMode.HTML);
+      expect(template.cssMode).toBe(TemplateCssMode.GLOBAL);
+      expect(template.customCss).toBeNull();
+    });
+
+    it('should create template with rendering options', async () => {
+      const template = await TemplateService.create(projectId, {
+        name: 'Plain Template',
+        subject: 'Test',
+        body: 'Hello {{firstName}}',
+        from: 'test@example.com',
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.prose { color: red; }',
+      });
+
+      expect(template.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(template.cssMode).toBe(TemplateCssMode.CUSTOM);
+      expect(template.customCss).toBe('.prose { color: red; }');
     });
 
     it('should default to MARKETING type when not specified', async () => {
@@ -271,6 +292,20 @@ describe('TemplateService', () => {
       });
 
       expect(updated.name).toBe('New Name');
+    });
+
+    it('should update rendering options', async () => {
+      const template = await factories.createTemplate({projectId});
+
+      const updated = await TemplateService.update(projectId, template.id, {
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.prose { color: blue; }',
+      });
+
+      expect(updated.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(updated.cssMode).toBe(TemplateCssMode.CUSTOM);
+      expect(updated.customCss).toBe('.prose { color: blue; }');
     });
 
     it('should update template body and subject', async () => {

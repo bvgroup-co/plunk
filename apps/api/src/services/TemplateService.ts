@@ -84,6 +84,9 @@ export class TemplateService {
       fromName?: string | null;
       replyTo?: string | null;
       type?: Template['type'];
+      mode?: Template['mode'];
+      cssMode?: Template['cssMode'];
+      customCss?: string | null;
     },
   ): Promise<Template> {
     return prisma.template.create({
@@ -97,6 +100,9 @@ export class TemplateService {
         fromName: data.fromName,
         replyTo: data.replyTo,
         type: data.type ?? 'MARKETING',
+        mode: data.mode ?? 'HTML',
+        cssMode: data.cssMode ?? 'GLOBAL',
+        customCss: data.customCss,
       },
     });
   }
@@ -116,6 +122,9 @@ export class TemplateService {
       fromName?: string | null;
       replyTo?: string | null;
       type?: Template['type'];
+      mode?: Template['mode'];
+      cssMode?: Template['cssMode'];
+      customCss?: string | null;
     },
   ): Promise<Template> {
     // Verify template exists and belongs to project
@@ -124,6 +133,9 @@ export class TemplateService {
     const updateData = {
       ...buildEmailFieldsUpdate(data),
       ...(data.type !== undefined ? {type: data.type} : {}),
+      ...(data.mode !== undefined ? {mode: data.mode} : {}),
+      ...(data.cssMode !== undefined ? {cssMode: data.cssMode} : {}),
+      ...(data.customCss !== undefined ? {customCss: data.customCss} : {}),
     } as Prisma.TemplateUpdateInput;
 
     return prisma.template.update({
@@ -177,6 +189,9 @@ export class TemplateService {
         fromName: template.fromName,
         replyTo: template.replyTo,
         type: template.type,
+        mode: template.mode,
+        cssMode: template.cssMode,
+        customCss: template.customCss,
       },
     });
   }
