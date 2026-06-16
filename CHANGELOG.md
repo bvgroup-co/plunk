@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/bvgroup-co/plunk/compare/v0.16.5...v0.17.0) (2026-06-16)
+
+
+### Features
+
+* **email:** add configurable template rendering ([72142a7](https://github.com/bvgroup-co/plunk/commit/72142a7128bda94320038792b92a6081f541b669))
+
+
+### Bug Fixes
+
+* **postal:** stop leaking Plunk IDs ([962661e](https://github.com/bvgroup-co/plunk/commit/962661e52631207d2a063115ad135afbee08843f))
+* publish release images from tags ([8d5b99e](https://github.com/bvgroup-co/plunk/commit/8d5b99eca95cfde6025f9ae835175ea8bb5484a3))
+
 ## [0.16.5](https://github.com/bvgroup-co/plunk/compare/v0.16.4...v0.16.5) (2026-06-14)
 
 
