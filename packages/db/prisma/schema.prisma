@@ -315,6 +315,11 @@ model Campaign {
   // Campaign type
   type TemplateType @default(MARKETING)
 
+  // Email rendering
+  mode      TemplateMode    @default(HTML)
+  cssMode   TemplateCssMode @default(GLOBAL)
+  customCss String?
+
   // Audience selection
   audienceType      CampaignAudienceType @default(ALL)
   audienceCondition Json? // For FILTERED: manual filter condition with AND/OR logic (same structure as Segment.condition)

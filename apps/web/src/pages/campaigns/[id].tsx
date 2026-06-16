@@ -26,11 +26,12 @@ import {
   SelectItemWithDescription,
   SelectTrigger,
   SelectValue,
+  Textarea,
   IconSpinner,
   StickySaveBar,
 } from '@plunk/ui';
 import type {Campaign, Segment} from '@plunk/db';
-import {CampaignAudienceType, CampaignStatus, TemplateType} from '@plunk/db';
+import {CampaignAudienceType, CampaignStatus, TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
 import {CampaignSchemas, detectUnsubscribeSignal} from '@plunk/shared';
 import {DashboardLayout} from '../../components/DashboardLayout';
 import {EmailSettings} from '../../components/EmailSettings';
@@ -229,6 +230,9 @@ export default function CampaignDetailsPage() {
         type: editedCampaign.type,
         audienceType: editedCampaign.audienceType,
         segmentId: editedCampaign.segmentId || undefined,
+        mode: editedCampaign.mode,
+        cssMode: editedCampaign.cssMode,
+        customCss: editedCampaign.customCss || null,
       });
       // Silent save - no toast notification
       setHasChanges(false);
@@ -246,6 +250,9 @@ export default function CampaignDetailsPage() {
           type: updated.data.type,
           audienceType: updated.data.audienceType,
           segmentId: updated.data.segmentId || undefined,
+          mode: updated.data.mode,
+          cssMode: updated.data.cssMode,
+          customCss: updated.data.customCss || '',
         });
       }
     } catch (error) {
@@ -269,6 +276,9 @@ export default function CampaignDetailsPage() {
         type: campaign.data.type,
         audienceType: campaign.data.audienceType,
         segmentId: campaign.data.segmentId || undefined,
+        mode: campaign.data.mode,
+        cssMode: campaign.data.cssMode,
+        customCss: campaign.data.customCss || '',
       });
       // Reset hasChanges when loading fresh data
       setHasChanges(false);
@@ -289,7 +299,10 @@ export default function CampaignDetailsPage() {
       (editedCampaign.replyTo || '') !== (campaign.data.replyTo || '') ||
       editedCampaign.type !== campaign.data.type ||
       editedCampaign.audienceType !== campaign.data.audienceType ||
-      (editedCampaign.segmentId || null) !== (campaign.data.segmentId || null);
+      (editedCampaign.segmentId || null) !== (campaign.data.segmentId || null) ||
+      editedCampaign.mode !== campaign.data.mode ||
+      editedCampaign.cssMode !== campaign.data.cssMode ||
+      (editedCampaign.customCss || '') !== (campaign.data.customCss || '');
 
     setHasChanges(changed);
   }, [editedCampaign, campaign]);
@@ -641,6 +654,79 @@ export default function CampaignDetailsPage() {
             </Card>
           </div>
 
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Campaign Mode</CardTitle>
+                <CardDescription>Choose HTML styling or native plain text delivery</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  {([
+                    {value: TemplateMode.HTML, label: 'HTML', description: 'Use the existing Plunk HTML wrapper and CSS'},
+                    {value: TemplateMode.PLAIN_TEXT, label: 'Plain text', description: 'Send as text/plain without HTML or CSS'},
+                  ] as const).map(({value, label, description}) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditedCampaign({...editedCampaign, mode: value})}
+                      className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                        (editedCampaign.mode ?? c.mode) === value
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                      <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Email CSS</CardTitle>
+                <CardDescription>Use project CSS or override CSS for this campaign</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  {([
+                    {value: TemplateCssMode.GLOBAL, label: 'Project CSS', description: 'Inherit global email CSS'},
+                    {value: TemplateCssMode.CUSTOM, label: 'Custom CSS', description: 'Use CSS saved on this campaign'},
+                  ] as const).map(({value, label, description}) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditedCampaign({...editedCampaign, cssMode: value})}
+                      disabled={(editedCampaign.mode ?? c.mode) === TemplateMode.PLAIN_TEXT}
+                      className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors disabled:opacity-50 ${
+                        (editedCampaign.cssMode ?? c.cssMode) === value
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                      <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                    </button>
+                  ))}
+                </div>
+                {(editedCampaign.cssMode ?? c.cssMode) === TemplateCssMode.CUSTOM &&
+                  (editedCampaign.mode ?? c.mode) !== TemplateMode.PLAIN_TEXT && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customCss">Custom CSS</Label>
+                    <Textarea
+                      id="customCss"
+                      value={editedCampaign.customCss ?? ''}
+                      onChange={e => setEditedCampaign({...editedCampaign, customCss: e.target.value})}
+                      className="min-h-48 font-mono text-xs"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Email Settings */}
           <Card>
             <CardHeader>
@@ -686,6 +772,8 @@ export default function CampaignDetailsPage() {
                   setEditedCampaign({...editedCampaign, body});
                   setHasChanges(true);
                 }}
+                templateMode={editedCampaign.mode ?? c.mode}
+                emailCss={(editedCampaign.cssMode ?? c.cssMode) === TemplateCssMode.CUSTOM ? editedCampaign.customCss ?? c.customCss ?? '' : activeProject?.globalEmailCss}
               />
             </CardContent>
           </Card>

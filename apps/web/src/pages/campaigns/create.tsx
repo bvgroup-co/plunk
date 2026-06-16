@@ -14,13 +14,15 @@ import {
   SelectItemWithDescription,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from '@plunk/ui';
 import type {Segment, Template} from '@plunk/db';
-import {CampaignAudienceType, TemplateType} from '@plunk/db';
+import {CampaignAudienceType, TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
 import {NextSeo} from 'next-seo';
 import {DashboardLayout} from '../../components/DashboardLayout';
 import {EmailSettings} from '../../components/EmailSettings';
 import {EmailEditor} from '../../components/EmailEditor';
+import {applyCopiedRenderingSettings, buildCreateCampaignPayload} from '../../lib/campaignRendering';
 import {network} from '../../lib/network';
 import {EmailFormValidator} from '../../lib/validation';
 import {ArrowLeft, TriangleAlert} from 'lucide-react';
@@ -43,6 +45,9 @@ export default function CreateCampaignPage() {
   const [fromName, setFromName] = useState('');
   const [replyTo, setReplyTo] = useState('');
   const [campaignType, setCampaignType] = useState<TemplateType>(TemplateType.MARKETING);
+  const [mode, setMode] = useState<TemplateMode>(TemplateMode.HTML);
+  const [cssMode, setCssMode] = useState<TemplateCssMode>(TemplateCssMode.GLOBAL);
+  const [customCss, setCustomCss] = useState('');
   const [audienceType, setAudienceType] = useState<CampaignAudienceType>(CampaignAudienceType.ALL);
   const [segmentId, setSegmentId] = useState('');
   const [saving, setSaving] = useState(false);
@@ -74,6 +79,14 @@ export default function CreateCampaignPage() {
           if (queryFromName && typeof queryFromName === 'string') setFromName(queryFromName);
           if (queryReplyTo && typeof queryReplyTo === 'string') setReplyTo(queryReplyTo);
           setBody(template.body);
+          const rendering = applyCopiedRenderingSettings(
+            {mode: TemplateMode.HTML, cssMode: TemplateCssMode.GLOBAL, customCss: ''},
+            template,
+            true,
+          );
+          setMode(rendering.mode);
+          setCssMode(rendering.cssMode);
+          setCustomCss(rendering.customCss);
           toast.success('Template loaded successfully');
         } catch {
           toast.error('Failed to load template');
@@ -83,7 +96,7 @@ export default function CreateCampaignPage() {
       } else if (campaignId && typeof campaignId === 'string') {
         setLoadingTemplate(true);
         try {
-          const campaign = await network.fetch<{data: {body: string}}>('GET', `/campaigns/${campaignId}`);
+          const campaign = await network.fetch<{data: Template & {type: TemplateType; audienceType: CampaignAudienceType; segmentId: string | null}}>('GET', `/campaigns/${campaignId}`);
           if (queryName && typeof queryName === 'string') setName(queryName);
           if (querySubject && typeof querySubject === 'string') setSubject(querySubject);
           if (queryFrom && typeof queryFrom === 'string') setFrom(queryFrom);
@@ -93,7 +106,16 @@ export default function CreateCampaignPage() {
             setAudienceType(queryAudienceType as CampaignAudienceType);
           }
           if (querySegmentId && typeof querySegmentId === 'string') setSegmentId(querySegmentId);
+          setCampaignType(campaign.data.type);
           setBody(campaign.data.body);
+          const rendering = applyCopiedRenderingSettings(
+            {mode: TemplateMode.HTML, cssMode: TemplateCssMode.GLOBAL, customCss: ''},
+            campaign.data,
+            true,
+          );
+          setMode(rendering.mode);
+          setCssMode(rendering.cssMode);
+          setCustomCss(rendering.customCss);
           toast.success('Campaign loaded successfully');
         } catch {
           toast.error('Failed to load campaign');
@@ -130,19 +152,21 @@ export default function CreateCampaignPage() {
     setSaving(true);
 
     try {
-      const response = await network.fetch<{data: {id: string}}>('POST', '/campaigns', {
+      const response = await network.fetch<{data: {id: string}}>('POST', '/campaigns', buildCreateCampaignPayload({
         name,
-        description: description || undefined,
+        description,
         subject,
         body,
         from,
-        fromName: fromName || null,
-        replyTo: replyTo || null,
+        fromName,
+        replyTo,
         type: campaignType,
+        mode,
+        cssMode,
+        customCss,
         audienceType,
-        segmentId: audienceType === CampaignAudienceType.SEGMENT ? segmentId : undefined,
-        audienceFilter: audienceType === CampaignAudienceType.FILTERED ? [] : undefined,
-      } as any);
+        segmentId,
+      }) as any);
 
       toast.success('Campaign created successfully');
       void router.push(`/campaigns/${response.data.id}`);
@@ -277,6 +301,74 @@ export default function CreateCampaignPage() {
                 </Card>
               </div>
 
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Campaign Mode</CardTitle>
+                    <CardDescription>Choose HTML styling or native plain text delivery</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-2">
+                      {([
+                        {value: TemplateMode.HTML, label: 'HTML', description: 'Use the existing Plunk HTML wrapper and CSS'},
+                        {value: TemplateMode.PLAIN_TEXT, label: 'Plain text', description: 'Send as text/plain without HTML or CSS'},
+                      ] as const).map(({value, label, description}) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setMode(value)}
+                          className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                            mode === value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                          }`}
+                        >
+                          <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                          <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Email CSS</CardTitle>
+                    <CardDescription>Use project CSS or override CSS for this campaign</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col gap-2">
+                      {([
+                        {value: TemplateCssMode.GLOBAL, label: 'Project CSS', description: 'Inherit global email CSS'},
+                        {value: TemplateCssMode.CUSTOM, label: 'Custom CSS', description: 'Use CSS saved on this campaign'},
+                      ] as const).map(({value, label, description}) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setCssMode(value)}
+                          disabled={mode === TemplateMode.PLAIN_TEXT}
+                          className={`flex items-center justify-between w-full min-h-[44px] px-4 py-3 rounded-lg border-2 text-left transition-colors disabled:opacity-50 ${
+                            cssMode === value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                          }`}
+                        >
+                          <span className="font-medium text-sm text-neutral-900 shrink-0">{label}</span>
+                          <span className="text-xs text-neutral-500 ml-4 text-right">{description}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {cssMode === TemplateCssMode.CUSTOM && mode !== TemplateMode.PLAIN_TEXT && (
+                      <div className="space-y-2">
+                        <Label htmlFor="customCss">Custom CSS</Label>
+                        <Textarea
+                          id="customCss"
+                          value={customCss}
+                          onChange={e => setCustomCss(e.target.value)}
+                          className="min-h-48 font-mono text-xs"
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
               {/* Email Settings */}
               <Card>
                 <CardHeader>
@@ -316,7 +408,12 @@ export default function CreateCampaignPage() {
                   <CardDescription>Design your email message</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EmailEditor value={body} onChange={setBody} />
+                  <EmailEditor
+                    value={body}
+                    onChange={setBody}
+                    templateMode={mode}
+                    emailCss={cssMode === TemplateCssMode.CUSTOM ? customCss : activeProject?.globalEmailCss}
+                  />
                 </CardContent>
               </Card>
 

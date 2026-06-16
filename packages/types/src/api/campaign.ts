@@ -2,7 +2,7 @@
  * Campaign service types
  */
 
-import type {CampaignAudienceType, TemplateType} from '@plunk/db';
+import type {CampaignAudienceType, TemplateCssMode, TemplateMode, TemplateType} from '@plunk/db';
 import type {FilterCondition} from '../segments/index.js';
 
 /**
@@ -17,6 +17,9 @@ export interface CreateCampaignData {
   fromName?: string | null;
   replyTo?: string | null;
   type?: TemplateType;
+  mode?: TemplateMode;
+  cssMode?: TemplateCssMode;
+  customCss?: string | null;
   audienceType: CampaignAudienceType;
   audienceCondition?: FilterCondition;
   segmentId?: string;
@@ -34,6 +37,9 @@ export interface UpdateCampaignData {
   fromName?: string | null;
   replyTo?: string | null;
   type?: TemplateType;
+  mode?: TemplateMode;
+  cssMode?: TemplateCssMode;
+  customCss?: string | null;
   audienceType?: CampaignAudienceType;
   audienceCondition?: FilterCondition;
   segmentId?: string;

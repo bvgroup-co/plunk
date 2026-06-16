@@ -111,6 +111,118 @@ describe('EmailService', () => {
       expect(compiled).not.toContain('prose prose-sm');
       expect(compiled).not.toContain('.custom');
     });
+
+    it('uses campaign custom CSS when no template is attached', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      await factories.createDomain({projectId: project.id, domain: 'campaign-rendering-1.example.com', verified: true});
+      const contact = await factories.createContact({projectId: project.id, subscribed: true});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        body: '<p>Hello {{email}}</p>',
+        from: 'news@campaign-rendering-1.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await EmailService.sendEmail(email.id);
+
+      expect(sendEmailMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            mode: TemplateMode.HTML,
+            body: expect.stringContaining('.custom { color: blue; }'),
+          }),
+        }),
+      );
+      expect(sendEmailMock.mock.calls.at(-1)?.[0].content.body).not.toContain('.global { color: red; }');
+      expect(sendEmailMock.mock.calls.at(-1)?.[0].content.body).toContain(contact.email);
+    });
+
+    it('uses campaign global CSS when no template is attached', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      await factories.createDomain({projectId: project.id, domain: 'campaign-rendering-2.example.com', verified: true});
+      const contact = await factories.createContact({projectId: project.id, subscribed: true});
+      const campaign = await factories.createCampaign({projectId: project.id, cssMode: TemplateCssMode.GLOBAL});
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        body: '<p>Hello</p>',
+        from: 'news@campaign-rendering-2.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await EmailService.sendEmail(email.id);
+
+      expect(sendEmailMock.mock.calls.at(-1)?.[0].content.body).toContain('.global { color: red; }');
+    });
+
+    it('sends plain-text campaign content without HTML or CSS', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      await factories.createDomain({projectId: project.id, domain: 'campaign-rendering-3.example.com', verified: true});
+      const contact = await factories.createContact({projectId: project.id, subscribed: true});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        body: 'Hello {{email}}',
+        from: 'news@campaign-rendering-3.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await EmailService.sendEmail(email.id);
+
+      const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
+      expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(content.body).toContain(`Hello ${contact.email}`);
+      expect(content.body).not.toContain('<style>');
+      expect(content.body).not.toContain('<html>');
+      expect(content.body).not.toContain('.custom');
+      expect(content.body).not.toContain('.global');
+    });
+
+    it('uses template settings before campaign settings when both are attached', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      await factories.createDomain({projectId: project.id, domain: 'campaign-rendering-4.example.com', verified: true});
+      const contact = await factories.createContact({projectId: project.id, subscribed: true});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.campaign { color: blue; }',
+      });
+      const template = await factories.createTemplate({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.template { color: green; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        templateId: template.id,
+        body: '<p>Hello</p>',
+        from: 'news@campaign-rendering-4.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await EmailService.sendEmail(email.id);
+
+      const body = sendEmailMock.mock.calls.at(-1)?.[0].content.body;
+      expect(body).toContain('.template { color: green; }');
+      expect(body).not.toContain('.campaign { color: blue; }');
+    });
   });
 
   // ========================================

@@ -72,6 +72,9 @@ export interface CampaignFactoryOptions {
   scheduledFor?: Date | null;
   segmentId?: string | null;
   type?: TemplateType;
+  mode?: 'HTML' | 'PLAIN_TEXT';
+  cssMode?: 'GLOBAL' | 'CUSTOM';
+  customCss?: string | null;
 }
 
 export interface WorkflowFactoryOptions {
@@ -236,6 +239,9 @@ export class TestFactories {
         scheduledFor: options.scheduledFor,
         segmentId: options.segmentId,
         type: options.type || TemplateType.MARKETING,
+        mode: options.mode ?? 'HTML',
+        cssMode: options.cssMode ?? 'GLOBAL',
+        customCss: options.customCss,
       },
     });
   }

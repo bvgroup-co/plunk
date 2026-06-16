@@ -300,7 +300,7 @@ export class EmailService {
         contact: true,
         project: true,
         template: {select: {type: true, mode: true, cssMode: true, customCss: true}},
-        campaign: {select: {type: true}},
+        campaign: {select: {type: true, mode: true, cssMode: true, customCss: true}},
       },
     });
 
@@ -361,7 +361,7 @@ export class EmailService {
         },
       });
 
-      const templateRendering = this.getTemplateRenderingSelection(email.template);
+      const templateRendering = this.getTemplateRenderingSelection(email.template ?? email.campaign);
       const selectedCss = this.selectEmailCss(templateRendering, email.project);
       const compiledBody = this.compile({
         content: formattedEmail.body,
