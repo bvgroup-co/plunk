@@ -1,13 +1,37 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {EmailSourceType, EmailStatus, TrackingMode} from '@plunk/db';
+import {EmailSourceType, EmailStatus, TemplateCssMode, TemplateMode, TrackingMode} from '@plunk/db';
 import {toPrismaJson} from '@plunk/types';
-import {createServiceMocks, factories, getPrismaClient} from '../../../../../test/helpers';
+import {createMockJob, createServiceMocks, factories, getPrismaClient} from '../../../../../test/helpers';
+
+import {processEmailJob} from '../email-processor';
 
 // Mock MeterService
 vi.mock('../../services/MeterService.js', () => ({
   MeterService: {
     recordEmailSent: vi.fn().mockResolvedValue(undefined),
   },
+}));
+
+vi.mock('../../services/SecurityService.js', () => ({
+  SecurityService: {
+    checkPhishingContent: vi.fn().mockResolvedValue({shouldDisable: false, confidence: 0}),
+    disableProjectForPhishing: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../services/EventService.js', () => ({
+  EventService: {
+    trackEvent: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+const sendEmailMock = vi.fn();
+
+vi.mock('../../services/email-providers', () => ({
+  getOutboundEmailProvider: vi.fn(() => ({
+    provider: 'ses',
+    sendEmail: sendEmailMock,
+  })),
 }));
 
 describe('Email Processor', () => {
@@ -18,6 +42,7 @@ describe('Email Processor', () => {
   beforeEach(async () => {
     const {project} = await factories.createUserWithProject({}, {tracking: TrackingMode.ENABLED});
     projectId = project.id;
+    sendEmailMock.mockResolvedValue({provider: 'ses', messageId: 'worker-message-id'});
   });
 
   describe('Email Processing', () => {
@@ -108,6 +133,115 @@ describe('Email Processor', () => {
 
       const sent = await prisma.email.findUnique({where: {id: email.id}});
       expect(sent?.status).toBe(EmailStatus.SENT);
+    });
+
+    it('should render campaign-only queued emails with campaign custom CSS', async () => {
+      const {project} = await factories.createUserWithProject(
+        {},
+        {tracking: TrackingMode.ENABLED, globalEmailCss: '.global { color: red; }'},
+      );
+      await factories.createDomain({
+        projectId: project.id,
+        domain: 'worker-campaign-custom.example.com',
+        verified: true,
+      });
+      const contact = await factories.createContact({projectId: project.id, data: {firstName: 'Ada'}});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        body: '<p>Hello {{firstName}}</p>',
+        from: 'news@worker-campaign-custom.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await processEmailJob(createMockJob({emailId: email.id, sourceType: EmailSourceType.CAMPAIGN}));
+
+      const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
+      expect(content.mode).toBe(TemplateMode.HTML);
+      expect(content.body).toContain('.custom { color: blue; }');
+      expect(content.body).not.toContain('.global { color: red; }');
+      expect(content.body).toContain('Hello Ada');
+    });
+
+    it('should render campaign-only queued plain text without HTML or CSS', async () => {
+      const {project} = await factories.createUserWithProject(
+        {},
+        {tracking: TrackingMode.ENABLED, globalEmailCss: '.global { color: red; }'},
+      );
+      await factories.createDomain({
+        projectId: project.id,
+        domain: 'worker-campaign-plain.example.com',
+        verified: true,
+      });
+      const contact = await factories.createContact({projectId: project.id, data: {firstName: 'Ada'}});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        body: 'Hello {{firstName}}',
+        from: 'news@worker-campaign-plain.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await processEmailJob(createMockJob({emailId: email.id, sourceType: EmailSourceType.CAMPAIGN}));
+
+      const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
+      expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(content.body).toContain('Hello Ada');
+      expect(content.body).not.toContain('<style>');
+      expect(content.body).not.toContain('<html>');
+      expect(content.body).not.toContain('.custom');
+      expect(content.body).not.toContain('.global');
+    });
+
+    it('should prefer template rendering settings over campaign settings in queued emails', async () => {
+      const {project} = await factories.createUserWithProject(
+        {},
+        {tracking: TrackingMode.ENABLED, globalEmailCss: '.global { color: red; }'},
+      );
+      await factories.createDomain({
+        projectId: project.id,
+        domain: 'worker-template-precedence.example.com',
+        verified: true,
+      });
+      const contact = await factories.createContact({projectId: project.id});
+      const campaign = await factories.createCampaign({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.campaign { color: blue; }',
+      });
+      const template = await factories.createTemplate({
+        projectId: project.id,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.template { color: green; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        campaignId: campaign.id,
+        templateId: template.id,
+        body: '<p>Hello</p>',
+        from: 'news@worker-template-precedence.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await processEmailJob(createMockJob({emailId: email.id, sourceType: EmailSourceType.CAMPAIGN}));
+
+      const body = sendEmailMock.mock.calls.at(-1)?.[0].content.body;
+      expect(body).toContain('.template { color: green; }');
+      expect(body).not.toContain('.campaign { color: blue; }');
     });
 
     it('should handle transactional emails without unsubscribe', async () => {
