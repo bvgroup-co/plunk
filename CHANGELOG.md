@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/bvgroup-co/plunk/compare/v0.17.0...v0.17.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* **campaigns:** inherit template rendering settings ([526a7fe](https://github.com/bvgroup-co/plunk/commit/526a7fe3fe861cab7c2cec40bbf24e5cfd79b881))
+
 ## [0.17.0](https://github.com/bvgroup-co/plunk/compare/v0.16.5...v0.17.0) (2026-06-16)
 
 
