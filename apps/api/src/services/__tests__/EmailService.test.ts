@@ -152,6 +152,21 @@ describe('EmailService', () => {
       expect(compiled).not.toContain('&nbsp;');
     });
 
+    it('keeps literal break marker text when decoding plain entities', async () => {
+      const {project} = await factories.createUserWithProject();
+      const contact = await factories.createContact({projectId: project.id});
+
+      const compiled = EmailService.compile({
+        content: 'Use code __PLUNK_TEXT_BREAK__ today &amp; save',
+        contact,
+        project,
+        includeUnsubscribe: false,
+        mode: TemplateMode.PLAIN_TEXT,
+      });
+
+      expect(compiled).toBe('Use code __PLUNK_TEXT_BREAK__ today & save');
+    });
+
     it('renders template-backed plain-text visual HTML as text', async () => {
       const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
       await factories.createDomain({projectId: project.id, domain: 'template-plain.example.com', verified: true});

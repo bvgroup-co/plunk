@@ -1,3 +1,5 @@
+import {randomUUID} from 'crypto';
+
 import type {Contact, Email, Prisma, Project, TemplateCssMode, TemplateMode} from '@plunk/db';
 import {EmailSourceType, EmailStatus, TrackingMode} from '@plunk/db';
 import {toPrismaJson} from '@plunk/types';
@@ -57,7 +59,6 @@ const HTML_BREAK_PATTERN = /<br\s*\/?\s*>/gi;
 const LIST_ITEM_START_PATTERN = /<li\b[^>]*>/gi;
 const LIST_ITEM_END_PATTERN = /<\/li>/gi;
 const HTML_TAG_PATTERN = /<[^>]+>/;
-const LINE_BREAK_PLACEHOLDER = '__PLUNK_TEXT_BREAK__';
 
 function normalizePlainTextWhitespace(content: string): string {
   return content
@@ -68,19 +69,31 @@ function normalizePlainTextWhitespace(content: string): string {
     .trim();
 }
 
+function createLineBreakToken(content: string): string {
+  const decodedContent = content.includes('&') ? decodeHTML(content) : content;
+  let token = `plunk-text-break-${randomUUID()}`;
+
+  while (content.includes(token) || decodedContent.includes(token)) {
+    token = `plunk-text-break-${randomUUID()}`;
+  }
+
+  return token;
+}
+
 function htmlToPlainText(content: string): string {
   if (!HTML_TAG_PATTERN.test(content) && !content.includes('&')) {
     return normalizePlainTextWhitespace(content);
   }
 
+  const lineBreakToken = createLineBreakToken(content);
   const textWithBoundaries = content
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(LIST_ITEM_START_PATTERN, `${LINE_BREAK_PLACEHOLDER}- `)
-    .replace(LIST_ITEM_END_PATTERN, LINE_BREAK_PLACEHOLDER)
-    .replace(HTML_BREAK_PATTERN, LINE_BREAK_PLACEHOLDER)
-    .replace(HTML_BLOCK_END_PATTERN, `${LINE_BREAK_PLACEHOLDER}${LINE_BREAK_PLACEHOLDER}`)
-    .replace(HTML_BLOCK_START_PATTERN, LINE_BREAK_PLACEHOLDER);
+    .replace(LIST_ITEM_START_PATTERN, `${lineBreakToken}- `)
+    .replace(LIST_ITEM_END_PATTERN, lineBreakToken)
+    .replace(HTML_BREAK_PATTERN, lineBreakToken)
+    .replace(HTML_BLOCK_END_PATTERN, `${lineBreakToken}${lineBreakToken}`)
+    .replace(HTML_BLOCK_START_PATTERN, lineBreakToken);
 
   const strippedText = sanitizeHtml(textWithBoundaries, {
     allowedTags: [],
@@ -89,7 +102,7 @@ function htmlToPlainText(content: string): string {
     textFilter: text => text.replaceAll('\u00a0', ' '),
   });
 
-  return normalizePlainTextWhitespace(decodeHTML(strippedText).replaceAll(LINE_BREAK_PLACEHOLDER, '\n'));
+  return normalizePlainTextWhitespace(decodeHTML(strippedText).replaceAll(lineBreakToken, '\n'));
 }
 
 /**
@@ -709,7 +722,9 @@ export class EmailService {
     }
   }
 
-  public static getTemplateRenderingSelection(template: TemplateRenderingSelection | null | undefined): TemplateRenderingSelection {
+  public static getTemplateRenderingSelection(
+    template: TemplateRenderingSelection | null | undefined,
+  ): TemplateRenderingSelection {
     return {
       mode: template?.mode ?? 'HTML',
       cssMode: template?.cssMode ?? 'GLOBAL',
@@ -744,8 +759,18 @@ export class EmailService {
       const classValue = match[1];
       if (!classValue) continue;
       const classes = classValue.split(/\s+/).filter((c: string) => c.length > 0);
-      const allowedPrefixes = ['prose', 'variable-', 'email-image', 'ProseMirror', 'resizable-image', 'selected', 'resize-handle'];
-      const hasDisallowedClass = classes.some((cls: string) => !allowedPrefixes.some((prefix: string) => cls.startsWith(prefix)));
+      const allowedPrefixes = [
+        'prose',
+        'variable-',
+        'email-image',
+        'ProseMirror',
+        'resizable-image',
+        'selected',
+        'resize-handle',
+      ];
+      const hasDisallowedClass = classes.some(
+        (cls: string) => !allowedPrefixes.some((prefix: string) => cls.startsWith(prefix)),
+      );
       if (hasDisallowedClass) {
         hasCustomClasses = true;
         break;
