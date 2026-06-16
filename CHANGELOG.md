@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/bvgroup-co/plunk/compare/v0.17.1...v0.17.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* **api:** convert plain-text email HTML ([a218f4f](https://github.com/bvgroup-co/plunk/commit/a218f4fcc0d461ecab0c219d5febc973f549e948))
+
 ## [0.17.1](https://github.com/bvgroup-co/plunk/compare/v0.17.0...v0.17.1) (2026-06-16)
 
 
