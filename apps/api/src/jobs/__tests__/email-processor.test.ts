@@ -190,7 +190,7 @@ describe('Email Processor', () => {
         projectId: project.id,
         contactId: contact.id,
         campaignId: campaign.id,
-        body: 'Hello {{firstName}}',
+        body: '<p>Hello {{firstName}}</p><p>How are you doing?</p>',
         from: 'news@worker-campaign-plain.example.com',
         status: EmailStatus.PENDING,
       });
@@ -200,6 +200,9 @@ describe('Email Processor', () => {
       const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
       expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
       expect(content.body).toContain('Hello Ada');
+      expect(content.body).toContain('How are you doing?');
+      expect(content.body).not.toContain('<p>');
+      expect(content.body).not.toContain('</p>');
       expect(content.body).not.toContain('<style>');
       expect(content.body).not.toContain('<html>');
       expect(content.body).not.toContain('.custom');

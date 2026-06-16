@@ -8440,6 +8440,7 @@ __metadata:
     csv-parse: "npm:^6.1.0"
     dayjs: "npm:^1.11.19"
     dotenv: "npm:^17.2.3"
+    entities: "npm:^4.5.0"
     express: "npm:^5.1.0"
     helmet: "npm:^8.1.0"
     ioredis: "npm:^5.8.2"

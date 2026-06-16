@@ -3,6 +3,15 @@ import {CampaignAudienceType, CampaignStatus, TemplateCssMode, TemplateMode} fro
 import {CampaignService} from '../CampaignService';
 import {factories, getPrismaClient} from '../../../../../test/helpers';
 
+const sendEmailMock = vi.fn();
+
+vi.mock('../email-providers', () => ({
+  getOutboundEmailProvider: vi.fn(() => ({
+    provider: 'ses',
+    sendEmail: sendEmailMock,
+  })),
+}));
+
 // Mock STRIPE_ENABLED for billing limit tests
 vi.mock('../../app/constants.js', async () => {
   const actual = await vi.importActual('../../app/constants.js');
@@ -20,6 +29,7 @@ describe('CampaignService', () => {
   beforeEach(async () => {
     const {project} = await factories.createUserWithProject();
     projectId = project.id;
+    sendEmailMock.mockResolvedValue({provider: 'ses', messageId: 'campaign-message-id'});
   });
 
   describe('create', () => {
@@ -650,6 +660,34 @@ describe('CampaignService', () => {
       expect(scheduledCampaign.status).toBe(CampaignStatus.SCHEDULED);
       expect(scheduledCampaign.scheduledFor).toEqual(scheduledFor);
       expect(scheduledCampaign.totalRecipients).toBe(10);
+    });
+
+    it('sends plain-text campaign test payload as converted text', async () => {
+      const {user, project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      projectId = project.id;
+      await factories.createDomain({projectId, domain: 'campaign-test-plain.example.com', verified: true});
+      const campaign = await factories.createCampaign({
+        projectId,
+        status: CampaignStatus.DRAFT,
+        body: '<p>Hello {{email}}</p><p>How are you?</p>',
+        from: 'news@campaign-test-plain.example.com',
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.custom { color: blue; }',
+      });
+
+      await CampaignService.sendTest(projectId, campaign.id, user.email);
+
+      const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
+      expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(content.body).toContain(`Hello ${user.email}`);
+      expect(content.body).toContain('How are you?');
+      expect(content.body).not.toContain('<p>');
+      expect(content.body).not.toContain('</p>');
+      expect(content.body).not.toContain('<html>');
+      expect(content.body).not.toContain('<style>');
+      expect(content.body).not.toContain('.custom');
+      expect(content.body).not.toContain('.global');
     });
   });
 });
