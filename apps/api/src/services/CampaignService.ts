@@ -725,8 +725,24 @@ export class CampaignService {
       throw new HttpException(404, 'Project not found');
     }
 
+    const formattedSubject = EmailService.format({
+      subject: campaign.subject,
+      body: '',
+      data: {email: membership.user.email},
+    }).subject;
+    const formattedBody = EmailService.format({
+      subject: '',
+      body: campaign.body,
+      data: {
+        email: membership.user.email,
+        unsubscribeUrl: `${DASHBOARD_URI}/unsubscribe/${membership.user.id}`,
+        subscribeUrl: `${DASHBOARD_URI}/subscribe/${membership.user.id}`,
+        manageUrl: `${DASHBOARD_URI}/manage/${membership.user.id}`,
+      },
+    }).body;
+
     const compiledBody = EmailService.compile({
-      content: campaign.body,
+      content: formattedBody,
       contact: {
         id: membership.user.id,
         email: membership.user.email,
@@ -749,7 +765,7 @@ export class CampaignService {
         email: campaign.from,
       },
       to: [{email: testEmail}],
-      subject: `[TEST] ${campaign.subject}`,
+      subject: `[TEST] ${formattedSubject}`,
       content: {mode: campaign.mode, body: compiledBody},
       reply: campaign.replyTo || undefined,
       headers: {

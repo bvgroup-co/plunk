@@ -1,6 +1,8 @@
 import type {Contact, Email, Prisma, Project, TemplateCssMode, TemplateMode} from '@plunk/db';
 import {EmailSourceType, EmailStatus, TrackingMode} from '@plunk/db';
 import {toPrismaJson} from '@plunk/types';
+import {decodeHTML} from 'entities';
+import sanitizeHtml from 'sanitize-html';
 import signale from 'signale';
 
 import {DASHBOARD_URI, STRIPE_ENABLED} from '../app/constants.js';
@@ -46,6 +48,49 @@ type TemplateRenderingSelection = {
   cssMode: TemplateCssMode;
   customCss: string | null;
 };
+
+const HTML_BLOCK_START_PATTERN =
+  /<(?:address|article|aside|blockquote|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)\b[^>]*>/gi;
+const HTML_BLOCK_END_PATTERN =
+  /<\/(?:address|article|aside|blockquote|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)>/gi;
+const HTML_BREAK_PATTERN = /<br\s*\/?\s*>/gi;
+const LIST_ITEM_START_PATTERN = /<li\b[^>]*>/gi;
+const LIST_ITEM_END_PATTERN = /<\/li>/gi;
+const HTML_TAG_PATTERN = /<[^>]+>/;
+const LINE_BREAK_PLACEHOLDER = '__PLUNK_TEXT_BREAK__';
+
+function normalizePlainTextWhitespace(content: string): string {
+  return content
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\t ]+\n/g, '\n')
+    .replace(/\n[\t ]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function htmlToPlainText(content: string): string {
+  if (!HTML_TAG_PATTERN.test(content) && !content.includes('&')) {
+    return normalizePlainTextWhitespace(content);
+  }
+
+  const textWithBoundaries = content
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(LIST_ITEM_START_PATTERN, `${LINE_BREAK_PLACEHOLDER}- `)
+    .replace(LIST_ITEM_END_PATTERN, LINE_BREAK_PLACEHOLDER)
+    .replace(HTML_BREAK_PATTERN, LINE_BREAK_PLACEHOLDER)
+    .replace(HTML_BLOCK_END_PATTERN, `${LINE_BREAK_PLACEHOLDER}${LINE_BREAK_PLACEHOLDER}`)
+    .replace(HTML_BLOCK_START_PATTERN, LINE_BREAK_PLACEHOLDER);
+
+  const strippedText = sanitizeHtml(textWithBoundaries, {
+    allowedTags: [],
+    allowedAttributes: {},
+    disallowedTagsMode: 'discard',
+    textFilter: text => text.replaceAll('\u00a0', ' '),
+  });
+
+  return normalizePlainTextWhitespace(decodeHTML(strippedText).replaceAll(LINE_BREAK_PLACEHOLDER, '\n'));
+}
 
 /**
  * Email Service
@@ -870,7 +915,7 @@ ${css}
     const unsubscribeText = includeUnsubscribe ? this.getPlainTextUnsubscribeFooter(contact, project) : '';
     const badgeText = STRIPE_ENABLED && project.subscription === null ? `\n\nPowered by Plunk: ${DASHBOARD_URI}` : '';
 
-    return `${content}${unsubscribeText}${badgeText}`;
+    return `${htmlToPlainText(content)}${unsubscribeText}${badgeText}`;
   }
 
   private static getPlainTextUnsubscribeFooter(contact: Contact, project: Project): string {

@@ -93,12 +93,12 @@ describe('EmailService', () => {
       expect(DEFAULT_EMAIL_CSS).toContain(project.globalEmailCss.slice(0, 80));
     });
 
-    it('does not wrap or style plain-text templates', async () => {
+    it('converts visual-editor HTML to canonical plain text', async () => {
       const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
       const contact = await factories.createContact({projectId: project.id});
 
       const compiled = EmailService.compile({
-        content: 'Hello {{firstName}}',
+        content: '<style>.red { color: red; }</style><p>Hello!</p><p>How are you doing?</p>',
         contact,
         project,
         includeUnsubscribe: false,
@@ -106,10 +106,82 @@ describe('EmailService', () => {
         css: '.custom { color: blue; }',
       });
 
-      expect(compiled).toBe('Hello {{firstName}}');
+      expect(compiled).toBe('Hello!\n\nHow are you doing?');
+      expect(compiled).not.toContain('<p>');
+      expect(compiled).not.toContain('</p>');
       expect(compiled).not.toContain('<style>');
       expect(compiled).not.toContain('prose prose-sm');
       expect(compiled).not.toContain('.custom');
+    });
+
+    it('keeps already-plain body readable for plain-text templates', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      const contact = await factories.createContact({projectId: project.id});
+
+      const compiled = EmailService.compile({
+        content: 'Hello plain text',
+        contact,
+        project,
+        includeUnsubscribe: false,
+        mode: TemplateMode.PLAIN_TEXT,
+        css: '.custom { color: blue; }',
+      });
+
+      expect(compiled).toBe('Hello plain text');
+      expect(compiled).not.toContain('<style>');
+      expect(compiled).not.toContain('prose prose-sm');
+      expect(compiled).not.toContain('.custom');
+    });
+
+    it('decodes entities and removes script/style from plain text', async () => {
+      const {project} = await factories.createUserWithProject();
+      const contact = await factories.createContact({projectId: project.id});
+
+      const compiled = EmailService.compile({
+        content: '<script>alert("x")</script><p>Tom &amp; Ada&nbsp;&lt;3</p><style>p { color: red; }</style>',
+        contact,
+        project,
+        includeUnsubscribe: false,
+        mode: TemplateMode.PLAIN_TEXT,
+      });
+
+      expect(compiled).toBe('Tom & Ada <3');
+      expect(compiled).not.toContain('alert');
+      expect(compiled).not.toContain('color: red');
+      expect(compiled).not.toContain('&amp;');
+      expect(compiled).not.toContain('&nbsp;');
+    });
+
+    it('renders template-backed plain-text visual HTML as text', async () => {
+      const {project} = await factories.createUserWithProject({}, {globalEmailCss: '.global { color: red; }'});
+      await factories.createDomain({projectId: project.id, domain: 'template-plain.example.com', verified: true});
+      const contact = await factories.createContact({projectId: project.id, data: {firstName: 'Ada'}});
+      const template = await factories.createTemplate({
+        projectId: project.id,
+        mode: TemplateMode.PLAIN_TEXT,
+        cssMode: TemplateCssMode.CUSTOM,
+        customCss: '.template { color: green; }',
+      });
+      const email = await factories.createEmail({
+        projectId: project.id,
+        contactId: contact.id,
+        templateId: template.id,
+        body: '<p>Hello {{firstName}}</p><p>Second paragraph</p>',
+        from: 'news@template-plain.example.com',
+        status: EmailStatus.PENDING,
+      });
+
+      await EmailService.sendEmail(email.id);
+
+      const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
+      expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
+      expect(content.body).toContain('Hello Ada');
+      expect(content.body).toContain('Second paragraph');
+      expect(content.body).not.toContain('<p>');
+      expect(content.body).not.toContain('</p>');
+      expect(content.body).not.toContain('<style>');
+      expect(content.body).not.toContain('.template');
+      expect(content.body).not.toContain('.global');
     });
 
     it('uses campaign custom CSS when no template is attached', async () => {
@@ -177,7 +249,7 @@ describe('EmailService', () => {
         projectId: project.id,
         contactId: contact.id,
         campaignId: campaign.id,
-        body: 'Hello {{email}}',
+        body: '<p>Hello {{email}}</p><p>How are you?</p>',
         from: 'news@campaign-rendering-3.example.com',
         status: EmailStatus.PENDING,
       });
@@ -187,6 +259,9 @@ describe('EmailService', () => {
       const content = sendEmailMock.mock.calls.at(-1)?.[0].content;
       expect(content.mode).toBe(TemplateMode.PLAIN_TEXT);
       expect(content.body).toContain(`Hello ${contact.email}`);
+      expect(content.body).toContain('How are you?');
+      expect(content.body).not.toContain('<p>');
+      expect(content.body).not.toContain('</p>');
       expect(content.body).not.toContain('<style>');
       expect(content.body).not.toContain('<html>');
       expect(content.body).not.toContain('.custom');
